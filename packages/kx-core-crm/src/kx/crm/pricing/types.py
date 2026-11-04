@@ -14,7 +14,7 @@ class CostInputs:
 
     material_rate_per_kg: Decimal
     kg_per_1000: Decimal
-    yield_pct: Decimal              # 92 means 8% scrap
+    yield_pct: Decimal  # 92 means 8% scrap
     production_per_1000: Decimal
     packaging_per_1000: Decimal
     freight_per_1000: Decimal = Decimal(0)
@@ -22,10 +22,10 @@ class CostInputs:
 
 @dataclass(frozen=True, slots=True)
 class FreightInputs:
-    container_cost: Decimal         # per 40HC, base currency
-    surcharge: Decimal              # war-risk / peak, per container
-    buffer_pct: Decimal             # lane risk buffer, e.g. 10
-    pcs_per_40hc: int | None        # pieces of this product that fit in one 40HC
+    container_cost: Decimal  # per 40HC, base currency
+    surcharge: Decimal  # war-risk / peak, per container
+    buffer_pct: Decimal  # lane risk buffer, e.g. 10
+    pcs_per_40hc: int | None  # pieces of this product that fit in one 40HC
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,10 +63,10 @@ class PricedLine:
     description: str
     quantity: Decimal
     unit: str
-    unit_cost: Decimal              # per piece, 6 dp (MD-only)
+    unit_cost: Decimal  # per piece, 6 dp (MD-only)
     markup_pct: Decimal
-    unit_price: Decimal             # per piece, 6 dp
-    line_total: Decimal             # 4 dp
+    unit_price: Decimal  # per piece, 6 dp
+    line_total: Decimal  # 4 dp
     product_id: uuid.UUID | None = None
 
 
@@ -95,12 +95,12 @@ class DeliveryInputs:
     quantity: Decimal
     pieces_per_day: int
     finished_stock: Decimal
-    backlog_days: int               # working days of orders ahead
+    backlog_days: int  # working days of orders ahead
     material_shortfall: bool
-    supplier_lead_days: int         # calendar days
-    packing_days: int               # working days
-    transit_days: int               # calendar days
-    buffer_days: int                # calendar days (lane risk)
+    supplier_lead_days: int  # calendar days
+    packing_days: int  # working days
+    transit_days: int  # calendar days
+    buffer_days: int  # calendar days (lane risk)
     weekend: frozenset[int] = field(default_factory=lambda: frozenset({7}))  # ISO weekdays off
 
 

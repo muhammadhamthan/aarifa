@@ -116,8 +116,9 @@ def quote_totals(line_totals: Iterable[Decimal], vat_rate_pct: Decimal) -> Quote
 
 
 # ---------------------------------------------------------------- margin band resolution
-def resolve_band(rules: Iterable[MarginRule], category_code: str, customer_type: str | None,
-                 quantity: Decimal) -> MarginBand:
+def resolve_band(
+    rules: Iterable[MarginRule], category_code: str, customer_type: str | None, quantity: Decimal
+) -> MarginBand:
     """Pick the matching rule with the lowest priority number; ties go to the most specific rule."""
     best: MarginRule | None = None
     best_key = (0, 0)
@@ -136,8 +137,12 @@ def resolve_band(rules: Iterable[MarginRule], category_code: str, customer_type:
             best, best_key = r, key
     if best is None:
         raise LookupError(f"no margin rule for category {category_code!r}")
-    return MarginBand(markup_min_pct=best.markup_min_pct, markup_max_pct=best.markup_max_pct,
-                      max_concessions=best.max_concessions, rule_id=best.rule_id)
+    return MarginBand(
+        markup_min_pct=best.markup_min_pct,
+        markup_max_pct=best.markup_max_pct,
+        max_concessions=best.max_concessions,
+        rule_id=best.rule_id,
+    )
 
 
 # ---------------------------------------------------------------- negotiation
@@ -156,8 +161,9 @@ def concession_ladder(unit_cost: Decimal, band: MarginBand) -> tuple[Decimal, ..
     return tuple(_quant(_div(unit_cost * (head - span * i), denom), _Q6) for i in range(n + 1))
 
 
-def evaluate_counter(state: NegotiationState, ask_unit_price: Decimal,
-                     ask_quantity: Decimal | None) -> CounterVerdict:
+def evaluate_counter(
+    state: NegotiationState, ask_unit_price: Decimal, ask_quantity: Decimal | None
+) -> CounterVerdict:
     """Decide how to answer a buyer's counter-offer. Never reveals cost or floor in ``reason``."""
     band = state.band
     maxc = band.max_concessions
@@ -166,30 +172,63 @@ def evaluate_counter(state: NegotiationState, ask_unit_price: Decimal,
     left = max(maxc - used, 0)
 
     if ask_unit_price >= current:
-        return _validate_verdict({"kind": _ACCEPT, "offer_unit_price": current,
-                                  "currency": state.currency, "concessions_left": left})
+        return _validate_verdict(
+            {
+                "kind": _ACCEPT,
+                "offer_unit_price": current,
+                "currency": state.currency,
+                "concessions_left": left,
+            }
+        )
 
     ladder = concession_ladder(state.unit_cost, band)
     if ask_unit_price < ladder[-1]:
-        return _validate_verdict({"kind": _MANAGER, "offer_unit_price": None, "currency": state.currency,
-                                  "concessions_left": left, "reason": "below_range"})
+        return _validate_verdict(
+            {
+                "kind": _MANAGER,
+                "offer_unit_price": None,
+                "currency": state.currency,
+                "concessions_left": left,
+                "reason": "below_range",
+            }
+        )
     if used >= maxc:
-        return _validate_verdict({"kind": _MANAGER, "offer_unit_price": None, "currency": state.currency,
-                                  "concessions_left": 0, "reason": "concessions_exhausted"})
+        return _validate_verdict(
+            {
+                "kind": _MANAGER,
+                "offer_unit_price": None,
+                "currency": state.currency,
+                "concessions_left": 0,
+                "reason": "concessions_exhausted",
+            }
+        )
 
     qty_up = ask_quantity is not None and ask_quantity > state.base_quantity
     if used >= 1 and not qty_up:
-        return _validate_verdict({"kind": _COUNTER, "offer_unit_price": current, "currency": state.currency,
-                                  "concessions_left": left, "reason": "ask_for_quantity"})
+        return _validate_verdict(
+            {
+                "kind": _COUNTER,
+                "offer_unit_price": current,
+                "currency": state.currency,
+                "concessions_left": left,
+                "reason": "ask_for_quantity",
+            }
+        )
 
     step = ladder[used + 1]
     if ask_unit_price >= step:
         kind, offer = _ACCEPT, ask_unit_price
     else:
         kind, offer = _COUNTER, step
-    return _validate_verdict({"kind": kind, "offer_unit_price": offer, "currency": state.currency,
-                              "concessions_left": left - 1,
-                              "traded_for": "quantity_increase" if qty_up else "goodwill"})
+    return _validate_verdict(
+        {
+            "kind": kind,
+            "offer_unit_price": offer,
+            "currency": state.currency,
+            "concessions_left": left - 1,
+            "traded_for": "quantity_increase" if qty_up else "goodwill",
+        }
+    )
 
 
 # ---------------------------------------------------------------- delivery estimate
@@ -228,5 +267,9 @@ def estimate_delivery(i: DeliveryInputs) -> DeliveryEstimate:
         start = i.today + timedelta(days=material_wait)
         ready = _add_working_days(start, i.backlog_days + production_days + i.packing_days, weekend, per_week)
     delivery = ready + timedelta(days=i.transit_days + i.buffer_days)
-    return DeliveryEstimate(production_days=production_days, material_wait_days=material_wait,
-                            ready_date=ready, delivery_date=delivery)
+    return DeliveryEstimate(
+        production_days=production_days,
+        material_wait_days=material_wait,
+        ready_date=ready,
+        delivery_date=delivery,
+    )

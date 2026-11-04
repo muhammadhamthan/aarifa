@@ -1,0 +1,20 @@
+@page { size: A4; margin: 18mm 16mm 20mm; @bottom-center { content: counter(page) " / " counter(pages); font-size: 8pt; color: #777; } }
+* { box-sizing: border-box; }
+body { font-family: "Noto Sans", "Noto Naskh Arabic", "DejaVu Sans", sans-serif; font-size: 9.5pt; color: #1d232a; line-height: 1.45; }
+body.rtl { font-family: "Noto Naskh Arabic", "Noto Sans Arabic", "DejaVu Sans", sans-serif; }
+h1 { font-size: 20pt; margin: 0 0 4mm; letter-spacing: .5px; color: #0f3d5e; }
+h2 { font-size: 11pt; margin: 6mm 0 2mm; color: #0f3d5e; }
+.head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f3d5e; padding-bottom: 4mm; }
+.seller-name { font-size: 13pt; font-weight: 700; }
+.kv th { text-align: start; padding-inline-end: 4mm; font-weight: 600; color: #555; }
+.buyer { margin: 6mm 0 4mm; }
+.buyer .label { color: #555; margin-inline-end: 2mm; }
+table.lines { width: 100%; border-collapse: collapse; }
+table.lines th, table.lines td { padding: 2mm 2.5mm; border-bottom: 1px solid #d8dee4; text-align: start; vertical-align: top; }
+table.lines thead th { background: #0f3d5e; color: #fff; font-weight: 600; }
+table.lines .num { text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.lines .n { width: 8mm; }
+table.lines tfoot th { text-align: end; font-weight: 600; }
+table.lines tr.grand th, table.lines tr.grand td { font-size: 11pt; font-weight: 700; border-top: 2px solid #0f3d5e; }
+.delivery { margin-top: 5mm; }
+.terms ol { padding-inline-start: 5mm; margin: 0; }

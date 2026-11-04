@@ -7,7 +7,7 @@ dependencies = [
     "kx-core-db",
     "kx-core-crm",
     "kx-core-automation",
-    "kx-agent-framework",
+    "kx-agent-framework[voice]",
     "uvicorn[standard]==0.54.0",
     "alembic==1.20.1",
     "sentry-sdk==2.73.0",

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="{{ doc.language }}" dir="{{ doc.direction }}">
+<head>
+<meta charset="utf-8">
+<title>{{ t.title }} {{ doc.number }}</title>
+<style>{{ css | safe }}</style>
+</head>
+<body class="{{ doc.direction }}">
+<header class="head">
+  <div class="seller">
+    <div class="seller-name">{{ doc.letterhead.name }}</div>
+    {% if doc.letterhead.address %}<div>{{ doc.letterhead.address }}</div>{% endif %}
+    {% if doc.letterhead.trn %}<div>TRN {{ doc.letterhead.trn }}</div>{% endif %}
+    {% if doc.letterhead.phone %}<div dir="ltr">{{ doc.letterhead.phone }}</div>{% endif %}
+    {% if doc.letterhead.email %}<div dir="ltr">{{ doc.letterhead.email }}</div>{% endif %}
+  </div>
+  <div class="meta">
+    <h1>{{ t.title }}</h1>
+    <table class="kv">
+      <tr><th>#</th><td dir="ltr">{{ doc.number }} · {{ t.version }} {{ doc.version_no }}</td></tr>
+      <tr><th>{{ t.date }}</th><td dir="ltr">{{ doc.issued_on.isoformat() }}</td></tr>
+      <tr><th>{{ t.valid }}</th><td dir="ltr">{{ doc.valid_until.isoformat() }}</td></tr>
+      <tr><th>{{ t.incoterm }}</th><td dir="ltr">{{ doc.incoterm }}</td></tr>
+    </table>
+  </div>
+</header>
+
+<section class="buyer">
+  <span class="label">{{ t.to }}</span>
+  <strong>{{ doc.buyer_name }}</strong>{% if doc.buyer_company %} — {{ doc.buyer_company }}{% endif %}
+</section>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th class="n">{{ t.no }}</th><th>{{ t.item }}</th><th class="num">{{ t.qty }}</th>
+      <th class="num">{{ t.unit_price }} ({{ doc.currency }})</th><th class="num">{{ t.amount }} ({{ doc.currency }})</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for line in doc.lines %}
+    <tr>
+      <td class="n">{{ line.line_no }}</td>
+      <td>{{ line.description }}</td>
+      <td class="num" dir="ltr">{{ line.quantity | qty }} {{ line.unit }}</td>
+      <td class="num" dir="ltr">{{ line.unit_price | unit_price }}</td>
+      <td class="num" dir="ltr">{{ line.line_total | money(doc.currency) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><th colspan="4">{{ t.subtotal }}</th><td class="num" dir="ltr">{{ doc.subtotal | money(doc.currency) }}</td></tr>
+    <tr><th colspan="4">{{ t.vat }} ({{ doc.vat_rate.normalize() }}%)</th><td class="num" dir="ltr">{{ doc.vat_amount | money(doc.currency) }}</td></tr>
+    <tr class="grand"><th colspan="4">{{ t.total }}</th><td class="num" dir="ltr">{{ doc.currency }} {{ doc.total | money(doc.currency) }}</td></tr>
+  </tfoot>
+</table>
+
+{% if doc.estimated_delivery %}
+<p class="delivery">{{ t.delivery }}: <span dir="ltr">{{ doc.estimated_delivery.isoformat() }}</span> ({{ t.delivery_note }})</p>
+{% endif %}
+
+{% if doc.clauses %}
+<section class="terms">
+  <h2>{{ t.terms }}</h2>
+  <ol>{% for c in doc.clauses %}<li>{{ c }}</li>{% endfor %}</ol>
+</section>
+{% endif %}
+</body>
+</html>

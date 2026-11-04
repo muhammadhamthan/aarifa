@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Kairox automation: channels (WhatsApp, email, voice IVR), outbound gate, webhooks, jobs and timers, price scraping"
 requires-python = ">=3.14,<3.15"
 dependencies = [
+    "cryptography==50.0.2",
     "kx-core-db",
     "procrastinate==3.10.0",
     "psycopg[binary]==3.3.7",

@@ -1,0 +1,459 @@
+"""Quotes: build a priced version from the deal's requirements, freeze it, and open approval 1.
+
+A deal has one quote (one number, Q-YYYY-NNNNN) with numbered versions. Each new version supersedes
+the open ones (their approvals are cancelled and their grants revoked) so only one version can ever be
+approved and sent. Lines are inserted while the version is 'draft'; the DB freezes them the moment
+the version moves to 'pending_approval'.
+"""
+
+from __future__ import annotations
+
+import uuid
+from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+from typing import Final, Literal
+
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from kx.core.contracts import DealStage
+from kx.core.errors import RuleViolation
+from kx.core.identity import new_id
+from kx.core.money import MONEY_PLACES, display, q
+from kx.crm.deps import CrmDeps
+from kx.crm.models import Approval, Deal, Quote, QuoteLine, QuoteLineCost, QuoteVersion
+from kx.crm.pricing.engine import price_line, quote_totals
+from kx.crm.pricing.types import PricedLine
+from kx.crm.rules import QUOTABLE_STAGES
+from kx.crm.services import approvals, grants
+from kx.crm.services import deals as deal_svc
+from kx.crm.services.issuing import lines_of, local_today
+from kx.crm.services.journal import Actor, Timeline, record
+from kx.crm.services.pricing import PricingInputs, build_delivery_estimate, fx_to_aed, pricing_inputs, vat_pct
+from kx.crm.services.settings import BusinessSettings
+
+VersionKind = Literal["initial", "revision", "counter", "final"]
+ISSUED: Final = ("approved", "sent")
+LIVE: Final = ("draft", "pending_approval", "overdue", "approved", "sent", "correction_requested")
+
+CLAUSES: Final[dict[str, tuple[str, ...]]] = {
+    "en": (
+        "Advance payment is required before production starts.",
+        "Prices are valid for {days} days from the quotation date.",
+        "Delivery dates are estimates and are confirmed by our team when the order is placed.",
+        "Ex works (EXW) factory; freight can be quoted separately.",
+    ),
+    "ar": (
+        "يلزم دفع مقدم قبل بدء الإنتاج.",
+        "الأسعار صالحة لمدة {days} أيام من تاريخ عرض السعر.",
+        "مواعيد التسليم تقديرية ويؤكدها فريقنا عند تأكيد الطلب.",
+        "تسليم من المصنع (EXW)؛ يمكن تسعير الشحن بشكل منفصل.",
+    ),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class DraftLine:
+    """A priced line plus its MD-only cost snapshot, ready to insert."""
+
+    priced: PricedLine
+    cost: QuoteLineCost
+
+
+def clauses_for(language: str, validity_days: int, exw: bool) -> list[str]:
+    texts = CLAUSES.get(language, CLAUSES["en"])
+    chosen = texts[:3] + (texts[3:] if exw else ())
+    return [t.format(days=validity_days) for t in chosen]
+
+
+def _cost_snapshot(inp: PricingInputs, pl: PricedLine) -> QuoteLineCost:
+    c = inp.line.cost
+    return QuoteLineCost(
+        material_rate_id=inp.rate.id,
+        material_rate=c.material_rate_per_kg,
+        kg_per_1000=c.kg_per_1000,
+        yield_pct=c.yield_pct,
+        production_per_1000=c.production_per_1000,
+        packaging_per_1000=c.packaging_per_1000,
+        freight_per_1000=c.freight_per_1000,
+        unit_cost=pl.unit_cost,
+        markup_pct=pl.markup_pct,
+        margin_rule_id=inp.band.rule_id,
+        markup_min_pct=inp.band.markup_min_pct,
+        markup_max_pct=inp.band.markup_max_pct,
+    )
+
+
+def _approver_summary(
+    inputs: Sequence[PricingInputs],
+    drafts: Sequence[DraftLine],
+    currency: str,
+    total: Decimal,
+    estimate: object,
+) -> str:
+    """Internal summary for the approver (manager/MD may see markup; the buyer and AI never do)."""
+    parts = []
+    for inp, d in zip(inputs, drafts, strict=True):
+        p = d.priced
+        warn = " — PRICE REVIEW DUE" if inp.staleness == "warn" else ""
+        parts.append(
+            f"{p.quantity:,.0f} x {inp.product.sku} @ {currency} {p.unit_price} (markup {p.markup_pct}% "
+            f"of {inp.band.markup_min_pct}-{inp.band.markup_max_pct}%); {inp.rate.material_code} rate "
+            f"approved {inp.rate_age_days} d ago{warn}; {'lane ' + inp.lane.code if inp.lane else 'EXW'}"
+        )
+    parts.append(f"Total {currency} {display(total, currency):,}; delivery est. {estimate}")
+    return "\n".join(parts)
+
+
+async def quote_for(session: AsyncSession, deal: Deal) -> Quote:
+    """The deal's quote, created on first use."""
+    quote = (
+        await session.execute(select(Quote).where(Quote.deal_id == deal.id).limit(1))
+    ).scalar_one_or_none()
+    if quote is None:
+        quote = Quote(id=new_id(), deal_id=deal.id)
+        session.add(quote)
+        await session.flush()
+    return quote
+
+
+async def latest_version(
+    session: AsyncSession, deal_id: uuid.UUID, statuses: Sequence[str] | None = None
+) -> QuoteVersion | None:
+    stmt = (
+        select(QuoteVersion)
+        .join(Quote, Quote.id == QuoteVersion.quote_id)
+        .where(Quote.deal_id == deal_id)
+        .order_by(QuoteVersion.version_no.desc())
+        .limit(1)
+    )
+    if statuses:
+        stmt = stmt.where(QuoteVersion.status.in_(statuses))
+    return (await session.execute(stmt)).scalar_one_or_none()
+
+
+async def costs_of(session: AsyncSession, version_id: uuid.UUID) -> list[tuple[QuoteLine, QuoteLineCost]]:
+    """MD-only: lines with their cost snapshot."""
+    stmt = (
+        select(QuoteLine, QuoteLineCost)
+        .join(QuoteLineCost, QuoteLineCost.quote_line_id == QuoteLine.id)
+        .where(QuoteLine.quote_version_id == version_id)
+        .order_by(QuoteLine.line_no)
+    )
+    return [r.tuple() for r in (await session.execute(stmt)).all()]
+
+
+async def _supersede_live(session: AsyncSession, quote: Quote, now: datetime) -> str | None:
+    """Retire every live version of the quote; returns the correction note of the latest, if any."""
+    live = list(
+        (
+            await session.execute(
+                select(QuoteVersion)
+                .where(QuoteVersion.quote_id == quote.id, QuoteVersion.status.in_(LIVE))
+                .order_by(QuoteVersion.version_no.desc())
+            )
+        ).scalars()
+    )
+    if not live:
+        return None
+    ids = [v.id for v in live]
+    note = (
+        (
+            await session.scalar(
+                select(Approval.decision_note)
+                .where(Approval.quote_version_id == ids[0], Approval.status == "correction_requested")
+                .order_by(Approval.decided_at.desc())
+                .limit(1)
+            )
+        )
+        if live[0].status == "correction_requested"
+        else None
+    )
+    await session.execute(
+        update(Approval)
+        .where(Approval.quote_version_id.in_(ids), Approval.status.in_(approvals.OPEN))
+        .values(status="cancelled")
+    )
+    await grants.revoke_open(session, ids, "superseded", now)
+    for v in live:
+        v.status = "superseded"
+    await session.flush()
+    return note
+
+
+async def _insert_version(
+    session: AsyncSession,
+    *,
+    quote: Quote,
+    deal: Deal,
+    kind: VersionKind,
+    currency: str,
+    fx: Decimal,
+    drafts: Sequence[DraftLine],
+    vat: Decimal,
+    incoterm: str,
+    lane_id: uuid.UUID | None,
+    s: BusinessSettings,
+    language: str,
+    summary: str,
+    estimate_id: uuid.UUID | None,
+    actor: Actor,
+    correction_note: str | None,
+) -> QuoteVersion:
+    totals = quote_totals((d.priced.line_total for d in drafts), vat)
+    next_no = (
+        await session.scalar(
+            select(func.coalesce(func.max(QuoteVersion.version_no), 0)).where(
+                QuoteVersion.quote_id == quote.id
+            )
+        )
+        or 0
+    ) + 1
+    version = QuoteVersion(
+        id=new_id(),
+        quote_id=quote.id,
+        version_no=next_no,
+        kind=kind,
+        status="draft",
+        currency=currency,
+        fx_rate_to_aed=fx,
+        subtotal=totals.subtotal,
+        vat_rate=vat,
+        vat_amount=totals.vat_amount,
+        total=totals.total,
+        total_aed=q(totals.total * fx, MONEY_PLACES),
+        incoterm=incoterm,
+        freight_lane_id=lane_id,
+        validity_days=s.quote_validity_days,
+        clauses=clauses_for(language, s.quote_validity_days, incoterm == "EXW"),
+        approver_summary=summary,
+        delivery_estimate_id=estimate_id,
+        created_by_type="ai" if actor.type == "ai" else "user",
+        created_by=actor.id,
+        correction_note=correction_note,
+    )
+    session.add(version)
+    await session.flush()
+    for no, d in enumerate(drafts, start=1):
+        p = d.priced
+        line = QuoteLine(
+            id=new_id(),
+            quote_version_id=version.id,
+            line_no=no,
+            product_id=p.product_id,
+            description=p.description,
+            quantity=p.quantity,
+            unit=p.unit,
+            unit_price=p.unit_price,
+            line_total=p.line_total,
+        )
+        session.add(line)
+        await session.flush()
+        d.cost.quote_line_id = line.id
+        session.add(d.cost)
+    await session.flush()
+    version.status = "pending_approval"  # from here the DB freezes prices and lines
+    quote.current_version_id = version.id
+    await session.flush()
+    await record(
+        session,
+        actor,
+        "quote.version_created",
+        "quote_version",
+        version.id,
+        after={"kind": kind, "version_no": next_no, "total": version.total, "currency": currency},
+        timeline=Timeline(
+            "quote",
+            f"Quote {quote.number} v{next_no} ({kind}) drafted: {currency} "
+            f"{display(version.total, currency):,}",
+            deal.id,
+            deal.primary_contact_id,
+            ref_type="quote_version",
+            ref_id=str(version.id),
+        ),
+    )
+    return version
+
+
+async def request_quote(
+    session: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID, actor: Actor
+) -> QuoteVersion:
+    """Price every requirement at the top of the MD's band, freeze a new version, open approval 1."""
+    now = deps.now()
+    deal = await deal_svc.get_deal(session, deal_id, lock=True)
+    stage = DealStage(deal.stage)
+    if stage not in QUOTABLE_STAGES:
+        raise RuleViolation(f"a quote can be requested only when the deal is qualified (stage is {stage})")
+    s = await deps.settings.get(session)
+    reqs = await deal_svc.requirements_of(session, deal.id)
+    if not reqs:
+        raise RuleViolation("deal has no requirements to quote")
+    fx = await fx_to_aed(session, deal.currency, now.date())
+    inputs = [await pricing_inputs(session, deal, r, s=s, quote_fx=fx, now=now) for r in reqs]
+    drafts = [
+        DraftLine(pl, _cost_snapshot(inp, pl)) for inp in inputs for pl in (price_line(inp.line, inp.band),)
+    ]
+    first = inputs[0]
+    estimate = await build_delivery_estimate(
+        session, deal, first.requirement, costing=first.costing, lane=first.lane, now=now
+    )
+    contact = await deal_svc.contact_of(session, deal)
+    quote = await quote_for(session, deal)
+    note = await _supersede_live(session, quote, now)
+    has_versions = bool(await session.scalar(select(func.count()).where(QuoteVersion.quote_id == quote.id)))
+    vat = vat_pct(reqs[0], s)
+    total = quote_totals((d.priced.line_total for d in drafts), vat).total
+    version = await _insert_version(
+        session,
+        quote=quote,
+        deal=deal,
+        kind="revision" if has_versions else "initial",
+        currency=deal.currency,
+        fx=fx,
+        drafts=drafts,
+        vat=vat,
+        incoterm=inputs[0].incoterm,
+        lane_id=inputs[0].lane.id if inputs[0].lane else None,
+        s=s,
+        language=contact.language,
+        summary=_approver_summary(inputs, drafts, deal.currency, total, estimate.estimated_delivery),
+        estimate_id=estimate.id,
+        actor=actor,
+        correction_note=note,
+    )
+    if stage is not DealStage.QUOTATION:
+        await deal_svc.move_stage(
+            session, deal, DealStage.QUOTATION, actor, now=now, reason="quote requested"
+        )
+    await approvals.open_approval(
+        session,
+        deps,
+        s,
+        deal=deal,
+        quote=quote,
+        version=version,
+        kind="initial",
+        role=approvals.initial_role(version.total_aed, s),
+        actor=actor,
+        now=now,
+    )
+    return version
+
+
+async def create_final_version(
+    session: AsyncSession,
+    deps: CrmDeps,
+    deal: Deal,
+    issued: QuoteVersion,
+    *,
+    unit_price: Decimal,
+    quantity: Decimal,
+    actor: Actor,
+) -> QuoteVersion:
+    """The buyer agreed: a 'final' version at the agreed price/quantity for the primary line (other lines
+    unchanged), sent straight to the MD's final approval (T2)."""
+    now = deps.now()
+    s = await deps.settings.get(session)
+    quote = await session.get(Quote, issued.quote_id)
+    assert quote is not None
+    drafts: list[DraftLine] = []
+    for idx, (line, cost) in enumerate(await costs_of(session, issued.id)):
+        price, qty = (unit_price, quantity) if idx == 0 else (line.unit_price, line.quantity)
+        markup = q((price / cost.unit_cost - 1) * 100, Decimal("0.01")) if cost.unit_cost else cost.markup_pct
+        pl = PricedLine(
+            description=line.description,
+            quantity=qty,
+            unit=line.unit,
+            unit_cost=cost.unit_cost,
+            markup_pct=markup,
+            unit_price=price,
+            line_total=q(price * qty, MONEY_PLACES),
+            product_id=line.product_id,
+        )
+        snap = QuoteLineCost(**{c: getattr(cost, c) for c in _COST_COLS}, markup_pct=markup)
+        drafts.append(DraftLine(pl, snap))
+    contact = await deal_svc.contact_of(session, deal)
+    await _supersede_live(session, quote, now)
+    version = await _insert_version(
+        session,
+        quote=quote,
+        deal=deal,
+        kind="final",
+        currency=issued.currency,
+        fx=issued.fx_rate_to_aed,
+        drafts=drafts,
+        vat=issued.vat_rate,
+        incoterm=issued.incoterm,
+        lane_id=issued.freight_lane_id,
+        s=s,
+        language=contact.language,
+        summary=f"Agreed with buyer: {quantity:,.0f} @ {issued.currency} {unit_price}",
+        estimate_id=issued.delivery_estimate_id,
+        actor=actor,
+        correction_note=None,
+    )
+    await approvals.open_approval(
+        session,
+        deps,
+        s,
+        deal=deal,
+        quote=quote,
+        version=version,
+        kind="final",
+        role="md",
+        actor=actor,
+        now=now,
+    )
+    return version
+
+
+_COST_COLS: Final = (
+    "material_rate_id",
+    "material_rate",
+    "kg_per_1000",
+    "yield_pct",
+    "production_per_1000",
+    "packaging_per_1000",
+    "freight_per_1000",
+    "unit_cost",
+    "margin_rule_id",
+    "markup_min_pct",
+    "markup_max_pct",
+)
+
+
+async def expire_quotes(session: AsyncSession, deps: CrmDeps) -> int:
+    """Daily: issued versions past valid_until (7 days in the shipping crisis) expire; grants are revoked."""
+    now = deps.now()
+    s = await deps.settings.get(session)
+    today = local_today(now, s)
+    ids = list(
+        (
+            await session.execute(
+                update(QuoteVersion)
+                .where(QuoteVersion.status.in_(ISSUED), QuoteVersion.valid_until < today)
+                .values(status="expired")
+                .returning(QuoteVersion.id)
+            )
+        ).scalars()
+    )
+    await grants.revoke_open(session, ids, "expired", now)
+    for vid in ids:
+        await record(session, Actor.system("quote_expiry"), "quote.expired", "quote_version", vid)
+    return len(ids)
+
+
+__all__ = [
+    "CLAUSES",
+    "ISSUED",
+    "DraftLine",
+    "costs_of",
+    "create_final_version",
+    "expire_quotes",
+    "latest_version",
+    "lines_of",
+    "quote_for",
+    "request_quote",
+]

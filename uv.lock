@@ -228,7 +228,7 @@ version = "0.1.0"
 source = { editable = "apps/arifaa-pack" }
 dependencies = [
     { name = "alembic" },
-    { name = "kx-agent-framework" },
+    { name = "kx-agent-framework", extra = ["voice"] },
     { name = "kx-core-automation" },
     { name = "kx-core-crm" },
     { name = "kx-core-db" },
@@ -240,7 +240,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = "==1.20.1" },
-    { name = "kx-agent-framework", editable = "packages/kx-agent-framework" },
+    { name = "kx-agent-framework", extras = ["voice"], editable = "packages/kx-agent-framework" },
     { name = "kx-core-automation", editable = "packages/kx-core-automation" },
     { name = "kx-core-crm", editable = "packages/kx-core-crm" },
     { name = "kx-core-db", editable = "packages/kx-core-db" },
@@ -1291,6 +1291,7 @@ version = "0.1.0"
 source = { editable = "packages/kx-core-automation" }
 dependencies = [
     { name = "aioboto3" },
+    { name = "cryptography" },
     { name = "kx-core-db" },
     { name = "procrastinate" },
     { name = "psycopg", extra = ["binary"] },
@@ -1303,6 +1304,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aioboto3", specifier = "==15.5.0" },
+    { name = "cryptography", specifier = "==50.0.2" },
     { name = "kx-core-db", editable = "packages/kx-core-db" },
     { name = "procrastinate", specifier = "==3.10.0" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.7" },
@@ -1317,17 +1319,23 @@ name = "kx-core-crm"
 version = "0.1.0"
 source = { editable = "packages/kx-core-crm" }
 dependencies = [
+    { name = "aioboto3" },
     { name = "jinja2" },
     { name = "kx-core-db" },
     { name = "openpyxl" },
+    { name = "procrastinate" },
+    { name = "tenacity" },
     { name = "weasyprint" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "aioboto3", specifier = "==15.5.0" },
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "kx-core-db", editable = "packages/kx-core-db" },
     { name = "openpyxl", specifier = "==3.1.5" },
+    { name = "procrastinate", specifier = "==3.10.0" },
+    { name = "tenacity", specifier = "==9.2.1" },
     { name = "weasyprint", specifier = "==70.0" },
 ]
 

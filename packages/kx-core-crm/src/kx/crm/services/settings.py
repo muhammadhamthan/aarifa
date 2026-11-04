@@ -1,0 +1,184 @@
+"""MD-editable business settings (crm.settings + crm.feature_flags) as one typed, cached snapshot.
+
+Why a snapshot: every rule (approval window, MD limit, staleness, grant TTL ...) reads several keys
+in one request; one query + one pydantic parse per TTL keeps that cheap, and parsing the whole table
+on every *write* guarantees the MD can never save a value that breaks another rule. Other processes
+see a change within `ttl_seconds`; SETTINGS_CHANGED lets consumers (automation, agents) refresh too.
+"""
+
+from __future__ import annotations
+
+import time as _time
+from collections.abc import Callable
+from datetime import time
+from decimal import Decimal
+from typing import Any, Self
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from kx.core import events as ev
+from kx.core.errors import NotFound, RuleViolation
+from kx.core.event_payloads import SettingsChanged
+from kx.core.timewindow import Window
+from kx.crm.models import FeatureFlag, Setting, SettingHistory
+from kx.crm.services.journal import Actor, Emit, record
+
+
+class Hours(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    start: time
+    end: time
+    tz: str | None = None
+
+    @model_validator(mode="after")
+    def _ordered(self) -> Self:
+        if self.end <= self.start:
+            raise ValueError("end must be after start")
+        return self
+
+
+def _alias(key: str, default: Any, **kw: Any) -> Any:
+    return Field(default, alias=key, **kw)
+
+
+class BusinessSettings(BaseModel):
+    """Typed view of crm.settings. Defaults mirror the DDL seed so a missing row never breaks a rule."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore", validate_by_alias=True, validate_by_name=True)
+
+    approval_window_minutes: int = _alias("approval.window_minutes", 120, gt=0)
+    md_value_limit_aed: Decimal | None = _alias("approval.md_value_limit_aed", None, gt=0)
+    call_attempts: int = _alias("approval.call_attempts", 3, ge=0)
+    call_gap_minutes: int = _alias("approval.call_gap_minutes", 20, gt=0)
+    alert_hours: Hours = _alias("approval.alert_hours", Hours(start=time(8), end=time(22), tz="Asia/Dubai"))
+    below_range_reply_minutes: int = _alias("negotiation.below_range_reply_minutes", 60, gt=0)
+    contact_hours: Hours = _alias("contact.hours", Hours(start=time(9), end=time(18)))
+    followup_cadence_days: tuple[int, ...] = _alias("followup.cadence_days", (2, 5, 10))
+    followup_max_per_week: int = _alias("followup.max_per_week", 2, ge=0)
+    quote_validity_days: int = _alias("quote.validity_days", 7, ge=1, le=60)
+    vat_pct_domestic: Decimal = _alias("quote.vat_pct_domestic", Decimal(5), ge=0)
+    stale_warn_days: int = _alias("pricing.stale_warn_days", 3, ge=0)
+    stale_block_days: int = _alias("pricing.stale_block_days", 7, gt=0)
+    digest_time: time = _alias("pricing.digest_time", time(9))
+    grant_ttl_hours: int = _alias("grant.ttl_hours", 48, gt=0)
+    assistant_name: str = _alias("ai.assistant_name", "Sara", min_length=1)
+    max_concessions_default: int = _alias("ai.max_concessions_default", 3, ge=0, le=10)
+    retention_audio_days: int = _alias("retention.audio_days", 90, gt=0)
+    retention_open_lead_chat_months: int = _alias("retention.open_lead_chat_months", 24, gt=0)
+    retention_won_customer_years: int = _alias("retention.won_customer_years", 5, gt=0)
+    retention_lost_lead_months: int = _alias("retention.lost_lead_months", 12, gt=0)
+    flags: dict[str, bool] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Self:
+        if self.stale_block_days < self.stale_warn_days:
+            raise ValueError("pricing.stale_block_days must be >= pricing.stale_warn_days")
+        days = self.followup_cadence_days
+        if any(d <= 0 for d in days) or list(days) != sorted(set(days)):
+            raise ValueError("followup.cadence_days must be increasing positive days")
+        if self.alert_hours.tz is None:
+            raise ValueError("approval.alert_hours needs a tz")
+        return self
+
+    def alert_window(self) -> Window:
+        """Manager alert hours; the approval timer only runs inside this window."""
+        h = self.alert_hours
+        return Window(h.start, h.end, h.tz or "Asia/Dubai")
+
+    def buyer_window(self, tz: str) -> Window:
+        """Buyer contact hours in the buyer's own time zone."""
+        return Window(self.contact_hours.start, self.contact_hours.end, tz)
+
+    def flag(self, key: str, default: bool = False) -> bool:
+        return self.flags.get(key, default)
+
+
+def parse_settings(raw: dict[str, Any], flags: dict[str, bool] | None = None) -> BusinessSettings:
+    """Parse crm.settings rows (key -> jsonb value). Raises RuleViolation on an invalid table."""
+    try:
+        return BusinessSettings.model_validate({**raw, "flags": flags or {}})
+    except ValidationError as exc:
+        raise RuleViolation("invalid business settings", errors=exc.errors(include_url=False)) from exc
+
+
+class SettingsService:
+    """Process-wide cache of the settings snapshot (create once, share via CrmDeps)."""
+
+    def __init__(self, ttl_seconds: float = 30.0, clock: Callable[[], float] = _time.monotonic) -> None:
+        self._ttl = ttl_seconds
+        self._clock = clock
+        self._cached: tuple[float, dict[str, Any], BusinessSettings] | None = None
+
+    def invalidate(self) -> None:
+        self._cached = None
+
+    async def get(self, session: AsyncSession) -> BusinessSettings:
+        return (await self._load(session))[1]
+
+    async def raw(self, session: AsyncSession) -> dict[str, Any]:
+        return dict((await self._load(session))[0])
+
+    async def _load(self, session: AsyncSession) -> tuple[dict[str, Any], BusinessSettings]:
+        now = self._clock()
+        if self._cached is not None and now - self._cached[0] < self._ttl:
+            return self._cached[1], self._cached[2]
+        raw = {k: v for k, v in (await session.execute(select(Setting.key, Setting.value))).tuples()}
+        flags = {
+            k: e for k, e in (await session.execute(select(FeatureFlag.key, FeatureFlag.enabled))).tuples()
+        }
+        parsed = parse_settings(raw, flags)
+        self._cached = (now, raw, parsed)
+        return raw, parsed
+
+    async def update(self, session: AsyncSession, key: str, value: Any, actor: Actor) -> BusinessSettings:
+        """Change one setting after validating the whole table with it; history + audit + event."""
+        row = await session.get(Setting, key, with_for_update=True)
+        if row is None:
+            raise NotFound(f"unknown setting {key!r}")
+        self.invalidate()
+        raw = await self.raw(session)
+        parsed = parse_settings({**raw, key: value})
+        old = row.value
+        row.value, row.updated_by = value, actor.user_id
+        session.add(SettingHistory(key=key, old_value=old, new_value=value, changed_by=actor.user_id))
+        await record(
+            session,
+            actor,
+            "settings.changed",
+            "setting",
+            key,
+            before={"value": old},
+            after={"value": value},
+            emit=Emit(
+                ev.SETTINGS_CHANGED, "setting", key, SettingsChanged(key=key, changed_by=actor.user_id)
+            ),
+        )
+        self.invalidate()
+        return parsed
+
+    async def set_flag(self, session: AsyncSession, key: str, enabled: bool, actor: Actor) -> None:
+        """Kill switches (ai_enabled, ai_outbound_calls_uae ...)."""
+        row = await session.get(FeatureFlag, key, with_for_update=True)
+        if row is None:
+            raise NotFound(f"unknown feature flag {key!r}")
+        before = row.enabled
+        row.enabled, row.updated_by = enabled, actor.user_id
+        await record(
+            session,
+            actor,
+            "flag.changed",
+            "feature_flag",
+            key,
+            before={"enabled": before},
+            after={"enabled": enabled},
+            emit=Emit(
+                ev.SETTINGS_CHANGED,
+                "feature_flag",
+                key,
+                SettingsChanged(key=f"flag:{key}", changed_by=actor.user_id),
+            ),
+        )
+        self.invalidate()
