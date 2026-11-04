@@ -57,6 +57,8 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query", 
 "**/tests/**" = ["S", "PLR", "DTZ", "RUF001", "N817", "PLC0415", "E501"]
 "tests/**" = ["S", "PLR", "DTZ", "RUF001", "N817", "PLC0415", "E501"]
 "candidates/**" = ["RUF001"]
+# multilingual digits, separators and punctuation are the point of this module
+"packages/kx-core-db/src/kx/core/price_guard.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.14"

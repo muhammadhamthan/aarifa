@@ -156,3 +156,44 @@ def test_bench_check_1000_messages(benchmark) -> None:  # type: ignore[no-untype
         return sum(1 for t in CORPUS if not guard.check_prices(t, allowed).ok)
 
     assert benchmark(run) == 250
+
+
+# ---------------------------------------------------------------- fail-closed cases (added after the contest)
+USD_FREIGHT = AllowedPrice(amount=D("3100"), currency="USD", label="freight per 40HC")
+CONTEST_ALLOWED = [AED_UNIT, AED_TOTAL, USD_FREIGHT]
+
+
+@pytest.mark.parametrize(("text", "ok"), [
+    ("AED0.22/pc", False),
+    ("price: 0.22 per pc", False),
+    ("Our best: AED 0.19!", False),
+    ("AED 0.2278.", True),
+    ("AED 0.21 per piece", False),
+    ("2 x 40HC at USD 3,100 each", True),
+    ("2 x 40HC at USD 2,900 each", False),
+    ("Unit price:\nAED 0.21", False),
+    ("total AED 11,390.20 (incl. VAT)", True),
+    ("total AED 11,390.19", False),
+    ("سعر القطعة ٠٫٢١ درهم", False),
+    ("سعر القطعة ٠٫٢٣ درهم", True),
+    ("单价 ¥0.21", False),
+    ("We need 120,000 pcs by 2026-12-01", True),
+    ("Call +971 4 123 4567 for the price", True),
+    ("price 0.22 AED", False),
+    ("aed 0.21", False),
+    ("Dh0.21", False),
+    ("I can offer 10% discount", False),
+    ("the rate is 0.23 per piece", True),
+    ("AED 0.227804 x 50,000 pcs = AED 11,390.20", True),
+    ("AED 0.227804 x 50,000 pcs = AED 10,000.00", False),
+    ("Delivery 15/11/2026, 750 ml, 8011 alloy, Q-2026-00012", True),
+    ("USD 3100", True),
+    ("₹ 8.50/-", False),
+    ("Okay, I can do 0.21 each", False),          # bare number + per-piece word
+    ("0.21 per piece is my final", False),
+    ("I could go to 0.21 if you confirm today", False),  # bare 2-decimal number: fail closed
+    ("AED 0.22 or 0.21", False),
+    ("AED 0.21-0.23", False),
+])
+def test_fail_closed_cases(text: str, ok: bool) -> None:
+    assert guard.check_prices(text, CONTEST_ALLOWED, default_currency="AED").ok is ok
