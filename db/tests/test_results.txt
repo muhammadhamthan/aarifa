@@ -1,0 +1,21 @@
+PASS T1 duplicate phone rejected
+PASS T2 frozen version price cannot change
+PASS T3 frozen version lines cannot change
+PASS T4 final quote requires MD
+PASS T5 one open approval per version
+PASS T6 approval records who decided
+PASS T7 wrong content hash refused
+PASS T8 wrong recipient refused
+PASS T9 valid grant consumed
+PASS T10 retry of the same message is idempotent
+PASS T11 grant cannot be reused by another message
+PASS T12 expired grant refused
+PASS T13 LOST requires a reason
+PASS T14 longer delivery never a concession
+PASS T15 audit log is append-only
+PASS T16 markup range validated
+PASS T17 scraped rate needs manager approval
+PASS T18 quote message requires a grant
+PASS T19 one message per grant
+PASS T20 webhook replay de-duplicated
+PASS T21 keyword + vector search

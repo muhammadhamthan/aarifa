@@ -1,0 +1,25 @@
+[project]
+name = "kx-core-db"
+version = "0.1.0"
+description = "Kairox shared kernel: settings, databases, ids, money, events/outbox, auth, errors, logging, phone/time/hash utils, price guard"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "pydantic==2.14.2",
+    "pydantic-settings==2.16.2",
+    "sqlalchemy[asyncio]==2.1.6",
+    "asyncpg==0.32.0",
+    "fastapi==0.162.0",
+    "pyjwt[crypto]==2.15.1",
+    "httpx==0.28.1",
+    "structlog==26.1.0",
+    "phonenumbers==9.0.42",
+    "orjson==3.13.0",
+    "redis==8.1.0",
+]
+
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kx"]

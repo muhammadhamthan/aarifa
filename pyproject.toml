@@ -1,0 +1,92 @@
+[project]
+name = "kairox-platform"
+version = "0.1.0"
+description = "Kairox AI sales platform (workspace root): CRM, automation, AI agents. First client: Arifaa Pack."
+requires-python = ">=3.14,<3.15"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/*"]
+
+[tool.uv.sources]
+kx-core-db = { workspace = true }
+kx-core-crm = { workspace = true }
+kx-core-automation = { workspace = true }
+kx-agent-framework = { workspace = true }
+arifaa-pack = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "pytest-asyncio==1.4.1.post1",
+    "pytest-benchmark==5.3.1",
+    "hypothesis==6.170.14",
+    "ruff==0.17.3",
+    "mypy==2.4.1",
+    "import-linter==2.15",
+    "respx==0.23.1",
+    "asgi-lifespan==2.1.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests", "packages", "apps"]
+addopts = "-q --strict-markers --benchmark-disable"
+markers = ["db: needs PostgreSQL (KX_TEST_PG_DSN)", "bench: performance benchmark"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 110
+src = ["packages/*/src", "apps/*/src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "ASYNC", "S", "PERF", "PL", "TRY", "DTZ", "N"]
+# N818: DomainError subclasses are named for HTTP semantics (NotFound, Conflict ...)
+ignore = ["PLR0913", "PLR2004", "TRY003", "S101", "PLR0911", "PLR0912", "N818"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query", "fastapi.Body", "fastapi.Security"]
+
+[tool.ruff.lint.per-file-ignores]
+# RUF001: tests deliberately contain Arabic-Indic / Devanagari digits; N817: `Decimal as D` in tests
+"**/tests/**" = ["S", "PLR", "DTZ", "RUF001", "N817", "PLC0415", "E501"]
+"tests/**" = ["S", "PLR", "DTZ", "RUF001", "N817", "PLC0415", "E501"]
+"candidates/**" = ["RUF001"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "packages/kx-core-db/src:packages/kx-core-crm/src:packages/kx-core-automation/src:packages/kx-agent-framework/src:apps/arifaa-pack/src"
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["procrastinate.*", "pywa.*", "twilio.*", "aioboto3.*", "phonenumbers.*", "langfuse.*", "livekit.*"]
+ignore_missing_imports = true
+
+# Module boundaries: a package may not import another package's internals
+[tool.importlinter]
+root_packages = ["kx", "arifaa_pack"]
+
+[[tool.importlinter.contracts]]
+name = "core depends on nothing else in kx"
+type = "forbidden"
+source_modules = ["kx.core"]
+forbidden_modules = ["kx.crm", "kx.automation", "kx.agents", "arifaa_pack"]
+
+[[tool.importlinter.contracts]]
+name = "packages are independent; they talk through kx.core contracts and events"
+type = "independence"
+modules = ["kx.crm", "kx.automation", "kx.agents"]
+
+[[tool.importlinter.contracts]]
+name = "platform never imports a client app"
+type = "forbidden"
+source_modules = ["kx.core", "kx.crm", "kx.automation", "kx.agents"]
+forbidden_modules = ["arifaa_pack"]
