@@ -79,7 +79,9 @@ class QuoteTotals:
 
 @dataclass(frozen=True, slots=True)
 class NegotiationState:
-    unit_cost: Decimal              # per piece
+    # per piece, UNROUNDED: unit_cost_per_1000(...) / 1000. Never PricedLine.unit_cost (6 dp) or the
+    # ladder top drifts from the quoted price (0.227805 vs 0.227804).
+    unit_cost: Decimal
     band: MarginBand
     concessions_used: int
     current_offer_unit_price: Decimal

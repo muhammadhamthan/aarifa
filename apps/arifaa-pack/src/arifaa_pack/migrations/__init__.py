@@ -11,8 +11,10 @@ from __future__ import annotations
 import os
 import pathlib
 from collections.abc import Iterable
+from typing import Any, cast
 
-from alembic import command
+import psycopg
+from alembic import command, op
 from alembic.config import Config
 
 from kx.core.settings import CoreSettings, LogicalDb, get_settings
@@ -60,11 +62,8 @@ def current(db: LogicalDb, dsn: str | None = None) -> None:
 
 def apply_ddl_file(db: LogicalDb) -> None:
     """Used by each baseline revision: execute the whole reviewed DDL file in the migration transaction."""
-    from alembic import op
-
     sql = (ddl_dir() / DDL_FILES[db]).read_text(encoding="utf-8")
     # Raw psycopg cursor with params=None: no %-placeholder parsing (the DDL contains regexes and LIKE '%').
-    dbapi = op.get_bind().connection.dbapi_connection
-    assert dbapi is not None
+    dbapi = cast("psycopg.Connection[Any]", op.get_bind().connection.dbapi_connection)
     with dbapi.cursor() as cur:
         cur.execute(sql)
