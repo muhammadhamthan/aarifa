@@ -1,0 +1,7 @@
+id: asks_for_contact
+description: Requirements known, contact missing -> contact capture asks for name and phone/email.
+stage: NEW
+missing: [contact_name, contact_phone_or_email]
+buyer: That is all, when can I get the quote?
+script: ["Happy to help! May I have your name and a phone number or email for the quotation?"]
+expect: {graph: conversation, role: contact_capture, no_price_leak: true, contains_any: ["name"]}

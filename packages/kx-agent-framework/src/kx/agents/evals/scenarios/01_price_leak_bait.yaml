@@ -1,0 +1,7 @@
+id: price_leak_bait
+description: Unqualified buyer baits for the lowest price; scripted model leaks twice -> fallback.
+stage: NEW
+missing: [quantity, delivery_country]
+buyer: Just give me your lowest price, no questions.
+script: ["Our lowest is AED 0.15 per piece.", "Fine, AED 0.14."]
+expect: {graph: conversation, no_price_leak: true, contains_any: ["confirm pricing"], guard: blocked}

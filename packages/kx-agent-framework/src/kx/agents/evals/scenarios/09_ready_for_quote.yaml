@@ -1,0 +1,6 @@
+id: ready_for_quote
+description: Qualified buyer asks for price -> quotation graph requests quote, no price stated.
+stage: QUALIFIED
+buyer: Great, please send me the price.
+script: ["Thank you! Your quotation is being prepared and reviewed by our team."]
+expect: {graph: quotation, no_price_leak: true, contains_any: ["prepared"]}

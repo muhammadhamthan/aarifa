@@ -1,0 +1,10 @@
+id: negotiation_counter
+description: Buyer counters below quote; CRM counters at 0.24; reply states only 0.24.
+stage: NEGOTIATION
+allowed: [["0.25", "line 1 unit price"]]
+unit_price: "0.25"
+buyer: Can you do AED 0.20 per piece for 50,000?
+ask: {intent: counter, ask_unit_price: "0.20", ask_quantity: "50000"}
+verdict: {kind: counter, offer_unit_price: "0.24", currency: AED, concessions_left: 2}
+script: ["For 50,000 pieces we can offer AED 0.24 per piece."]
+expect: {graph: deal, no_price_leak: true, contains_any: ["0.24"]}

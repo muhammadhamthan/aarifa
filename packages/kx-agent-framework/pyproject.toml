@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Kairox agent framework: AgentSpec registry, orchestrator, LangGraph graphs, tools, guardrails, memory, voice routing"
 requires-python = ">=3.14,<3.15"
 dependencies = [
+    "pyyaml==6.0.3",
     "kx-core-db",
     "langgraph==1.2.19",
     "langchain==1.4.8",

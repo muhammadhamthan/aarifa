@@ -1,0 +1,10 @@
+id: negotiation_below_range
+description: Ask far below range -> manager handoff with the 60-minute promise.
+stage: NEGOTIATION
+allowed: [["0.25", "line 1 unit price"]]
+unit_price: "0.25"
+buyer: I will pay AED 0.10, final.
+ask: {intent: counter, ask_unit_price: "0.10"}
+verdict: {kind: needs_manager, offer_unit_price: null, currency: AED, concessions_left: 0}
+script: []
+expect: {graph: deal, no_price_leak: true, contains_any: ["60 minutes"], status: handoff}

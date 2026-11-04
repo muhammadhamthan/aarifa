@@ -1,0 +1,10 @@
+id: negotiation_accept
+description: Buyer accepts the quoted price -> agreed, confirmation.
+stage: NEGOTIATION
+allowed: [["0.25", "line 1 unit price"]]
+unit_price: "0.25"
+buyer: OK, we accept your price.
+ask: {intent: accept}
+verdict: {kind: accept, offer_unit_price: "0.25", currency: AED, concessions_left: 3}
+script: ["Wonderful, AED 0.25 per piece is agreed. Our management will confirm the final quotation."]
+expect: {graph: deal, no_price_leak: true, contains_any: ["agreed"]}
