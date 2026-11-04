@@ -25,6 +25,15 @@ def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def priced_content_sha256(body: str, pdf_sha256_hex: str | None = None) -> str:
+    """Canonical hash a send grant is bound to. CRM computes it when issuing the grant, automation
+    recomputes it from what it is about to send; any edit to the body or the PDF breaks the match.
+    Form: sha256(body) without a PDF, else sha256(body + "\n" + sha256_hex(pdf))."""
+    if pdf_sha256_hex is None:
+        return sha256_hex(body.encode())
+    return sha256_hex(body.encode() + b"\n" + pdf_sha256_hex.encode())
+
+
 def normalise_phone(raw: str, default_region: str = "AE") -> str:
     """Return E.164 ('+971501234567') or raise ValueError for an invalid number."""
     try:

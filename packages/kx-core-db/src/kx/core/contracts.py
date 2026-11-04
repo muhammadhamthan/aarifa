@@ -242,6 +242,8 @@ class OutboundRequest(BaseModel):
     deal_ref: uuid.UUID | None = None
     contact_ref: uuid.UUID | None = None
     buyer_timezone: str | None = None
+    language: str | None = None             # BCP-47; picks the WhatsApp template language
+    not_before: datetime | None = None      # earliest send time (aware, UTC); automation may push it later
     requested_by: str
     idempotency_key: str
 
