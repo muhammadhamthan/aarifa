@@ -1,0 +1,124 @@
+name: terraform
+
+# Pull request touching infra/  -> plan every environment, post the plans as a PR comment.
+# Push to main touching infra/  -> apply staging, then pack-prod and auto-prod; each apply job runs in
+#                                  its GitHub Environment, so the required reviewers gate it.
+#
+# Repository variables: TF_PLAN_ROLE_STAGING, TF_PLAN_ROLE_PACK_PROD, TF_PLAN_ROLE_AUTO_PROD
+# Environment variable (staging, pack-prod, auto-prod): TF_APPLY_ROLE_ARN
+
+on:
+  pull_request:
+    paths: ["infra/**", ".github/workflows/terraform.yml", ".github/workflows/_terraform-apply.yml"]
+  push:
+    branches: [main]
+    paths: ["infra/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: "~1.15.0"
+  AWS_REGION: me-central-1
+  TF_IN_AUTOMATION: "1"
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    name: plan ${{ matrix.env }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: staging
+            role_var: TF_PLAN_ROLE_STAGING
+          - env: pack-prod
+            role_var: TF_PLAN_ROLE_PACK_PROD
+          - env: auto-prod
+            role_var: TF_PLAN_ROLE_AUTO_PROD
+    defaults:
+      run:
+        working-directory: infra/envs/${{ matrix.env }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars[matrix.role_var] }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: init
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - id: plan
+        name: plan
+        run: |
+          set +e
+          terraform plan -input=false -no-color -lock-timeout=5m -detailed-exitcode -out=tfplan > plan.log 2>&1
+          code=$?
+          set -e
+          cat plan.log
+          echo "exitcode=${code}" >> "$GITHUB_OUTPUT"
+          # 0 = no changes, 2 = changes, 1 = error
+          if [[ "${code}" == "1" ]]; then exit 1; fi
+
+      - name: comment
+        if: always() && steps.plan.outputs.exitcode != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          ENV_NAME: ${{ matrix.env }}
+          CODE: ${{ steps.plan.outputs.exitcode }}
+        run: |
+          case "${CODE}" in 0) status="no changes";; 2) status="changes";; *) status="FAILED";; esac
+          {
+            echo "### terraform plan: \`${ENV_NAME}\` (${status})"
+            echo
+            echo "<details><summary>show plan</summary>"
+            echo
+            echo '```'
+            # keep only the summary part and stay under the 65k comment limit
+            sed -n '/Terraform used the selected providers/,$p' plan.log | tail -c 60000
+            echo '```'
+            echo "</details>"
+          } > comment.md
+          gh pr comment "${PR}" --body-file comment.md
+
+  apply-staging:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/_terraform-apply.yml
+    with:
+      environment: staging
+    permissions:
+      contents: read
+      id-token: write
+
+  apply-pack-prod:
+    needs: apply-staging
+    uses: ./.github/workflows/_terraform-apply.yml
+    with:
+      environment: pack-prod
+    permissions:
+      contents: read
+      id-token: write
+
+  apply-auto-prod:
+    needs: apply-staging
+    uses: ./.github/workflows/_terraform-apply.yml
+    with:
+      environment: auto-prod
+    permissions:
+      contents: read
+      id-token: write

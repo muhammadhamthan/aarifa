@@ -1,0 +1,142 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+
+jobs:
+  python:
+    name: python (lint, types, tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      KX_TEST_PG_DSN: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v6
+
+      # setup-uv v8 publishes immutable releases only: pin the full version.
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python 3.14 and the workspace
+        run: |
+          uv python install 3.14
+          uv sync --frozen
+
+      - name: ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: mypy (strict)
+        run: uv run mypy packages/*/src apps/*/src
+
+      - name: import boundaries
+        run: uv run lint-imports
+
+      - name: pytest
+        run: uv run pytest
+
+  image:
+    name: docker build (arm64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build (no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          push: false
+          load: true
+          tags: kairox/app:ci
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,scope=app,mode=max
+
+      - name: Smoke test the image
+        run: |
+          docker run --rm --entrypoint python kairox/app:ci -c "import kx.core, kx.crm, kx.automation, kx.agents, arifaa_pack, weasyprint; print('ok')"
+          docker run --rm --entrypoint fc-list kairox/app:ci :lang=ar family | head -3
+          docker run --rm --entrypoint psql kairox/app:ci --version
+
+  infra:
+    name: terraform (fmt, validate, tflint, checkov)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "~1.15.0"
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff infra
+
+      - name: terraform validate
+        run: |
+          set -e
+          for stack in infra/bootstrap infra/org infra/envs/staging infra/envs/pack-prod infra/envs/auto-prod; do
+            echo "::group::${stack}"
+            terraform -chdir="${stack}" init -backend=false -input=false -no-color
+            terraform -chdir="${stack}" validate -no-color
+            echo "::endgroup::"
+          done
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init --config "${GITHUB_WORKSPACE}/infra/.tflint.hcl"
+          tflint --recursive --chdir infra --config "${GITHUB_WORKSPACE}/infra/.tflint.hcl" --format compact
+
+      - uses: astral-sh/setup-uv@v8.1.0
+
+      # checkov from PyPI (pinned) instead of a scanner action: fewer third-party action tags to trust.
+      - name: checkov (terraform, Dockerfile, workflows)
+        run: >-
+          uvx --from checkov==3.4.3 checkov
+          --directory .
+          --framework terraform dockerfile github_actions
+          --skip-path .venv --skip-path candidates
+          --quiet --compact
+
+      - name: actionlint
+        run: uvx --from actionlint-py==1.7.12.25 actionlint
+
+      - name: hadolint
+        run: uvx --from hadolint-bin==2.15.1 hadolint Dockerfile

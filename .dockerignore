@@ -1,0 +1,29 @@
+# Build context = repo root. Keep it small and free of secrets.
+**/.git
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/.hypothesis
+**/.benchmarks
+**/node_modules
+**/.terraform
+**/*.tfstate*
+**/.env
+**/.env.*
+.github
+candidates
+tests
+**/tests
+db/tests
+
+# infra is not part of the image, except the db-bootstrap script
+infra/**
+!infra/scripts/db_bootstrap.sh
+
+docker-compose*.yml
+Makefile
+*.md
+!README.md

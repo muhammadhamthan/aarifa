@@ -1,0 +1,186 @@
+name: deploy
+
+# Tag v* -> build arm64 image -> staging (pack + auto) -> pack-prod (required reviewers).
+# Manual run: choose the target; staging always goes first. auto-prod is manual only.
+#
+# GitHub Environments (Settings > Environments), each with variables:
+#   staging   : AWS_DEPLOY_ROLE_ARN, AWS_ACCOUNT_ID
+#   pack-prod : AWS_DEPLOY_ROLE_ARN, AWS_ACCOUNT_ID, required reviewers
+#   auto-prod : AWS_DEPLOY_ROLE_ARN, AWS_ACCOUNT_ID, required reviewers
+# Repository variable STAGING_ACCOUNT_ID (source registry for promotion).
+
+# checkov:skip=CKV_GHA_7: the `target` input only selects environments; it never reaches the build
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Furthest environment to deploy to
+        type: choice
+        options: [staging, pack-prod, auto-prod]
+        default: staging
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: me-central-1
+  APP_REPO: kairox/app
+  CMS_REPO: kairox/cms
+
+jobs:
+  build:
+    name: build + push (staging ECR)
+    runs-on: ubuntu-24.04-arm
+    environment: staging
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      cms_tag: ${{ steps.meta.outputs.cms_tag }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: meta
+        name: Image tag
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then tag="${GITHUB_REF_NAME}"; else tag="sha-${GITHUB_SHA::12}"; fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if [[ -f apps/arifaa-cms/Dockerfile ]]; then echo "cms_tag=${tag}" >> "$GITHUB_OUTPUT"; else echo "cms_tag=" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build and push kairox/app (linux/arm64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.APP_REPO }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,scope=app,mode=max
+          provenance: mode=max
+          sbom: true
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Build and push kairox/cms (once apps/arifaa-cms exists)
+        if: steps.meta.outputs.cms_tag != ''
+        uses: docker/build-push-action@v7
+        with:
+          context: apps/arifaa-cms
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.CMS_REPO }}:${{ steps.meta.outputs.cms_tag }}
+          cache-from: type=gha,scope=cms
+          cache-to: type=gha,scope=cms,mode=max
+
+  staging:
+    name: deploy staging (pack + auto)
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: staging
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy pack
+        run: infra/scripts/deploy_company.sh staging pack "${{ needs.build.outputs.tag }}" "${{ needs.build.outputs.cms_tag }}"
+
+      - name: Deploy auto
+        run: infra/scripts/deploy_company.sh staging auto "${{ needs.build.outputs.tag }}" "${{ needs.build.outputs.cms_tag }}"
+
+  pack-prod:
+    name: deploy pack-prod
+    needs: [build, staging]
+    if: github.ref_type == 'tag' || inputs.target == 'pack-prod'
+    runs-on: ubuntu-24.04
+    environment: pack-prod
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Log in to this account's registry and the staging registry (cross-account pull is allowed by
+      # the staging repository policy), then copy the exact image that passed staging.
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ vars.AWS_ACCOUNT_ID }},${{ vars.STAGING_ACCOUNT_ID }}
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Promote image from staging
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+          CMS_TAG: ${{ needs.build.outputs.cms_tag }}
+          SRC: ${{ vars.STAGING_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          DST: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          docker buildx imagetools create --tag "${DST}/${APP_REPO}:${TAG}" "${SRC}/${APP_REPO}:${TAG}"
+          if [[ -n "${CMS_TAG}" ]]; then
+            docker buildx imagetools create --tag "${DST}/${CMS_REPO}:${CMS_TAG}" "${SRC}/${CMS_REPO}:${CMS_TAG}"
+          fi
+
+      - name: Deploy pack
+        run: infra/scripts/deploy_company.sh prod pack "${{ needs.build.outputs.tag }}" "${{ needs.build.outputs.cms_tag }}"
+
+  auto-prod:
+    name: deploy auto-prod
+    needs: [build, staging]
+    if: inputs.target == 'auto-prod'
+    runs-on: ubuntu-24.04
+    environment: auto-prod
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ vars.AWS_ACCOUNT_ID }},${{ vars.STAGING_ACCOUNT_ID }}
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Promote image from staging
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+          CMS_TAG: ${{ needs.build.outputs.cms_tag }}
+          SRC: ${{ vars.STAGING_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          DST: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          docker buildx imagetools create --tag "${DST}/${APP_REPO}:${TAG}" "${SRC}/${APP_REPO}:${TAG}"
+          if [[ -n "${CMS_TAG}" ]]; then
+            docker buildx imagetools create --tag "${DST}/${CMS_REPO}:${CMS_TAG}" "${SRC}/${CMS_REPO}:${CMS_TAG}"
+          fi
+
+      - name: Deploy auto
+        run: infra/scripts/deploy_company.sh prod auto "${{ needs.build.outputs.tag }}" "${{ needs.build.outputs.cms_tag }}"

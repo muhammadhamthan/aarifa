@@ -1,0 +1,132 @@
+# Local development stack.
+#   docker compose up -d postgres valkey          # databases only (run the app with `uv run kx api`)
+#   docker compose up --build                     # + migrate, api, worker in containers
+#   docker compose --profile aws up -d localstack # optional S3 / SES / SNS / Secrets Manager emulation
+#   docker compose --profile voice up voice       # LiveKit agent worker (needs LIVEKIT_* in .env)
+#
+# Postgres init (first start of the volume): roles + 4 databases + extensions via the same
+# infra/scripts/db_bootstrap.sh used on RDS, then db/ddl applied as each owning role.
+# Reset: docker compose down -v
+
+x-kx-env: &kx-env
+  KX_ENV: local
+  KX_COMPANY_CODE: pack
+  KX_LOG_JSON: "false"
+  KX_CRM_DSN: postgresql+asyncpg://crm_app:dev@postgres:5432/crm
+  KX_AUTOMATION_DSN: postgresql+asyncpg://automation_app:dev@postgres:5432/automation
+  KX_AGENTS_DSN: postgresql+asyncpg://agents_app:dev@postgres:5432/agents
+  KX_REDIS_URL: redis://valkey:6379/0
+  KX_AWS_REGION: me-central-1
+  KX_S3_BUCKET: kx-local
+  KX_API_PORT: "8000"
+  # Only used when the `aws` profile (LocalStack) is running.
+  AWS_ENDPOINT_URL: http://localstack:4566
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_REGION: me-central-1
+
+x-kx-app: &kx-app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: kairox/app:local
+  env_file:
+    - path: .env
+      required: false
+  read_only: true
+  tmpfs:
+    - /tmp
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      KX_DEV_DB_PASSWORD: dev
+      KX_INIT_APPLY_DDL: "1"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./db/ddl:/kx/ddl:ro
+      - ./infra/scripts/db_bootstrap.sh:/kx/db_bootstrap.sh:ro
+      - ./docker/postgres/initdb.sh:/docker-entrypoint-initdb.d/10-kairox.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agents"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:8.1
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  localstack:
+    profiles: ["aws"]
+    # LocalStack images after March 2026 may require LOCALSTACK_AUTH_TOKEN; pin a version you have.
+    image: localstack/localstack:4.9
+    environment:
+      SERVICES: s3,ses,sns,secretsmanager,sts
+      AWS_DEFAULT_REGION: me-central-1
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+    ports:
+      - "4566:4566"
+
+  migrate:
+    <<: *kx-app
+    command: ["migrate"]
+    environment:
+      <<: *kx-env
+      KX_PROCESS: migrate
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *kx-app
+    command: ["api"]
+    environment:
+      <<: *kx-env
+      KX_PROCESS: api
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+
+  worker:
+    <<: *kx-app
+    command: ["worker"]
+    environment:
+      <<: *kx-env
+      KX_PROCESS: worker
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+
+  voice:
+    <<: *kx-app
+    profiles: ["voice"]
+    command: ["voice"]
+    environment:
+      <<: *kx-env
+      KX_PROCESS: voice
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

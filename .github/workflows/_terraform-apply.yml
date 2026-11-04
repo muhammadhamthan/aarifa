@@ -1,0 +1,50 @@
+name: terraform-apply (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: staging | pack-prod | auto-prod (GitHub Environment = infra/envs/<name>)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    name: apply ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 60
+    concurrency:
+      group: terraform-${{ inputs.environment }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: infra/envs/${{ inputs.environment }}
+    env:
+      TF_IN_AUTOMATION: "1"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "~1.15.0"
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.TF_APPLY_ROLE_ARN }}
+          aws-region: me-central-1
+          role-duration-seconds: 3600
+
+      - name: init
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - name: plan
+        run: terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
+
+      - name: apply
+        run: terraform apply -input=false -no-color -lock-timeout=5m tfplan
