@@ -57,8 +57,13 @@ class CoreSettings(BaseSettings):
     log_json: bool = True
 
     def dsn_for(self, db: LogicalDb) -> str:
-        return str({LogicalDb.CRM: self.crm_dsn, LogicalDb.AUTOMATION: self.automation_dsn,
-                    LogicalDb.AGENTS: self.agents_dsn}[db])
+        return str(
+            {
+                LogicalDb.CRM: self.crm_dsn,
+                LogicalDb.AUTOMATION: self.automation_dsn,
+                LogicalDb.AGENTS: self.agents_dsn,
+            }[db]
+        )
 
 
 @lru_cache(maxsize=1)

@@ -68,9 +68,15 @@ class Outbox:
                 "(id, event_type, event_version, correlation_id, aggregate_type, aggregate_id, payload) "
                 "VALUES (:id, :t, :v, :c, :at, :aid, CAST(:p AS jsonb))"
             ),
-            {"id": event.event_id, "t": event.event_type, "v": event.event_version,
-             "c": event.correlation_id, "at": event.aggregate_type, "aid": event.aggregate_id,
-             "p": orjson.dumps(event.payload, default=str).decode()},
+            {
+                "id": event.event_id,
+                "t": event.event_type,
+                "v": event.event_version,
+                "c": event.correlation_id,
+                "at": event.aggregate_type,
+                "aid": event.aggregate_id,
+                "p": orjson.dumps(event.payload, default=str).decode(),
+            },
         )
 
 
@@ -79,23 +85,39 @@ Publisher = Callable[[Event], Awaitable[None]]
 
 async def relay_once(session: AsyncSession, schema: str, publish: Publisher, limit: int = 100) -> int:
     """Claim up to `limit` unpublished events in order, publish them, mark published. Returns count."""
-    rows = (await session.execute(
-        text(
-            f"SELECT id, event_type, event_version, correlation_id, aggregate_type, aggregate_id, "  # noqa: S608
-            f"payload, created_at FROM {_ident(schema)}.outbox_events "
-            "WHERE published_at IS NULL ORDER BY sequence LIMIT :n FOR UPDATE SKIP LOCKED"
-        ),
-        {"n": limit},
-    )).mappings().all()
+    rows = (
+        (
+            await session.execute(
+                text(
+                    f"SELECT id, event_type, event_version, correlation_id, aggregate_type, aggregate_id, "  # noqa: S608
+                    f"payload, created_at FROM {_ident(schema)}.outbox_events "
+                    "WHERE published_at IS NULL ORDER BY sequence LIMIT :n FOR UPDATE SKIP LOCKED"
+                ),
+                {"n": limit},
+            )
+        )
+        .mappings()
+        .all()
+    )
     for row in rows:
-        await publish(Event(event_id=row["id"], event_type=row["event_type"],
-                            event_version=row["event_version"], correlation_id=row["correlation_id"],
-                            aggregate_type=row["aggregate_type"], aggregate_id=row["aggregate_id"],
-                            payload=row["payload"], occurred_at=row["created_at"]))
+        await publish(
+            Event(
+                event_id=row["id"],
+                event_type=row["event_type"],
+                event_version=row["event_version"],
+                correlation_id=row["correlation_id"],
+                aggregate_type=row["aggregate_type"],
+                aggregate_id=row["aggregate_id"],
+                payload=row["payload"],
+                occurred_at=row["created_at"],
+            )
+        )
     if rows:
         await session.execute(
-            text(f"UPDATE {_ident(schema)}.outbox_events SET published_at = now(), "  # noqa: S608
-                 "attempts = attempts + 1 WHERE id = ANY(:ids)"),
+            text(
+                f"UPDATE {_ident(schema)}.outbox_events SET published_at = now(), "  # noqa: S608
+                "attempts = attempts + 1 WHERE id = ANY(:ids)"
+            ),
             {"ids": [r["id"] for r in rows]},
         )
     return len(rows)
@@ -104,8 +126,10 @@ async def relay_once(session: AsyncSession, schema: str, publish: Publisher, lim
 async def inbox_once(session: AsyncSession, schema: str, event_id: uuid.UUID, handler: str) -> bool:
     """True the first time (handler should run); False if this handler already processed the event."""
     result = await session.execute(
-        text(f"INSERT INTO {_ident(schema)}.inbox_events (event_id, handler) VALUES (:e, :h) "  # noqa: S608
-             "ON CONFLICT DO NOTHING RETURNING 1"),
+        text(
+            f"INSERT INTO {_ident(schema)}.inbox_events (event_id, handler) VALUES (:e, :h) "  # noqa: S608
+            "ON CONFLICT DO NOTHING RETURNING 1"
+        ),
         {"e": event_id, "h": handler},
     )
     return result.scalar_one_or_none() is not None

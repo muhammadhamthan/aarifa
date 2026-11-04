@@ -66,8 +66,10 @@ async def databases(pg_databases: dict[str, str], monkeypatch: pytest.MonkeyPatc
     from kx.core.settings import CoreSettings
 
     settings = CoreSettings(
-        crm_dsn=pg_databases["crm"], automation_dsn=pg_databases["automation"],
-        agents_dsn=pg_databases["agents"], company_code="pack",
+        crm_dsn=pg_databases["crm"],
+        automation_dsn=pg_databases["automation"],
+        agents_dsn=pg_databases["agents"],
+        company_code="pack",
     )
     dbs = Databases(settings)
     try:

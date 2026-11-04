@@ -1,4 +1,5 @@
 """Neutral judge for price-guard candidates: hidden adversarial cases + same-machine timing + disagreement fuzz."""
+
 import importlib
 import random
 import subprocess
@@ -64,11 +65,26 @@ def hidden_score(mod):
 
 
 def spec(name):
-    r = subprocess.run([sys.executable, "-m", "pytest", "tests/spec/test_spec_price_guard.py", "-q",
-                        "-p", "no:cacheprovider", "-W", "ignore::DeprecationWarning"],
-                       env={**__import__("os").environ, "PYTHONPATH": "candidates",
-                            "KX_PRICE_GUARD": f"price_guard_{name}.price_guard"},
-                       capture_output=True, text=True)
+    r = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/spec/test_spec_price_guard.py",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "-W",
+            "ignore::DeprecationWarning",
+        ],
+        env={
+            **__import__("os").environ,
+            "PYTHONPATH": "candidates",
+            "KX_PRICE_GUARD": f"price_guard_{name}.price_guard",
+        },
+        capture_output=True,
+        text=True,
+    )
     return r.stdout.strip().splitlines()[-1]
 
 
@@ -93,22 +109,57 @@ def timing(mod):
 
 def fuzz(n=30000):
     rnd = random.Random(11)
-    parts = ["AED", "aed", "Dhs", "USD", "$", "€", "₹", "Rs.", "price", "total", "rate", "pcs", "ml", "%",
-             "x", "per piece", "for", "-", "/", ",", ".", ":", "\n", "40HC", "Q-2026-0001", "+971 50"]
+    parts = [
+        "AED",
+        "aed",
+        "Dhs",
+        "USD",
+        "$",
+        "€",
+        "₹",
+        "Rs.",
+        "price",
+        "total",
+        "rate",
+        "pcs",
+        "ml",
+        "%",
+        "x",
+        "per piece",
+        "for",
+        "-",
+        "/",
+        ",",
+        ".",
+        ":",
+        "\n",
+        "40HC",
+        "Q-2026-0001",
+        "+971 50",
+    ]
+
     def num():
         k = rnd.random()
-        if k < .3: return f"{rnd.randint(0, 99)}.{rnd.randint(0, 999999):0{rnd.choice([2,4,6])}d}"
-        if k < .5: return f"{rnd.randint(1, 999)},{rnd.randint(0, 999):03d}" + (f".{rnd.randint(0,99):02d}" if rnd.random() < .5 else "")
-        if k < .6: return f"{rnd.randint(1, 9)}.{rnd.randint(0,999):03d},{rnd.randint(0,99):02d}"
+        if k < 0.3:
+            return f"{rnd.randint(0, 99)}.{rnd.randint(0, 999999):0{rnd.choice([2, 4, 6])}d}"
+        if k < 0.5:
+            return f"{rnd.randint(1, 999)},{rnd.randint(0, 999):03d}" + (
+                f".{rnd.randint(0, 99):02d}" if rnd.random() < 0.5 else ""
+            )
+        if k < 0.6:
+            return f"{rnd.randint(1, 9)}.{rnd.randint(0, 999):03d},{rnd.randint(0, 99):02d}"
         return str(rnd.randint(0, 100000))
+
     disagree = []
     for _ in range(n):
-        toks = [rnd.choice(parts) if rnd.random() < .6 else num() for _ in range(rnd.randint(2, 7))]
-        text = " ".join(toks) if rnd.random() < .7 else "".join(toks)
+        toks = [rnd.choice(parts) if rnd.random() < 0.6 else num() for _ in range(rnd.randint(2, 7))]
+        text = " ".join(toks) if rnd.random() < 0.7 else "".join(toks)
         res = {}
         for name, m in MODS.items():
             try:
-                res[name] = tuple((x.amount, x.currency, x.is_percentage) for x in m.extract_prices(text, "AED"))
+                res[name] = tuple(
+                    (x.amount, x.currency, x.is_percentage) for x in m.extract_prices(text, "AED")
+                )
             except Exception as e:  # noqa: BLE001
                 res[name] = f"EXC {type(e).__name__}"
         if len(set(map(str, res.values()))) > 1:
@@ -120,8 +171,10 @@ if __name__ == "__main__":
     for n, m in MODS.items():
         fails = hidden_score(m)
         t1, t2 = timing(m)
-        print(f"== {n}: spec [{spec(n)}] hidden {len(HIDDEN)-len(fails)}/{len(HIDDEN)} "
-              f"| 1000 msgs {t1:.2f} ms | 6KB email {t2:.0f} us")
+        print(
+            f"== {n}: spec [{spec(n)}] hidden {len(HIDDEN) - len(fails)}/{len(HIDDEN)} "
+            f"| 1000 msgs {t1:.2f} ms | 6KB email {t2:.0f} us"
+        )
         for f in fails:
             print("   FAIL", f)
     d = fuzz()

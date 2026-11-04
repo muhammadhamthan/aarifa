@@ -44,7 +44,14 @@ class RuleViolation(DomainError):
 def install_problem_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def _domain(request: Request, exc: DomainError) -> Response:
-        body = {"type": f"https://errors.kairox.ai/{exc.code}", "title": exc.title, "status": exc.status,
-                "detail": exc.detail, "instance": str(request.url.path), **exc.extra}
-        return Response(orjson.dumps(body, default=str), status_code=exc.status,
-                        media_type="application/problem+json")
+        body = {
+            "type": f"https://errors.kairox.ai/{exc.code}",
+            "title": exc.title,
+            "status": exc.status,
+            "detail": exc.detail,
+            "instance": str(request.url.path),
+            **exc.extra,
+        }
+        return Response(
+            orjson.dumps(body, default=str), status_code=exc.status, media_type="application/problem+json"
+        )

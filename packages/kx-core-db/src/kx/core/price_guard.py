@@ -47,26 +47,108 @@ _PHONE: Final = re.compile(r"\+[0-9]{1,4}(?:[ \-]?[0-9]){6,14}")
 
 _SYMBOLS: Final[dict[str, str]] = {"$": "USD", "€": "EUR", "₹": "INR", "¥": "CNY", "£": "GBP"}
 _CURRENCY_WORDS: Final[dict[str, str]] = {
-    "aed": "AED", "dhs": "AED", "dh": "AED", "dirham": "AED", "dirhams": "AED",
-    "درهم": "AED", "دراهم": "AED", "د.إ": "AED",
-    "us$": "USD", "usd": "USD",
-    "eur": "EUR", "euro": "EUR", "euros": "EUR",
-    "rs": "INR", "rs.": "INR", "inr": "INR", "rupee": "INR", "rupees": "INR",
-    "cny": "CNY", "rmb": "CNY", "元": "CNY", "人民币": "CNY",
-    "sar": "SAR", "ريال": "SAR",
+    "aed": "AED",
+    "dhs": "AED",
+    "dh": "AED",
+    "dirham": "AED",
+    "dirhams": "AED",
+    "درهم": "AED",
+    "دراهم": "AED",
+    "د.إ": "AED",
+    "us$": "USD",
+    "usd": "USD",
+    "eur": "EUR",
+    "euro": "EUR",
+    "euros": "EUR",
+    "rs": "INR",
+    "rs.": "INR",
+    "inr": "INR",
+    "rupee": "INR",
+    "rupees": "INR",
+    "cny": "CNY",
+    "rmb": "CNY",
+    "元": "CNY",
+    "人民币": "CNY",
+    "sar": "SAR",
+    "ريال": "SAR",
     "gbp": "GBP",
 }
 _GLUED_OK: Final = frozenset({"元", "人民币"})  # CJK is written without spaces: no word boundary
-_UNITS: Final = frozenset({
-    "pcs", "pc", "piece", "pieces", "unit", "units", "nos",
-    "ml", "l", "ltr", "ltrs", "litre", "litres", "liter", "liters",
-    "kg", "kgs", "g", "gm", "gms", "gsm", "mm", "cm", "m", "micron", "microns", "mic",
-    "k", "ton", "tons", "tonne", "tonnes", "mt", "hc", "gp", "ft", "ctn", "ctns", "carton", "cartons",
-    "box", "boxes", "x", "container", "containers", "pallet", "pallets", "roll", "rolls",
-    "sheet", "sheets", "bag", "bags", "bottle", "bottles",
-    "day", "days", "week", "weeks", "month", "months", "year", "years", "hour", "hours", "hr", "hrs",
-    "min", "mins", "minute", "minutes",
-})
+_UNITS: Final = frozenset(
+    {
+        "pcs",
+        "pc",
+        "piece",
+        "pieces",
+        "unit",
+        "units",
+        "nos",
+        "ml",
+        "l",
+        "ltr",
+        "ltrs",
+        "litre",
+        "litres",
+        "liter",
+        "liters",
+        "kg",
+        "kgs",
+        "g",
+        "gm",
+        "gms",
+        "gsm",
+        "mm",
+        "cm",
+        "m",
+        "micron",
+        "microns",
+        "mic",
+        "k",
+        "ton",
+        "tons",
+        "tonne",
+        "tonnes",
+        "mt",
+        "hc",
+        "gp",
+        "ft",
+        "ctn",
+        "ctns",
+        "carton",
+        "cartons",
+        "box",
+        "boxes",
+        "x",
+        "container",
+        "containers",
+        "pallet",
+        "pallets",
+        "roll",
+        "rolls",
+        "sheet",
+        "sheets",
+        "bag",
+        "bags",
+        "bottle",
+        "bottles",
+        "day",
+        "days",
+        "week",
+        "weeks",
+        "month",
+        "months",
+        "year",
+        "years",
+        "hour",
+        "hours",
+        "hr",
+        "hrs",
+        "min",
+        "mins",
+        "minute",
+        "minutes",
+    }
+)
 _PERCENT_WORDS: Final = ("percent", "per cent", "pct")
 
 _NOTHING: Final = 0
@@ -87,8 +169,11 @@ def _index(tokens: Sequence[_Token], *, by_last: bool) -> dict[str, tuple[_Token
 _CUR_TOKENS: Final = [(w, _CURRENCY, c, w not in _GLUED_OK) for w, c in _CURRENCY_WORDS.items()]
 # prefix probe: keyed by the character just before the number (after optional spaces)
 _BEFORE: Final = _index(_CUR_TOKENS, by_last=True)
-_AFTER_TOKENS: Final = [*_CUR_TOKENS, *((w, _PERCENT, None, True) for w in _PERCENT_WORDS),
-                        *((w, _UNIT, None, True) for w in _UNITS)]
+_AFTER_TOKENS: Final = [
+    *_CUR_TOKENS,
+    *((w, _PERCENT, None, True) for w in _PERCENT_WORDS),
+    *((w, _UNIT, None, True) for w in _UNITS),
+]
 # suffix probe: the next word looked up whole; tokens keyed by first char for glued/odd cases
 _AFTER_WORDS: Final[dict[str, _Token]] = {tok[0]: tok for tok in _AFTER_TOKENS}
 _AFTER: Final = _index(_AFTER_TOKENS, by_last=False)
@@ -123,19 +208,35 @@ _PM_FIELDS: Final = frozenset(PriceMention.model_fields)
 _GR_FIELDS: Final = frozenset(GuardResult.model_fields)
 
 
-def _fast_mention(amount: Decimal, currency: str | None, start: int, end: int, raw: str,  # noqa: PLR0917
-                  is_percentage: bool) -> PriceMention:
+def _fast_mention(
+    amount: Decimal,
+    currency: str | None,
+    start: int,
+    end: int,
+    raw: str,
+    is_percentage: bool,
+) -> PriceMention:
     m = _new(PriceMention)
-    _set_dict(m, {"amount": amount, "currency": currency, "start": start, "end": end, "raw": raw,
-                  "is_percentage": is_percentage})
+    _set_dict(
+        m,
+        {
+            "amount": amount,
+            "currency": currency,
+            "start": start,
+            "end": end,
+            "raw": raw,
+            "is_percentage": is_percentage,
+        },
+    )
     _set_fields(m, _PM_FIELDS)
     _set_extra(m, None)
     _set_private(m, None)
     return m
 
 
-def _fast_result(ok: bool, mentions: tuple[PriceMention, ...],
-                 violations: tuple[PriceMention, ...]) -> GuardResult:
+def _fast_result(
+    ok: bool, mentions: tuple[PriceMention, ...], violations: tuple[PriceMention, ...]
+) -> GuardResult:
     r = _new(GuardResult)
     _set_dict(r, {"ok": ok, "mentions": mentions, "violations": violations})
     _set_fields(r, _GR_FIELDS)
@@ -144,14 +245,22 @@ def _fast_result(ok: bool, mentions: tuple[PriceMention, ...],
     return r
 
 
-def _safe_mention(amount: Decimal, currency: str | None, start: int, end: int, raw: str,  # noqa: PLR0917
-                  is_percentage: bool) -> PriceMention:
-    return PriceMention(amount=amount, currency=currency, start=start, end=end, raw=raw,
-                        is_percentage=is_percentage)
+def _safe_mention(
+    amount: Decimal,
+    currency: str | None,
+    start: int,
+    end: int,
+    raw: str,
+    is_percentage: bool,
+) -> PriceMention:
+    return PriceMention(
+        amount=amount, currency=currency, start=start, end=end, raw=raw, is_percentage=is_percentage
+    )
 
 
-def _safe_result(ok: bool, mentions: tuple[PriceMention, ...],
-                 violations: tuple[PriceMention, ...]) -> GuardResult:
+def _safe_result(
+    ok: bool, mentions: tuple[PriceMention, ...], violations: tuple[PriceMention, ...]
+) -> GuardResult:
     return GuardResult(ok=ok, mentions=mentions, violations=violations)
 
 
@@ -160,9 +269,17 @@ def _fast_path_is_sound() -> bool:
         a = _fast_mention(Decimal("1.50"), "AED", 0, 8, "AED 1.50", False)
         b = _safe_mention(Decimal("1.50"), "AED", 0, 8, "AED 1.50", False)
         ra, rb = _fast_result(False, (a,), (a,)), _safe_result(False, (b,), (b,))
-        return (a == b and hash(a) == hash(b) and repr(a) == repr(b) and a.model_dump() == b.model_dump()
-                and a.model_dump_json() == b.model_dump_json() and a.model_fields_set == b.model_fields_set
-                and ra == rb and ra.model_dump() == rb.model_dump() and repr(ra) == repr(rb))
+        return (
+            a == b
+            and hash(a) == hash(b)
+            and repr(a) == repr(b)
+            and a.model_dump() == b.model_dump()
+            and a.model_dump_json() == b.model_dump_json()
+            and a.model_fields_set == b.model_fields_set
+            and ra == rb
+            and ra.model_dump() == rb.model_dump()
+            and repr(ra) == repr(rb)
+        )
     except Exception:
         return False
 
@@ -178,8 +295,10 @@ _OK_EMPTY: Final = _result(True, (), ())  # frozen and holds only empty tuples: 
 # --------------------------------------------------------------------------------- number parsing
 # Integer part with thousands separators: Western 1,234,567 or Indian 12,34,567 (same with '.').
 _GROUPED: Final = {
-    sep: re.compile(rf"[0-9]{{1,3}}(?:{re.escape(sep)}[0-9]{{3}})+"
-                    rf"|[0-9]{{1,2}}(?:{re.escape(sep)}[0-9]{{2}})+{re.escape(sep)}[0-9]{{3}}").fullmatch
+    sep: re.compile(
+        rf"[0-9]{{1,3}}(?:{re.escape(sep)}[0-9]{{3}})+"
+        rf"|[0-9]{{1,2}}(?:{re.escape(sep)}[0-9]{{2}})+{re.escape(sep)}[0-9]{{3}}"
+    ).fullmatch
     for sep in ",."
 }
 
@@ -202,7 +321,7 @@ def _parse(num: str) -> tuple[str, int] | None:
     if dot >= 0 and comma >= 0:  # both: the LAST one is the decimal separator
         last = max(dot, comma)
         thou = "," if last == dot else "."
-        int_part, frac = num[:last], num[last + 1:]
+        int_part, frac = num[:last], num[last + 1 :]
         if thou in int_part and _GROUPED[thou](int_part) is None:
             return None
         if num[last] in int_part:
@@ -263,12 +382,12 @@ def _probe(t: str, lt: str, n: int, s: int, e: int) -> _Probe | None:
         if not c.isalpha():
             return _NOTHING, None, s, e
         sp = lt.find(" ", k, k + 16)
-        word = lt[k:sp if sp >= 0 else k + 16].rstrip(_TRAILING_PUNCT)
+        word = lt[k : sp if sp >= 0 else k + 16].rstrip(_TRAILING_PUNCT)
         hit = _AFTER_WORDS.get(word)
         if hit is None and (word == "per" or not word.isascii() or not word.isalpha()):
             for tok in _AFTER.get(c, ()):  # "pcs/ctn", "per cent", "元每个", "us$"
                 m = k + len(tok[0])
-                if lt.startswith(tok[0], k) and not (tok[3] and lt[m:m + 1].isalpha()):
+                if lt.startswith(tok[0], k) and not (tok[3] and lt[m : m + 1].isalpha()):
                     hit = tok
                     break
         if hit is not None:
@@ -322,12 +441,19 @@ _NOT_A_PRICE: Final = "\0"  # sentinel currency: the bare number is not a price
 # "0.21 each", "0.21 per piece", "8.50/-": a per-piece phrase right after a bare number makes it a price.
 _PRICE_SUFFIX: Final = re.compile(
     r"[ \t]*(?:each\b|apiece\b|a piece\b|per (?:piece|pc|pcs|unit|item|container)\b"
-    r"|/(?:-|=|pcs|pc|piece|unit))")
+    r"|/(?:-|=|pcs|pc|piece|unit))"
+)
 
 
-def _bare_currency(lt: str, s: int, e: int, dec: int, prev_end: int,  # noqa: PLR0917 - hot path
-                   prev_cur: str | None,
-                   default_currency: str | None) -> str | None:
+def _bare_currency(
+    lt: str,
+    s: int,
+    e: int,
+    dec: int,
+    prev_end: int,
+    prev_cur: str | None,
+    default_currency: str | None,
+) -> str | None:
     """A number with no currency of its own is a price (fail closed) when it follows a range/alternative
     connector ("AED 0.22 - 0.25", "AED 0.22 or 0.21"), a price keyword earlier in the same clause, a
     per-piece phrase follows it ("0.21 each"), or it is written with 2+ decimals ("I can do 0.21"):
@@ -430,8 +556,13 @@ def extract_prices(text: str, default_currency: str | None = None) -> list[Price
     return _scan(text, default_currency)[0]
 
 
-def check_prices(text: str, allowed: Sequence[AllowedPrice], *, default_currency: str | None = None,
-                 allowed_percentages: Sequence[Decimal] = ()) -> GuardResult:
+def check_prices(
+    text: str,
+    allowed: Sequence[AllowedPrice],
+    *,
+    default_currency: str | None = None,
+    allowed_percentages: Sequence[Decimal] = (),
+) -> GuardResult:
     """ok iff every amount equals an allowed price at the speaker's precision (>= 2 dp) and every
     percentage is in `allowed_percentages`."""
     mentions, decimals = _scan(text, default_currency)
@@ -471,8 +602,9 @@ def _exact_hit(allowed: Sequence[AllowedPrice], amount: Decimal, cur: str | None
     return False
 
 
-def _quantized(allowed: Sequence[AllowedPrice], cur: str | None, p: int, *,
-               small: bool) -> tuple[Decimal, ...] | frozenset[Decimal]:
+def _quantized(
+    allowed: Sequence[AllowedPrice], cur: str | None, p: int, *, small: bool
+) -> tuple[Decimal, ...] | frozenset[Decimal]:
     """Allowed amounts of a compatible currency, rounded half-up to p places."""
     exp = _EXPS[p] if p < len(_EXPS) else Decimal(1).scaleb(-p)
     out: list[Decimal] = []

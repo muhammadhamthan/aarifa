@@ -33,12 +33,12 @@ __all__ = ["check_prices", "extract_prices"]
 
 # ------------------------------------------------------------------ digit normalisation
 _TRANSLATE: Final[dict[int, int]] = {
-    **{0x0660 + i: 0x30 + i for i in range(10)},   # Arabic-Indic
-    **{0x06F0 + i: 0x30 + i for i in range(10)},   # Extended Arabic-Indic (Persian / Urdu)
-    **{0x0966 + i: 0x30 + i for i in range(10)},   # Devanagari
-    **{0xFF10 + i: 0x30 + i for i in range(10)},   # full-width
-    0x066B: 0x2E,                                   # ARABIC DECIMAL SEPARATOR -> '.'
-    0x066C: 0x2C,                                   # ARABIC THOUSANDS SEPARATOR -> ','
+    **{0x0660 + i: 0x30 + i for i in range(10)},  # Arabic-Indic
+    **{0x06F0 + i: 0x30 + i for i in range(10)},  # Extended Arabic-Indic (Persian / Urdu)
+    **{0x0966 + i: 0x30 + i for i in range(10)},  # Devanagari
+    **{0xFF10 + i: 0x30 + i for i in range(10)},  # full-width
+    0x066B: 0x2E,  # ARABIC DECIMAL SEPARATOR -> '.'
+    0x066C: 0x2C,  # ARABIC THOUSANDS SEPARATOR -> ','
 }
 _NATIVE: Final = re.compile("[٠-٩٫٬۰-۹०-९０-９]")
 
@@ -65,19 +65,99 @@ _NA_PREFIX: Final = re.compile(r"(" + _NA_FORMS + r"|[$€₹¥£])\s{0,3}\Z")
 _K: Final = Decimal(1000)
 _MILLION: Final = Decimal(1000000)
 _UNIT_WORDS: Final = (
-    "pcs", "pc", "piece", "pieces", "unit", "units", "nos", "ml", "l", "ltr", "ltrs", "litre",
-    "litres", "liter", "liters", "kg", "kgs", "g", "gm", "gms", "gsm", "mm", "cm", "m", "micron",
-    "microns", "mic", "k", "ton", "tons", "tonne", "tonnes", "mt", "hc", "ft", "ctn", "ctns",
-    "carton", "cartons", "box", "boxes", "container", "containers", "pallet", "pallets", "roll",
-    "rolls", "bag", "bags", "bottle", "bottles", "set", "sets", "pack", "packs", "pair", "pairs",
-    "sheet", "sheets", "dozen", "dozens", "day", "days", "week", "weeks", "month", "months",
-    "year", "years", "hr", "hrs", "hour", "hours", "min", "mins", "minute", "minutes",
+    "pcs",
+    "pc",
+    "piece",
+    "pieces",
+    "unit",
+    "units",
+    "nos",
+    "ml",
+    "l",
+    "ltr",
+    "ltrs",
+    "litre",
+    "litres",
+    "liter",
+    "liters",
+    "kg",
+    "kgs",
+    "g",
+    "gm",
+    "gms",
+    "gsm",
+    "mm",
+    "cm",
+    "m",
+    "micron",
+    "microns",
+    "mic",
+    "k",
+    "ton",
+    "tons",
+    "tonne",
+    "tonnes",
+    "mt",
+    "hc",
+    "ft",
+    "ctn",
+    "ctns",
+    "carton",
+    "cartons",
+    "box",
+    "boxes",
+    "container",
+    "containers",
+    "pallet",
+    "pallets",
+    "roll",
+    "rolls",
+    "bag",
+    "bags",
+    "bottle",
+    "bottles",
+    "set",
+    "sets",
+    "pack",
+    "packs",
+    "pair",
+    "pairs",
+    "sheet",
+    "sheets",
+    "dozen",
+    "dozens",
+    "day",
+    "days",
+    "week",
+    "weeks",
+    "month",
+    "months",
+    "year",
+    "years",
+    "hr",
+    "hrs",
+    "hour",
+    "hours",
+    "min",
+    "mins",
+    "minute",
+    "minutes",
 )
 _MULTIPLIERS: Final[dict[str, Decimal]] = {
-    "thousand": _K, "lakh": Decimal(100000), "lakhs": Decimal(100000), "lac": Decimal(100000),
-    "lacs": Decimal(100000), "mn": _MILLION, "million": _MILLION, "millions": _MILLION,
-    "cr": Decimal(10000000), "crore": Decimal(10000000), "crores": Decimal(10000000),
-    "bn": Decimal(1000000000), "billion": Decimal(1000000000), "billions": Decimal(1000000000),
+    "thousand": _K,
+    "lakh": Decimal(100000),
+    "lakhs": Decimal(100000),
+    "lac": Decimal(100000),
+    "lacs": Decimal(100000),
+    "mn": _MILLION,
+    "million": _MILLION,
+    "millions": _MILLION,
+    "cr": Decimal(10000000),
+    "crore": Decimal(10000000),
+    "crores": Decimal(10000000),
+    "bn": Decimal(1000000000),
+    "billion": Decimal(1000000000),
+    "billions": Decimal(1000000000),
 }
 # Units that act as multipliers when a currency is attached ("AED 100k", "USD 2.5m").
 _UNIT_AS_MULT: Final[dict[str, Decimal]] = {"k": _K, "m": _MILLION}
@@ -88,8 +168,12 @@ _TAIL: Final[dict[str, tuple[str, Any]]] = {
     **{w: ("X", v) for w, v in _MULTIPLIERS.items()},
     **{w: ("C", c) for w, c in _CURRENCY.items() if w.isascii() and "." not in w},
     **{w: ("C", c) for w, c in _SYMBOL_CURRENCY.items()},
-    "%": ("P", None), "٪": ("P", None), "percent": ("P", None), "pct": ("P", None),
-    "per": ("?", None), "us": ("?", None),
+    "%": ("P", None),
+    "٪": ("P", None),
+    "percent": ("P", None),
+    "pct": ("P", None),
+    "per": ("?", None),
+    "us": ("?", None),
 }
 
 _SP: Final = "[ \\t\\u00a0\\u202f]?"
@@ -100,17 +184,21 @@ _LEAD_PUNCT: Final = "([{<\"'*:;,/|-=~"
 # Groups: 1 number tail, 2 joiner, 3 next word/symbol
 _MASTER: Final = re.compile(
     r"[\d+]"
-    r"(?:(?<=\+)\d{1,3}(?:[ \-]?\d{2,4}){2,}(?!\d)"          # +971 50 123 4567 (ignored)
-    r"|(?<=\d)(\d*+(?:[.,]\d++)*+)"                            # rest of the number token
+    r"(?:(?<=\+)\d{1,3}(?:[ \-]?\d{2,4}){2,}(?!\d)"  # +971 50 123 4567 (ignored)
+    r"|(?<=\d)(\d*+(?:[.,]\d++)*+)"  # rest of the number token
     r"(?:([-/:])(?=\d)|" + _SP + r"([^\W\d_]+|[%٪$€₹¥£]))?)"
 )
 _NOT_DIGIT_AFTER: Final = r"(?![.,]?\d)"
 # Anchored at a number that is followed by a joiner. Group 1: digit-hyphen run (phone / code).
 _SKIP: Final = re.compile(
-    r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}" + _NOT_DIGIT_AFTER +            # 2026-11-15
-    r"|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}" + _NOT_DIGIT_AFTER +          # 15/11/2026, 15-11-26
-    r"|\d{1,2}:\d{2}(?::\d{2})?" + _NOT_DIGIT_AFTER +                 # 10:30
-    r"|(?=(?:-?\d){7})(\d++(?:-\d++)++)" + _NOT_DIGIT_AFTER           # 050-1234567
+    r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}"
+    + _NOT_DIGIT_AFTER  # 2026-11-15
+    + r"|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}"
+    + _NOT_DIGIT_AFTER  # 15/11/2026, 15-11-26
+    + r"|\d{1,2}:\d{2}(?::\d{2})?"
+    + _NOT_DIGIT_AFTER  # 10:30
+    + r"|(?=(?:-?\d){7})(\d++(?:-\d++)++)"
+    + _NOT_DIGIT_AFTER  # 050-1234567
 )
 _DOT_DATE: Final = re.compile(r"\d{4}\.\d{1,2}\.\d{1,2}|\d{1,2}\.\d{1,2}\.\d{2,4}")
 _PER_CENT: Final = re.compile(r"[ \t]?(?i:cent)(?!\w)")
@@ -146,19 +234,36 @@ _PM_FIELDS: Final = frozenset(PriceMention.model_fields)
 _GR_FIELDS: Final = frozenset(GuardResult.model_fields)
 
 
-def _fast_mention(amount: Decimal, currency: str | None, start: int, end: int, raw: str,  # noqa: PLR0917
-                  is_percentage: bool) -> PriceMention:
+def _fast_mention(
+    amount: Decimal,
+    currency: str | None,
+    start: int,
+    end: int,
+    raw: str,
+    is_percentage: bool,
+) -> PriceMention:
     m = _new(PriceMention)
-    _oset(m, "__dict__", {"amount": amount, "currency": currency, "start": start, "end": end,
-                          "raw": raw, "is_percentage": is_percentage})
+    _oset(
+        m,
+        "__dict__",
+        {
+            "amount": amount,
+            "currency": currency,
+            "start": start,
+            "end": end,
+            "raw": raw,
+            "is_percentage": is_percentage,
+        },
+    )
     _oset(m, "__pydantic_fields_set__", set(_PM_FIELDS))
     _oset(m, "__pydantic_extra__", None)
     _oset(m, "__pydantic_private__", None)
     return m
 
 
-def _fast_result(ok: bool, mentions: tuple[PriceMention, ...],
-                 violations: tuple[PriceMention, ...]) -> GuardResult:
+def _fast_result(
+    ok: bool, mentions: tuple[PriceMention, ...], violations: tuple[PriceMention, ...]
+) -> GuardResult:
     r = _new(GuardResult)
     _oset(r, "__dict__", {"ok": ok, "mentions": mentions, "violations": violations})
     _oset(r, "__pydantic_fields_set__", set(_GR_FIELDS))
@@ -167,14 +272,22 @@ def _fast_result(ok: bool, mentions: tuple[PriceMention, ...],
     return r
 
 
-def _slow_mention(amount: Decimal, currency: str | None, start: int, end: int, raw: str,  # noqa: PLR0917
-                  is_percentage: bool) -> PriceMention:
-    return PriceMention(amount=amount, currency=currency, start=start, end=end, raw=raw,
-                        is_percentage=is_percentage)
+def _slow_mention(
+    amount: Decimal,
+    currency: str | None,
+    start: int,
+    end: int,
+    raw: str,
+    is_percentage: bool,
+) -> PriceMention:
+    return PriceMention(
+        amount=amount, currency=currency, start=start, end=end, raw=raw, is_percentage=is_percentage
+    )
 
 
-def _slow_result(ok: bool, mentions: tuple[PriceMention, ...],
-                 violations: tuple[PriceMention, ...]) -> GuardResult:
+def _slow_result(
+    ok: bool, mentions: tuple[PriceMention, ...], violations: tuple[PriceMention, ...]
+) -> GuardResult:
     return GuardResult(ok=ok, mentions=mentions, violations=violations)
 
 
@@ -183,9 +296,15 @@ def _fast_path_is_sound() -> bool:
         args: tuple[Any, ...] = (Decimal("1.50"), "AED", 0, 8, "AED 1.50", False)
         fm, sm = _fast_mention(*args), _slow_mention(*args)
         fr, sr = _fast_result(False, (fm,), (fm,)), _slow_result(False, (sm,), (sm,))
-        return (fm == sm and hash(fm) == hash(sm) and fm.model_dump() == sm.model_dump()
-                and fr == sr and fr.model_dump() == sr.model_dump() and repr(fm) == repr(sm)
-                and fm.model_fields_set == sm.model_fields_set)
+        return (
+            fm == sm
+            and hash(fm) == hash(sm)
+            and fm.model_dump() == sm.model_dump()
+            and fr == sr
+            and fr.model_dump() == sr.model_dump()
+            and repr(fm) == repr(sm)
+            and fm.model_fields_set == sm.model_fields_set
+        )
     except Exception:  # any surprise means: use the validating constructors
         return False
 
@@ -204,19 +323,19 @@ def _normalise(n: str) -> str:
     if "," not in n:
         if n.count(".") <= 1:
             return n
-        return n.replace(".", "")                      # 1.250.000 -> thousands
+        return n.replace(".", "")  # 1.250.000 -> thousands
     if "." not in n:
         head, _, tail = n.partition(",")
-        if "," not in tail:                            # single comma
+        if "," not in tail:  # single comma
             if len(tail) == 3 and head != "0":
-                return head + tail                     # 3,100 -> thousands
-            return head + "." + tail                   # 9,20 / 0,227 -> decimal
-        return n.replace(",", "")                      # 1,250,000 / 1,25,000 (Indian)
+                return head + tail  # 3,100 -> thousands
+            return head + "." + tail  # 9,20 / 0,227 -> decimal
+        return n.replace(",", "")  # 1,250,000 / 1,25,000 (Indian)
     # 1,250.50 -> drop ','   |   1.250,50 -> drop '.', ',' is the decimal separator
     out = n.replace(",", "") if n.rfind(".") > n.rfind(",") else n.replace(".", "").replace(",", ".")
-    if out.count(".") > 1:                             # malformed ('0.20,0.25'): keep the last
-        head, _, tail = out.rpartition(".")            # separator so it still parses; the odd
-        out = head.replace(".", "") + "." + tail       # value then fails the check (fail closed)
+    if out.count(".") > 1:  # malformed ('0.20,0.25'): keep the last
+        head, _, tail = out.rpartition(".")  # separator so it still parses; the odd
+        out = head.replace(".", "") + "." + tail  # value then fails the check (fail closed)
     return out
 
 
@@ -236,7 +355,7 @@ def _prefix_currency(t: str, s: int) -> tuple[str, int] | None:
     seg = t[lo:s].rstrip()
     end = lo + len(seg)
     if not seg or s - end > 3:
-        return None                                    # nothing, or more than 3 blanks in between
+        return None  # nothing, or more than 3 blanks in between
     tok = seg.rsplit(None, 1)[-1]
     code = _CURRENCY.get(tok.lower())
     if code is not None:
@@ -253,7 +372,7 @@ def _prefix_currency(t: str, s: int) -> tuple[str, int] | None:
         if tok[-3:-1].lower() == "us" and (len(tok) == 3 or tok[-4] not in _ASCII_LETTERS):
             return code, end - 3
         return code, end - 1
-    m = _NA_PREFIX.search(t, lo, s)                    # Arabic / CJK / Devanagari forms
+    m = _NA_PREFIX.search(t, lo, s)  # Arabic / CJK / Devanagari forms
     if m is None:
         return None
     return _CURRENCY[m.group(1).lower()], m.start()
@@ -275,18 +394,18 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
     t = text.translate(_TRANSLATE) if not text.isascii() and _NATIVE.search(text) else text
     hits: list[_Hit] = []
     skip_until = 0
-    last_end = -1                    # end of the previous currency-tagged hit
+    last_end = -1  # end of the previous currency-tagged hit
     last_cur: str | None = None
     for m in _MASTER.finditer(t):
         rest, joiner, word = m.groups()
         if rest is None:
-            continue                 # international phone number
+            continue  # international phone number
         s = m.start()
         if s < skip_until:
             continue
         nend = s + 1 + len(rest)
         if s and t[s - 1] in ".," and s > 1 and t[s - 2].isdigit():
-            continue                 # tail of a malformed number token
+            continue  # tail of a malformed number token
         if joiner is not None:
             sk = _SKIP.match(t, s)
             if sk is not None:
@@ -295,7 +414,7 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
                     _hyphen_range(t, s, skip_until, default_currency, hits)
                 continue
         elif rest.count(".") == 2 and _DOT_DATE.fullmatch(t, s, nend):
-            continue                 # 15.11.2026
+            continue  # 15.11.2026
 
         e = nend
         cur: str | None = None
@@ -307,7 +426,7 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
             if info is None:
                 if word.isascii():
                     if wstart == nend and (s == 0 or _prefix_currency(t, s) is None):
-                        continue     # 8011a, 1st, 12x: part of a code / ordinal
+                        continue  # 8011a, 1st, 12x: part of a code / ordinal
                 else:
                     na = _NA_SUFFIX.match(t, wstart)
                     if na is not None:
@@ -346,7 +465,7 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
                 continue
         if unit:
             if cur is None:
-                continue             # quantity / measure: not a price
+                continue  # quantity / measure: not a price
             if mult is not None:
                 e = m.end()
         if cur is None:
@@ -405,12 +524,17 @@ _EXPONENTS: Final = tuple(Decimal(1).scaleb(-p) for p in range(40))
 def _quantise(amount: Decimal, places: int) -> Decimal:
     try:
         return amount.quantize(_EXPONENTS[places], rounding=ROUND_HALF_UP)
-    except InvalidOperation:   # absurdly large allowed amount: compare exactly instead
+    except InvalidOperation:  # absurdly large allowed amount: compare exactly instead
         return amount
 
 
-def check_prices(text: str, allowed: Sequence[AllowedPrice], *, default_currency: str | None = None,
-                 allowed_percentages: Sequence[Decimal] = ()) -> GuardResult:
+def check_prices(
+    text: str,
+    allowed: Sequence[AllowedPrice],
+    *,
+    default_currency: str | None = None,
+    allowed_percentages: Sequence[Decimal] = (),
+) -> GuardResult:
     """ok iff every amount in `text` is an allowed price (at speaker precision, >= 2 places) and
     every percentage is in `allowed_percentages`."""
     hits = _scan(text, default_currency)

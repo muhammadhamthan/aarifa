@@ -49,8 +49,12 @@ class JwtVerifier:
         try:
             key = self._jwks.get_signing_key_from_jwt(token).key
             claims: dict[str, Any] = jwt.decode(
-                token, key, algorithms=["RS256"], audience=self._settings.jwt_audience,
-                issuer=self._settings.jwt_issuer, options={"require": ["exp", "iat", "sub"]},
+                token,
+                key,
+                algorithms=["RS256"],
+                audience=self._settings.jwt_audience,
+                issuer=self._settings.jwt_issuer,
+                options={"require": ["exp", "iat", "sub"]},
             )
         except jwt.PyJWTError as exc:
             raise Unauthorized("invalid or expired token") from exc
@@ -61,8 +65,13 @@ def principal_from_claims(claims: dict[str, Any]) -> Principal:
     role = Role(claims.get("custom:role") or claims.get("role") or "sales")
     amr = claims.get("amr") or []
     user_id = claims.get("custom:user_id") or claims.get("user_id")
-    return Principal(subject=str(claims["sub"]), user_id=uuid.UUID(user_id) if user_id else None, role=role,
-                     mfa=bool(claims.get("mfa")) or "mfa" in amr, is_human=role is not Role.SERVICE)
+    return Principal(
+        subject=str(claims["sub"]),
+        user_id=uuid.UUID(user_id) if user_id else None,
+        role=role,
+        mfa=bool(claims.get("mfa")) or "mfa" in amr,
+        is_human=role is not Role.SERVICE,
+    )
 
 
 _verifier: JwtVerifier | None = None

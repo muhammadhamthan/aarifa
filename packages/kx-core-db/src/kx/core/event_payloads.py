@@ -57,7 +57,7 @@ class NegotiationPaused(EventPayload):
     """AI told the buyer "within 60 minutes" and stopped; manager + MD must act."""
 
     deal_ref: uuid.UUID
-    deal_number: str = ""                   # spoken in the alert call ("deal D-2026-0042")
+    deal_number: str = ""  # spoken in the alert call ("deal D-2026-0042")
     reason: Literal["below_range", "concessions_exhausted", "exception", "manual"]
     alert: tuple[StaffContact, ...]
     respond_by: datetime
@@ -74,9 +74,9 @@ class QuoteSubmitted(EventPayload):
     required_role: Literal["manager", "md"]
     approver: StaffContact
     escalate_to: StaffContact | None
-    due_at: datetime                        # computed with the 08:00-22:00 window (timer pauses)
+    due_at: datetime  # computed with the 08:00-22:00 window (timer pauses)
     quote_number: str
-    total_display: str                      # e.g. "AED 11,390.20" for the alert text
+    total_display: str  # e.g. "AED 11,390.20" for the alert text
 
 
 class QuoteApproved(EventPayload):
@@ -90,13 +90,13 @@ class QuoteApproved(EventPayload):
     deal_ref: uuid.UUID
     contact_ref: uuid.UUID
     kind: Literal["commercial", "final"]
-    grant_ref: uuid.UUID | None             # set whenever the quote goes to the buyer
+    grant_ref: uuid.UUID | None  # set whenever the quote goes to the buyer
     channel: Literal["whatsapp", "email"] | None
-    to_address: str | None                  # from the contact record, never from the AI
+    to_address: str | None  # from the contact record, never from the AI
     pdf_s3_key: str | None
     body: str | None
     subject: str | None
-    content_sha256: str | None              # kx.core.identity.priced_content_sha256(body, pdf_sha)
+    content_sha256: str | None  # kx.core.identity.priced_content_sha256(body, pdf_sha)
     buyer_timezone: str | None = None
 
 
@@ -122,10 +122,10 @@ class ApprovalOverdue(EventPayload):
 
 
 class MessageReceived(EventPayload):
-    message_ref: uuid.UUID                  # automation.inbound_messages.id
+    message_ref: uuid.UUID  # automation.inbound_messages.id
     thread_ref: uuid.UUID
     channel: Literal["whatsapp", "email", "phone"]
-    from_address_hash: str                  # recipient_hash; raw address stays in automation
+    from_address_hash: str  # recipient_hash; raw address stays in automation
     contact_ref: uuid.UUID | None
     deal_ref: uuid.UUID | None
     text: str
@@ -135,7 +135,7 @@ class MessageReceived(EventPayload):
 
 
 class MessageStatus(EventPayload):
-    message_ref: uuid.UUID                  # automation.outbound_messages.id
+    message_ref: uuid.UUID  # automation.outbound_messages.id
     status: Literal["queued", "sent", "delivered", "read", "failed", "bounced", "complained"]
     provider_message_id: str | None
     error: str | None = None
@@ -171,7 +171,7 @@ class OrderStatusChanged(EventPayload):
 
 class ContactAnonymised(EventPayload):
     contact_ref: uuid.UUID
-    recipient_hashes: tuple[str, ...]       # automation/agents delete or blank their copies
+    recipient_hashes: tuple[str, ...]  # automation/agents delete or blank their copies
 
 
 class SettingsChanged(EventPayload):
@@ -202,26 +202,46 @@ class AgentRunCompleted(EventPayload):
 
 
 PAYLOADS: dict[str, type[EventPayload]] = {
-    ev.DEAL_QUALIFIED: DealQualified, ev.DEAL_STAGE_CHANGED: DealStageChanged,
-    ev.DEAL_NEXT_ACTION_SET: DealNextActionSet, ev.NEGOTIATION_PAUSED: NegotiationPaused,
-    ev.QUOTE_SUBMITTED: QuoteSubmitted, ev.QUOTE_APPROVED: QuoteApproved, ev.QUOTE_REJECTED: QuoteRejected,
-    ev.QUOTE_CORRECTION_REQUESTED: QuoteCorrectionRequested, ev.APPROVAL_OVERDUE: ApprovalOverdue,
-    ev.MESSAGE_RECEIVED: MessageReceived, ev.MESSAGE_STATUS: MessageStatus, ev.PRICE_PROPOSED: PriceProposed,
-    ev.PRICE_STALE: PriceStale, ev.ORDER_STATUS_CHANGED: OrderStatusChanged,
-    ev.CONTACT_ANONYMISED: ContactAnonymised, ev.SETTINGS_CHANGED: SettingsChanged,
-    ev.LANE_RISK_ASSESSED: LaneRiskAssessed, ev.KB_CONTENT_PUBLISHED: KbContentPublished,
+    ev.DEAL_QUALIFIED: DealQualified,
+    ev.DEAL_STAGE_CHANGED: DealStageChanged,
+    ev.DEAL_NEXT_ACTION_SET: DealNextActionSet,
+    ev.NEGOTIATION_PAUSED: NegotiationPaused,
+    ev.QUOTE_SUBMITTED: QuoteSubmitted,
+    ev.QUOTE_APPROVED: QuoteApproved,
+    ev.QUOTE_REJECTED: QuoteRejected,
+    ev.QUOTE_CORRECTION_REQUESTED: QuoteCorrectionRequested,
+    ev.APPROVAL_OVERDUE: ApprovalOverdue,
+    ev.MESSAGE_RECEIVED: MessageReceived,
+    ev.MESSAGE_STATUS: MessageStatus,
+    ev.PRICE_PROPOSED: PriceProposed,
+    ev.PRICE_STALE: PriceStale,
+    ev.ORDER_STATUS_CHANGED: OrderStatusChanged,
+    ev.CONTACT_ANONYMISED: ContactAnonymised,
+    ev.SETTINGS_CHANGED: SettingsChanged,
+    ev.LANE_RISK_ASSESSED: LaneRiskAssessed,
+    ev.KB_CONTENT_PUBLISHED: KbContentPublished,
     ev.AGENT_RUN_COMPLETED: AgentRunCompleted,
 }
 
 
-def make_event(event_type: str, aggregate_type: str, aggregate_id: object, payload: EventPayload,
-               correlation_id: uuid.UUID | None = None) -> ev.Event:
+def make_event(
+    event_type: str,
+    aggregate_type: str,
+    aggregate_id: object,
+    payload: EventPayload,
+    correlation_id: uuid.UUID | None = None,
+) -> ev.Event:
     """Build an Event, checking the payload model matches the event name."""
     expected = PAYLOADS[event_type]
     if not isinstance(payload, expected):
         raise TypeError(f"{event_type} needs {expected.__name__}, got {type(payload).__name__}")
-    return ev.Event(event_type=event_type, aggregate_type=aggregate_type, aggregate_id=str(aggregate_id),
-                    correlation_id=correlation_id, payload=payload.model_dump(mode="json"))
+    return ev.Event(
+        event_type=event_type,
+        aggregate_type=aggregate_type,
+        aggregate_id=str(aggregate_id),
+        correlation_id=correlation_id,
+        payload=payload.model_dump(mode="json"),
+    )
 
 
 def parse_payload[T: EventPayload](event: ev.Event, model: type[T]) -> T:

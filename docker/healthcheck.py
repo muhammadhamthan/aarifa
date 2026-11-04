@@ -18,9 +18,9 @@ def main() -> int:
     port = os.environ.get("KX_API_PORT", "8000")
     path = os.environ.get("KX_HEALTH_PATH", "/healthz")
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=3) as resp:  # noqa: S310
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=3) as resp:
             return 0 if 200 <= resp.status < 300 else 1
-    except (urllib.error.URLError, OSError):
+    except urllib.error.URLError, OSError:
         return 1
 
 

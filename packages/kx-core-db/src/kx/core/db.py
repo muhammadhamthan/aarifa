@@ -52,11 +52,13 @@ class Databases:
                 pool_pre_ping=True,
                 json_serializer=_json_dumps,
                 json_deserializer=orjson.loads,
-                connect_args={"server_settings": {
-                    "statement_timeout": str(settings.db_statement_timeout_ms),
-                    "application_name": f"kx-{settings.company_code}-{db.value}",
-                    "search_path": f"{db.value},public",
-                }},
+                connect_args={
+                    "server_settings": {
+                        "statement_timeout": str(settings.db_statement_timeout_ms),
+                        "application_name": f"kx-{settings.company_code}-{db.value}",
+                        "search_path": f"{db.value},public",
+                    }
+                },
             )
             self._engines[db] = engine
             self._makers[db] = async_sessionmaker(engine, expire_on_commit=False)

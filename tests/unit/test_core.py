@@ -62,19 +62,19 @@ def test_hmac_and_constant_time() -> None:
 
 # ---------------------------------------------------------------- time windows (approval timer pauses overnight)
 def test_window_contains_in_local_time() -> None:
-    assert UAE_ALERTS.contains(datetime(2026, 11, 9, 5, 0, tzinfo=UTC))       # 09:00 Dubai
+    assert UAE_ALERTS.contains(datetime(2026, 11, 9, 5, 0, tzinfo=UTC))  # 09:00 Dubai
     assert not UAE_ALERTS.contains(datetime(2026, 11, 9, 19, 0, tzinfo=UTC))  # 23:00 Dubai
 
 
 def test_two_hour_timer_pauses_overnight() -> None:
-    submitted = datetime(2026, 11, 9, 17, 0, tzinfo=UTC)        # 21:00 Dubai, 1h left today
+    submitted = datetime(2026, 11, 9, 17, 0, tzinfo=UTC)  # 21:00 Dubai, 1h left today
     due = UAE_ALERTS.add_open_minutes(submitted, 120)
-    assert due == datetime(2026, 11, 10, 5, 0, tzinfo=UTC)       # 09:00 Dubai next day
+    assert due == datetime(2026, 11, 10, 5, 0, tzinfo=UTC)  # 09:00 Dubai next day
 
 
 def test_timer_started_at_night_starts_at_8() -> None:
     due = UAE_ALERTS.add_open_minutes(datetime(2026, 11, 9, 22, 30, tzinfo=UTC), 120)  # 02:30 Dubai
-    assert due == datetime(2026, 11, 10, 6, 0, tzinfo=UTC)       # 10:00 Dubai
+    assert due == datetime(2026, 11, 10, 6, 0, tzinfo=UTC)  # 10:00 Dubai
 
 
 def test_buyer_window_skips_weekend() -> None:
@@ -111,8 +111,9 @@ def test_outbox_schema_is_whitelisted() -> None:
 
 # ---------------------------------------------------------------- auth
 def test_claims_to_principal_and_md_covers_manager() -> None:
-    p = principal_from_claims({"sub": "abc", "custom:role": "md", "amr": ["pwd", "mfa"],
-                               "custom:user_id": str(uuid.uuid4())})
+    p = principal_from_claims(
+        {"sub": "abc", "custom:role": "md", "amr": ["pwd", "mfa"], "custom:user_id": str(uuid.uuid4())}
+    )
     assert p.role is Role.MD and p.mfa and p.has(Role.MANAGER)
     sales = Principal(subject="s", user_id=None, role=Role.SALES, mfa=True, is_human=True)
     assert not sales.has(Role.MANAGER)

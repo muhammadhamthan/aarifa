@@ -1,0 +1,11 @@
+# Arifaa Pack — company profile. Business rules (markups, limits, windows) live in crm.settings, editable by
+# the MD/admin in the CRM; this file only holds identity used at build time. A new client = copy this app.
+code: pack
+name: Arifaa Pack
+letterhead:
+  name: Arifaa Pack
+  address: "REPLACE — factory address, UAE"
+  trn: "REPLACE — UAE VAT TRN"
+  phone: "REPLACE"
+  email: "sales@REPLACE"
+languages: [en, ar, hi, ta, zh, si]

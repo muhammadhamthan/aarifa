@@ -6,14 +6,22 @@ from decimal import ROUND_HALF_UP, Decimal, localcontext
 from typing import Final
 
 CENT: Final = Decimal("0.01")
-MONEY_PLACES: Final = Decimal("0.0001")      # numeric(14,4) in the database
+MONEY_PLACES: Final = Decimal("0.0001")  # numeric(14,4) in the database
 UNIT_PRICE_PLACES: Final = Decimal("0.000001")  # numeric(14,6) for per-piece prices
 HUNDRED: Final = Decimal(100)
 THOUSAND: Final = Decimal(1000)
 
 # Currencies with 3 minor units are rare here; quote display uses 2 places.
-DISPLAY_PLACES: Final[dict[str, Decimal]] = {"AED": CENT, "USD": CENT, "EUR": CENT, "INR": CENT,
-                                             "LKR": CENT, "CNY": CENT, "GBP": CENT, "SAR": CENT}
+DISPLAY_PLACES: Final[dict[str, Decimal]] = {
+    "AED": CENT,
+    "USD": CENT,
+    "EUR": CENT,
+    "INR": CENT,
+    "LKR": CENT,
+    "CNY": CENT,
+    "GBP": CENT,
+    "SAR": CENT,
+}
 
 
 def d(value: Decimal | int | str) -> Decimal:

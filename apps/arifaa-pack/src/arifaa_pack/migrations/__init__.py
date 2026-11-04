@@ -20,8 +20,11 @@ from alembic.config import Config
 from kx.core.settings import CoreSettings, LogicalDb, get_settings
 
 HERE = pathlib.Path(__file__).resolve().parent
-DDL_FILES = {LogicalDb.CRM: "01_crm.sql", LogicalDb.AUTOMATION: "02_automation.sql",
-             LogicalDb.AGENTS: "03_agents.sql"}
+DDL_FILES = {
+    LogicalDb.CRM: "01_crm.sql",
+    LogicalDb.AUTOMATION: "02_automation.sql",
+    LogicalDb.AGENTS: "03_agents.sql",
+}
 
 
 def ddl_dir() -> pathlib.Path:
@@ -50,8 +53,11 @@ def config(db: LogicalDb, dsn: str | None = None) -> Config:
     return cfg
 
 
-def upgrade(dbs: Iterable[LogicalDb] = tuple(LogicalDb), revision: str = "head",
-            dsns: dict[LogicalDb, str] | None = None) -> None:
+def upgrade(
+    dbs: Iterable[LogicalDb] = tuple(LogicalDb),
+    revision: str = "head",
+    dsns: dict[LogicalDb, str] | None = None,
+) -> None:
     for db in dbs:
         command.upgrade(config(db, (dsns or {}).get(db)), revision)
 

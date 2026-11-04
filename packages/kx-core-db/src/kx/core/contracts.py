@@ -60,7 +60,7 @@ class AllowedPrice(_Frozen):
 
 class PriceMention(_Frozen):
     amount: Decimal
-    currency: str | None          # None when no currency could be determined
+    currency: str | None  # None when no currency could be determined
     start: int
     end: int
     raw: str
@@ -161,8 +161,8 @@ class QualifyResult(_Frozen):
 
 
 class CounterVerdictKind(StrEnum):
-    ACCEPT = "accept"            # buyer's ask is at or above the current offer
-    COUNTER = "counter"          # AI may offer `offer_unit_price`
+    ACCEPT = "accept"  # buyer's ask is at or above the current offer
+    COUNTER = "counter"  # AI may offer `offer_unit_price`
     NEEDS_MANAGER = "needs_manager"  # below range, concessions exhausted, or exception
 
 
@@ -186,16 +186,19 @@ class DeliveryEstimateView(_Frozen):
 class CrmGateway(Protocol):
     """What agents may ask of the CRM. Implemented by kx.crm."""
 
-    async def resolve_deal(self, channel: Channel, address: str | None,
-                           visitor_ref: uuid.UUID | None) -> uuid.UUID: ...
+    async def resolve_deal(
+        self, channel: Channel, address: str | None, visitor_ref: uuid.UUID | None
+    ) -> uuid.UUID: ...
     async def deal_context(self, deal_id: uuid.UUID) -> DealContext: ...
-    async def update_requirement(self, deal_id: uuid.UUID, patch: RequirementPatch,
-                                 actor: AiRole) -> None: ...
+    async def update_requirement(
+        self, deal_id: uuid.UUID, patch: RequirementPatch, actor: AiRole
+    ) -> None: ...
     async def set_contact(self, deal_id: uuid.UUID, patch: ContactPatch, actor: AiRole) -> None: ...
     async def try_qualify(self, deal_id: uuid.UUID, actor: AiRole) -> QualifyResult: ...
     async def request_quote(self, deal_id: uuid.UUID, actor: AiRole) -> None: ...
-    async def evaluate_counter(self, deal_id: uuid.UUID, ask_unit_price: Decimal,
-                               ask_quantity: Decimal | None, channel: Channel) -> CounterVerdict: ...
+    async def evaluate_counter(
+        self, deal_id: uuid.UUID, ask_unit_price: Decimal, ask_quantity: Decimal | None, channel: Channel
+    ) -> CounterVerdict: ...
     async def pause_ai(self, deal_id: uuid.UUID, reason: str, actor: AiRole) -> None: ...
     async def mark_agreed(self, deal_id: uuid.UUID, actor: AiRole) -> None: ...
     async def schedule_follow_up(self, deal_id: uuid.UUID, due_at: datetime, reason: str) -> None: ...
@@ -207,8 +210,9 @@ class CrmGateway(Protocol):
 class GrantConsumer(Protocol):
     """Implemented by kx.crm; used by kx.automation before any priced message leaves."""
 
-    async def consume_grant(self, grant_id: uuid.UUID, content_sha256: str, message_id: uuid.UUID,
-                            recipient_hash: str) -> bool: ...
+    async def consume_grant(
+        self, grant_id: uuid.UUID, content_sha256: str, message_id: uuid.UUID, recipient_hash: str
+    ) -> bool: ...
 
 
 class OutboundKind(StrEnum):
@@ -242,8 +246,8 @@ class OutboundRequest(BaseModel):
     deal_ref: uuid.UUID | None = None
     contact_ref: uuid.UUID | None = None
     buyer_timezone: str | None = None
-    language: str | None = None             # BCP-47; picks the WhatsApp template language
-    not_before: datetime | None = None      # earliest send time (aware, UTC); automation may push it later
+    language: str | None = None  # BCP-47; picks the WhatsApp template language
+    not_before: datetime | None = None  # earliest send time (aware, UTC); automation may push it later
     requested_by: str
     idempotency_key: str
 

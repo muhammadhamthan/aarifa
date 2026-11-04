@@ -33,16 +33,26 @@ from kx.crm.pricing.types import (
 
 engine = importlib.import_module(os.environ.get("KX_PRICING_ENGINE", "kx.crm.pricing.engine"))
 
-COST = CostInputs(material_rate_per_kg=D("12.00"), kg_per_1000=D("8.5"), yield_pct=D("92"),
-                  production_per_1000=D("35"), packaging_per_1000=D("6"))
+COST = CostInputs(
+    material_rate_per_kg=D("12.00"),
+    kg_per_1000=D("8.5"),
+    yield_pct=D("92"),
+    production_per_1000=D("35"),
+    packaging_per_1000=D("6"),
+)
 BAND = MarginBand(markup_min_pct=D(40), markup_max_pct=D(50), max_concessions=3)
 UNIT_COST = D("0.1518696")
 LADDER = (D("0.227804"), D("0.222742"), D("0.217680"), D("0.212617"))
 
 
 def state(used: int, offer: D, base_qty: D = D(50000)) -> NegotiationState:
-    return NegotiationState(unit_cost=UNIT_COST, band=BAND, concessions_used=used,
-                            current_offer_unit_price=offer, base_quantity=base_qty)
+    return NegotiationState(
+        unit_cost=UNIT_COST,
+        band=BAND,
+        concessions_used=used,
+        current_offer_unit_price=offer,
+        base_quantity=base_qty,
+    )
 
 
 # ---------------------------------------------------------------- cost & price
@@ -83,7 +93,11 @@ def test_price_line_explicit_markup_must_be_inside_band() -> None:
 def test_quote_totals_with_vat() -> None:
     lines = [engine.price_line(QuoteLineInput("a", D(50000), COST), BAND)]
     totals = engine.quote_totals([lines[0].line_total, D("500.0000")], vat_rate_pct=D(5))
-    assert (totals.subtotal, totals.vat_amount, totals.total) == (D("11890.2000"), D("594.5100"), D("12484.7100"))
+    assert (totals.subtotal, totals.vat_amount, totals.total) == (
+        D("11890.2000"),
+        D("594.5100"),
+        D("12484.7100"),
+    )
 
 
 def test_quote_totals_no_vat_outside_uae() -> None:
@@ -128,7 +142,11 @@ def test_ask_at_or_above_offer_is_accepted_at_offer() -> None:
 
 def test_ask_below_floor_needs_manager() -> None:
     v = engine.evaluate_counter(state(0, LADDER[0]), D("0.20"), D(50000))
-    assert v.kind is CounterVerdictKind.NEEDS_MANAGER and v.offer_unit_price is None and v.reason == "below_range"
+    assert (
+        v.kind is CounterVerdictKind.NEEDS_MANAGER
+        and v.offer_unit_price is None
+        and v.reason == "below_range"
+    )
 
 
 def test_first_concession_is_goodwill() -> None:
@@ -174,9 +192,11 @@ def test_verdict_never_exposes_floor_or_cost() -> None:
 
 
 @settings(max_examples=300, deadline=None)
-@given(ask=st.decimals(min_value=D("0.05"), max_value=D("0.40"), places=6),
-       used=st.integers(min_value=0, max_value=3),
-       qty=st.integers(min_value=10_000, max_value=500_000))
+@given(
+    ask=st.decimals(min_value=D("0.05"), max_value=D("0.40"), places=6),
+    used=st.integers(min_value=0, max_value=3),
+    qty=st.integers(min_value=10_000, max_value=500_000),
+)
 def test_property_offer_never_below_floor_nor_above_current(ask: D, used: int, qty: int) -> None:
     current = LADDER[used]
     v = engine.evaluate_counter(state(used, current), ask, D(qty))
@@ -191,9 +211,18 @@ MON = date(2026, 11, 9)  # Monday
 
 
 def d_inputs(**kw: object) -> DeliveryInputs:
-    base: dict[str, object] = dict(today=MON, quantity=D(50000), pieces_per_day=20000, finished_stock=D(0),
-                                   backlog_days=4, material_shortfall=False, supplier_lead_days=10,
-                                   packing_days=1, transit_days=12, buffer_days=3)
+    base: dict[str, object] = dict(
+        today=MON,
+        quantity=D(50000),
+        pieces_per_day=20000,
+        finished_stock=D(0),
+        backlog_days=4,
+        material_shortfall=False,
+        supplier_lead_days=10,
+        packing_days=1,
+        transit_days=12,
+        buffer_days=3,
+    )
     base.update(kw)
     return DeliveryInputs(**base)  # type: ignore[arg-type]
 

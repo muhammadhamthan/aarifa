@@ -39,8 +39,7 @@ _DASHES: Final = "-‐‑‒–—−"
 
 def _class_of(cp: int) -> str:
     ch = chr(cp)
-    if (0x3040 <= cp <= 0x30FF or 0x3400 <= cp <= 0x4DBF or 0x4E00 <= cp <= 0x9FFF
-            or 0xF900 <= cp <= 0xFAFF):
+    if 0x3040 <= cp <= 0x30FF or 0x3400 <= cp <= 0x4DBF or 0x4E00 <= cp <= 0x9FFF or 0xF900 <= cp <= 0xFAFF:
         return "h"
     if ch.isalpha() or unicodedata.category(ch)[0] == "M":
         return "a"
@@ -80,30 +79,93 @@ _CLS_ASCII, _CLS_STR, _NORM = _build_tables()
 # ------------------------------------------------------------------ vocabularies
 _SYM_CUR: Final = {"$": "USD", "＄": "USD", "€": "EUR", "£": "GBP", "¥": "CNY", "￥": "CNY", "₹": "INR"}
 _WORD_CUR: Final = {
-    "aed": "AED", "dhs": "AED", "dh": "AED", "dirham": "AED", "dirhams": "AED", "درهم": "AED",
-    "دراهم": "AED", "usd": "USD", "eur": "EUR", "euro": "EUR", "euros": "EUR", "rs": "INR",
-    "inr": "INR", "rupee": "INR", "rupees": "INR", "cny": "CNY", "rmb": "CNY", "sar": "SAR",
-    "ريال": "SAR", "gbp": "GBP",
+    "aed": "AED",
+    "dhs": "AED",
+    "dh": "AED",
+    "dirham": "AED",
+    "dirhams": "AED",
+    "درهم": "AED",
+    "دراهم": "AED",
+    "usd": "USD",
+    "eur": "EUR",
+    "euro": "EUR",
+    "euros": "EUR",
+    "rs": "INR",
+    "inr": "INR",
+    "rupee": "INR",
+    "rupees": "INR",
+    "cny": "CNY",
+    "rmb": "CNY",
+    "sar": "SAR",
+    "ريال": "SAR",
+    "gbp": "GBP",
 }
-_DOT_ABBR: Final = frozenset({"rs", "dhs", "dh"})           # may be written with a trailing '.'
+_DOT_ABBR: Final = frozenset({"rs", "dhs", "dh"})  # may be written with a trailing '.'
 _AED_AR: Final = "د.إ"
 _UNITS: Final = (
-    "pcs", "pc", "piece", "pieces", "unit", "units", "nos", "ml", "l", "ltr", "ltrs", "litre", "litres",
-    "liter", "liters", "kg", "kgs", "g", "gm", "gms", "gsm", "mm", "cm", "m", "micron", "microns", "mic",
-    "ton", "tons", "tonne", "tonnes", "mt", "hc", "ft", "ctn", "ctns", "carton", "cartons", "box", "boxes",
+    "pcs",
+    "pc",
+    "piece",
+    "pieces",
+    "unit",
+    "units",
+    "nos",
+    "ml",
+    "l",
+    "ltr",
+    "ltrs",
+    "litre",
+    "litres",
+    "liter",
+    "liters",
+    "kg",
+    "kgs",
+    "g",
+    "gm",
+    "gms",
+    "gsm",
+    "mm",
+    "cm",
+    "m",
+    "micron",
+    "microns",
+    "mic",
+    "ton",
+    "tons",
+    "tonne",
+    "tonnes",
+    "mt",
+    "hc",
+    "ft",
+    "ctn",
+    "ctns",
+    "carton",
+    "cartons",
+    "box",
+    "boxes",
 )
 # Magnitude words: a quantity unit after a bare number, a multiplier after an explicit currency.
-_MULT: Final = {"k": 1000, "thousand": 1000, "lakh": 100_000, "lakhs": 100_000, "lac": 100_000,
-                "lacs": 100_000, "crore": 10_000_000, "crores": 10_000_000, "mn": 1_000_000,
-                "million": 1_000_000}
+_MULT: Final = {
+    "k": 1000,
+    "thousand": 1000,
+    "lakh": 100_000,
+    "lakhs": 100_000,
+    "lac": 100_000,
+    "lacs": 100_000,
+    "crore": 10_000_000,
+    "crores": 10_000_000,
+    "mn": 1_000_000,
+    "million": 1_000_000,
+}
 _PCT_WORDS: Final = ("percent", "pct", "प्रतिशत")
-_KW_LATIN: Final = frozenset({"price", "prices", "rate", "rates", "cost", "costs", "total", "subtotal",
-                              "amount", "amounts"})
+_KW_LATIN: Final = frozenset(
+    {"price", "prices", "rate", "rates", "cost", "costs", "total", "subtotal", "amount", "amounts"}
+)
 _KW_CONTAINS: Final = ("سعر", "الإجمالي", "المبلغ", "价格", "单价", "总价", "價格", "單價", "總價")
 _KW_PREFIX: Final = ("कीमत", "मूल्य", "दाम", "விலை")
 _TOKEN_SEPARATORS: Final = str.maketrans({c: " " for c in ":,()[]{}\"'*=/<>~_|·"})
-_KW_WINDOW: Final = 36   # chars looked back for a price keyword
-_KW_TOKENS: Final = 6    # the keyword plus ~5 tokens between it and the number
+_KW_WINDOW: Final = 36  # chars looked back for a price keyword
+_KW_TOKENS: Final = 6  # the keyword plus ~5 tokens between it and the number
 
 # right-context kinds
 _R_NONE: Final = 0
@@ -112,9 +174,9 @@ _R_CUR: Final = 2
 _R_UNIT: Final = 3
 _R_MULT: Final = 4
 _R_GLUE: Final = 5
-_R_PER: Final = 6        # "per" -> maybe "per cent"
-_R_US: Final = 7         # "US" -> maybe "US$"
-_GLUE: Final = "!"       # left-context sentinel: letters glued to the number that are not a currency
+_R_PER: Final = 6  # "per" -> maybe "per cent"
+_R_US: Final = 7  # "US" -> maybe "US$"
+_GLUE: Final = "!"  # left-context sentinel: letters glued to the number that are not a currency
 _SIMPLE_RIGHT: Final = frozenset({_R_UNIT, _R_MULT, _R_PCT})  # complete after a spaced word
 
 
@@ -161,7 +223,7 @@ type _Hit = tuple[Decimal, str | None, int, int, bool]
 # constructors.
 _PM_FIELDS: Final = ("amount", "currency", "start", "end", "raw", "is_percentage")
 _GR_FIELDS: Final = ("ok", "mentions", "violations")
-_PM_SET: Final = set(_PM_FIELDS)   # copied per instance: model_copy() updates the copy in place
+_PM_SET: Final = set(_PM_FIELDS)  # copied per instance: model_copy() updates the copy in place
 _GR_SET: Final = set(_GR_FIELDS)
 _new = object.__new__
 _setattr = object.__setattr__
@@ -171,23 +233,28 @@ def _slow_mention(h: _Hit, raw: str) -> PriceMention:
     return PriceMention(amount=h[0], currency=h[1], start=h[2], end=h[3], raw=raw, is_percentage=h[4])
 
 
-def _slow_result(ok: bool, mentions: tuple[PriceMention, ...],
-                 violations: tuple[PriceMention, ...]) -> GuardResult:
+def _slow_result(
+    ok: bool, mentions: tuple[PriceMention, ...], violations: tuple[PriceMention, ...]
+) -> GuardResult:
     return GuardResult(ok=ok, mentions=mentions, violations=violations)
 
 
 def _fast_mention(h: _Hit, raw: str) -> PriceMention:
     m: PriceMention = _new(PriceMention)
-    _setattr(m, "__dict__", {"amount": h[0], "currency": h[1], "start": h[2], "end": h[3], "raw": raw,
-                             "is_percentage": h[4]})
+    _setattr(
+        m,
+        "__dict__",
+        {"amount": h[0], "currency": h[1], "start": h[2], "end": h[3], "raw": raw, "is_percentage": h[4]},
+    )
     _setattr(m, "__pydantic_fields_set__", _PM_SET.copy())
     _setattr(m, "__pydantic_extra__", None)
     _setattr(m, "__pydantic_private__", None)
     return m
 
 
-def _fast_result(ok: bool, mentions: tuple[PriceMention, ...],
-                 violations: tuple[PriceMention, ...]) -> GuardResult:
+def _fast_result(
+    ok: bool, mentions: tuple[PriceMention, ...], violations: tuple[PriceMention, ...]
+) -> GuardResult:
     r: GuardResult = _new(GuardResult)
     _setattr(r, "__dict__", {"ok": ok, "mentions": mentions, "violations": violations})
     _setattr(r, "__pydantic_fields_set__", _GR_SET.copy())
@@ -200,17 +267,20 @@ def _fast_layout_ok() -> bool:
     try:
         hit: _Hit = (Decimal(1), "AED", 0, 1, False)
         probe = _slow_mention(hit, "1")
-        same = (tuple(PriceMention.model_fields) == _PM_FIELDS
-                and tuple(GuardResult.model_fields) == _GR_FIELDS
-                and _fast_mention(hit, "1") == probe
-                and _fast_result(True, (probe,), ()) == _slow_result(True, (probe,), ()))
-    except (TypeError, AttributeError):  # pragma: no cover - pydantic internals changed
+        same = (
+            tuple(PriceMention.model_fields) == _PM_FIELDS
+            and tuple(GuardResult.model_fields) == _GR_FIELDS
+            and _fast_mention(hit, "1") == probe
+            and _fast_result(True, (probe,), ()) == _slow_result(True, (probe,), ())
+        )
+    except TypeError, AttributeError:  # pragma: no cover - pydantic internals changed
         return False
     return same
 
 
-_mk_mention, _mk_result = ((_fast_mention, _fast_result) if _fast_layout_ok()
-                           else (_slow_mention, _slow_result))
+_mk_mention, _mk_result = (
+    (_fast_mention, _fast_result) if _fast_layout_ok() else (_slow_mention, _slow_result)
+)
 _OK_EMPTY: Final = _slow_result(True, (), ())
 
 
@@ -232,13 +302,13 @@ def _parse(r: str) -> tuple[str, int] | None:
     if com < 0:
         if dot < 0:
             return r, 0
-        if r.find(".") == dot:                     # single dot: decimal
+        if r.find(".") == dot:  # single dot: decimal
             return r, len(r) - dot - 1
         g = r.split(".")
         return ("".join(g), 0) if _grouped(g, False) else None
     if dot >= 0:
         last, dsep, tsep = (dot, ".", ",") if dot > com else (com, ",", ".")
-        ip, fp = r[:last], r[last + 1:]
+        ip, fp = r[:last], r[last + 1 :]
         if dsep in ip:
             return None
         g = ip.split(tsep)
@@ -255,7 +325,7 @@ def _lenient(r: str) -> tuple[str, int]:
     """Best effort for an odd format next to an explicit currency: last separator is the decimal."""
     last = max(r.rfind("."), r.rfind(","))
     ip = r[:last].replace(".", "").replace(",", "")
-    fp = r[last + 1:]
+    fp = r[last + 1 :]
     return ip + "." + fp, len(fp)
 
 
@@ -278,7 +348,7 @@ def _num_end(cls: str, j: int) -> int:
     `cls` carries the trailing `_PAD` sentinels, so each 32-char slice is full length.
     """
     while True:
-        k = j + 32 - len(cls[j:j + 32].lstrip("d.,"))
+        k = j + 32 - len(cls[j : j + 32].lstrip("d.,"))
         if k - j < 32:
             break
         j = k
@@ -288,12 +358,12 @@ def _num_end(cls: str, j: int) -> int:
 
 
 def _skip_spaces(cls: str, i: int) -> int:
-    chunk = cls[i:i + 16]
+    chunk = cls[i : i + 16]
     return i + len(chunk) - len(chunk.lstrip(" "))
 
 
 def _word_start(cls: str, i: int) -> int:
-    chunk = cls[i - 24 if i > 24 else 0:i]
+    chunk = cls[i - 24 if i > 24 else 0 : i]
     return i - (len(chunk) - len(chunk.rstrip("a")))
 
 
@@ -311,7 +381,7 @@ def _left(text: str, cls: str, s: int, c: str) -> tuple[str | None, int, bool]:
     glued = True
     nl = False
     if c == " " or c == "\n":  # noqa: PLR1714 - two 1-char compares beat building a set
-        chunk = cls[i - 12 if i > 12 else 0:i]
+        chunk = cls[i - 12 if i > 12 else 0 : i]
         gap = len(chunk) - len(chunk.rstrip(" \n"))
         if gap > 1 or c == "\n":
             nls = cls.count("\n", i - gap, i)
@@ -338,13 +408,13 @@ def _left(text: str, cls: str, s: int, c: str) -> tuple[str | None, int, bool]:
         sym = text[i - 1]
         if i >= 2 and cls[i - 2] == "a":
             ws = _word_start(cls, i - 1)
-            word = text[ws:i - 1].upper()
+            word = text[ws : i - 1].upper()
             return ("USD" if word == "US" else word + sym), ws, nl
         return _SYM_CUR[sym], i - 1, nl
     if c == ".":
         if i >= 2 and cls[i - 2] == "a":
             ws = _word_start(cls, i - 1)
-            lw = text[ws:i - 1].lower()
+            lw = text[ws : i - 1].lower()
             if lw in _DOT_ABBR:
                 return _WORD_CUR[lw], ws, nl
             if glued:
@@ -371,7 +441,7 @@ def _right(text: str, cls: str, e: int, n: int, c: str) -> tuple[int, int, str |
         glued = False
         c = cls[i]
     if c == "a":
-        chunk = cls[i:i + 24]
+        chunk = cls[i : i + 24]
         we = i + len(chunk) - len(chunk.lstrip("a"))
         word = text[i:we]
         info = _RIGHT_WORDS.get(word)
@@ -389,7 +459,7 @@ def _right(text: str, cls: str, e: int, n: int, c: str) -> tuple[int, int, str |
             return (_R_NONE, e, None) if _digit_follows(cls, we, n) else (_R_CUR, we, info[1])
         if kind == _R_PER:
             j = _skip_spaces(cls, we)
-            if j > we and text[j:j + 4].lower() == "cent" and (j + 4 >= n or cls[j + 4] != "a"):
+            if j > we and text[j : j + 4].lower() == "cent" and (j + 4 >= n or cls[j + 4] != "a"):
                 return _R_PCT, j + 4, None
             return _R_NONE, e, None
         if kind == _R_US:
@@ -418,14 +488,14 @@ def _keyword_before(text: str, cls: str, s: int) -> bool:
     if b >= 0:
         lo = b + 1
     d = text.rfind(". ", lo, s)
-    while d >= 0:                       # ". " followed by a capital ends a sentence
+    while d >= 0:  # ". " followed by a capital ends a sentence
         k = _skip_spaces(cls, d + 1)
         if k < s and text[k].isupper():
             lo = k
             break
         d = text.rfind(". ", lo, d)
-    if lo > 0 and cls[lo - 1] == "a":   # don't start inside a word
-        chunk = cls[lo:lo + 24]
+    if lo > 0 and cls[lo - 1] == "a":  # don't start inside a word
+        chunk = cls[lo : lo + 24]
         lo += len(chunk) - len(chunk.lstrip("a"))
     if lo >= s:
         return False
@@ -455,8 +525,7 @@ def _skip_phone(cls: str, j: int, n: int) -> int:
     return j
 
 
-def _compound(text: str, cls: str, n: int, s: int, e: int, *, default: str | None,
-              hits: list[_Hit]) -> int:
+def _compound(text: str, cls: str, n: int, s: int, e: int, *, default: str | None, hits: list[_Hit]) -> int:
     """NUMBER joined to more numbers by '-', '/' or ':' (dates, times, codes, phones, ranges).
 
     Three or more parts (2026-11-15, 15/11/2026) are never prices. Two parts are reported as two
@@ -487,8 +556,9 @@ def _compound(text: str, cls: str, n: int, s: int, e: int, *, default: str | Non
         pcur, pstart, _ = _left(text, cls, s, lc)
         if pcur == _GLUE:
             return j
-    rk, rend, rval = (_R_NONE, j, None) if j >= n or cls[j] not in " a%$h" else _right(
-        text, cls, j, n, cls[j])
+    rk, rend, rval = (
+        (_R_NONE, j, None) if j >= n or cls[j] not in " a%$h" else _right(text, cls, j, n, cls[j])
+    )
     if rk == _R_PCT:
         if not dash:
             return j
@@ -522,15 +592,14 @@ def _odd_left(text: str, cls: str, n: int, s: int, *, e: int, hits: list[_Hit]) 
     if lc == "+":
         if before in "da":
             return -1
-        rk, rend, _ = (_R_NONE, e, None) if e >= n or cls[e] not in " a%" else _right(
-            text, cls, e, n, cls[e])
-        if rk == _R_PCT:                       # "+5%"
+        rk, rend, _ = (_R_NONE, e, None) if e >= n or cls[e] not in " a%" else _right(text, cls, e, n, cls[e])
+        if rk == _R_PCT:  # "+5%"
             num = _number(text, s, e, False)
             assert num is not None
             hits.append((Decimal(num[0]), None, s, rend, True))
             return rend
-        return _skip_phone(cls, e, n)          # +971 50 123 4567
-    return e if before in "dah" else -1         # Q-2026, A/123, #5 ... vs "- 5", " /5"
+        return _skip_phone(cls, e, n)  # +971 50 123 4567
+    return e if before in "dah" else -1  # Q-2026, A/123, #5 ... vs "- 5", " /5"
 
 
 # ------------------------------------------------------------------ the scanner
@@ -546,7 +615,7 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
     n = len(text)
     while s >= 0:
         # ---- NUMBER token [s, e): digits, '.' and ',' that are followed by a digit
-        e = s + 32 - len(cls[s:s + 32].lstrip("d.,"))
+        e = s + 32 - len(cls[s : s + 32].lstrip("d.,"))
         if e - s == 32:
             e = _num_end(cls, s)
         while cls[e - 1] != "d":
@@ -562,13 +631,13 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
                 s = cls.find("d", resume)
                 continue
         elif lc == "." and text[s - 1] == "." and (s == 1 or cls[s - 2] in " \n$|"):
-            s -= 1                                          # ".50"
+            s -= 1  # ".50"
             lc = cls[s - 1]
         # ---- right neighbour (fast path: one space then a plain word)
         rk, rend, rval = _R_NONE, e, None
         if rc == " " and cls[e + 1] == "a":
             i = e + 1
-            we = i + 24 - len(cls[i:i + 24].lstrip("a"))
+            we = i + 24 - len(cls[i : i + 24].lstrip("a"))
             word = text[i:we]
             info = _RIGHT_WORDS.get(word)
             if info is None and not word.islower():
@@ -576,8 +645,8 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
             if info is not None:
                 if info[0] in _SIMPLE_RIGHT:
                     rk, rend, rval = info[0], we, info[1]
-                elif info[0] == _R_PER:                     # "per piece" vs "per cent"
-                    if text[we:we + 5].lower() == " cent" and cls[we + 5] != "a":
+                elif info[0] == _R_PER:  # "per piece" vs "per cent"
+                    if text[we : we + 5].lower() == " cent" and cls[we + 5] != "a":
                         rk, rend = _R_PCT, we + 5
                 else:
                     rk, rend, rval = _right(text, cls, e, n, rc)
@@ -595,7 +664,7 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
         pcur, pstart, pnl = None, s, False
         if lc == " " and cls[s - 2] == "a":
             i = s - 1
-            chunk = cls[i - 24 if i > 24 else 0:i]
+            chunk = cls[i - 24 if i > 24 else 0 : i]
             ws = i - (len(chunk) - len(chunk.rstrip("a")))
             word = text[ws:i]
             pcur = _LEFT_WORDS.get(word)
@@ -608,7 +677,7 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
         elif lc in " \na$.h":
             pcur, pstart, pnl = _left(text, cls, s, lc)
             if pcur == _GLUE:
-                s = cls.find("d", e)                        # v2, HC40 ...
+                s = cls.find("d", e)  # v2, HC40 ...
                 continue
         # ---- decide
         cur: str | None
@@ -620,14 +689,14 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
         elif rk == _R_CUR and isinstance(rval, str):
             cur, end = rval, rend
         elif rk != _R_NONE or not _keyword_before(text, cls, s):
-            s = cls.find("d", e)                            # unit, glued letters, or no context
+            s = cls.find("d", e)  # unit, glued letters, or no context
             continue
         else:
             cur, strict = default, True
         # ---- amount
         raw = text[s:e]
         if ascii_text and "," not in raw and raw.count(".") < 2:
-            amount = Decimal(raw)                           # plain "15", "0.227804", ".50"
+            amount = Decimal(raw)  # plain "15", "0.227804", ".50"
         else:
             num = _number(text, s, e, strict)
             if num is None:
@@ -644,11 +713,16 @@ def _scan(text: str, default_currency: str | None) -> list[_Hit]:  # noqa: PLR09
 # ------------------------------------------------------------------ public API
 def extract_prices(text: str, default_currency: str | None = None) -> list[PriceMention]:
     """Every money amount and percentage in `text`, in text order."""
-    return [_mk_mention(h, text[h[2]:h[3]]) for h in _scan(text, default_currency)]
+    return [_mk_mention(h, text[h[2] : h[3]]) for h in _scan(text, default_currency)]
 
 
-def check_prices(text: str, allowed: Sequence[AllowedPrice], *, default_currency: str | None = None,
-                 allowed_percentages: Sequence[Decimal] = ()) -> GuardResult:
+def check_prices(
+    text: str,
+    allowed: Sequence[AllowedPrice],
+    *,
+    default_currency: str | None = None,
+    allowed_percentages: Sequence[Decimal] = (),
+) -> GuardResult:
     """ok iff every mention matches an allowed price (at the speaker's precision) or percentage."""
     hits = _scan(text, default_currency)
     if not hits:
@@ -681,7 +755,8 @@ def _rounded_match(amount: Decimal, cur: str | None, allowed: Sequence[AllowedPr
     p = written if written > 2 else 2
     exp = _EXP[p] if p < 40 else Decimal(1).scaleb(-p)
     for a in allowed:
-        if ((cur is None or a.currency.upper() == cur)
-                and a.amount.quantize(exp, ROUND_HALF_UP, _CTX) == amount):
+        if (cur is None or a.currency.upper() == cur) and a.amount.quantize(
+            exp, ROUND_HALF_UP, _CTX
+        ) == amount:
             return True
     return False

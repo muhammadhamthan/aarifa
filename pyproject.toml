@@ -56,9 +56,11 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query", 
 # RUF001: tests deliberately contain Arabic-Indic / Devanagari digits; N817: `Decimal as D` in tests
 "**/tests/**" = ["S", "PLR", "DTZ", "RUF001", "N817", "PLC0415", "E501"]
 "tests/**" = ["S", "PLR", "DTZ", "RUF001", "N817", "PLC0415", "E501"]
-"candidates/**" = ["RUF001"]
+"candidates/**" = ["RUF001", "PLR0917"]
+# contest judges: benchmark/fuzz scripts (random data, subprocess, short names)
+"candidates/judge_*.py" = ["ALL"]
 # multilingual digits, separators and punctuation are the point of this module
-"packages/kx-core-db/src/kx/core/price_guard.py" = ["RUF001"]
+"packages/kx-core-db/src/kx/core/price_guard.py" = ["RUF001", "PLR0917"]  # hot path: positional args
 
 [tool.mypy]
 python_version = "3.14"
