@@ -79,6 +79,11 @@ class ChannelAccount(Base):
     status: Mapped[str] = mapped_column(Text, server_default=text("'active'"))
     config: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=_EMPTY_JSON)
     created_at: Mapped[datetime] = _ts(nullable=False, now=True)
+    # D11 / §11.4: one WhatsApp number per region, chosen by the buyer's country (ISO-2, upper case);
+    # the default account of a channel is the fallback when no region lists the country
+    region: Mapped[str | None] = mapped_column(Text)
+    countries: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("ARRAY[]::text[]"))
+    is_default: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
 
 
 class MessageTemplate(Base):
@@ -164,6 +169,9 @@ class OutboundMessage(Base):
     sent_at: Mapped[datetime | None] = _ts()
     delivered_at: Mapped[datetime | None] = _ts()
     read_at: Mapped[datetime | None] = _ts()
+    template_params: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    contact_ref: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    recipient_hash: Mapped[str | None] = mapped_column(CHAR(64))
 
 
 class WebhookReceipt(Base):
@@ -186,7 +194,10 @@ class Suppression(Base):
 
 class CallAttempt(Base):
     __tablename__ = "call_attempts"
-    __table_args__ = (Index("call_attempts_approval_idx", "approval_ref", "attempt_no"),)
+    __table_args__ = (
+        Index("call_attempts_approval_idx", "approval_ref", "attempt_no"),
+        UniqueConstraint("approval_ref", "attempt_no", name="call_attempts_approval_attempt_uq"),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     purpose: Mapped[str] = mapped_column(Text)

@@ -14,7 +14,19 @@ from sqlalchemy import CHAR, Boolean, Date, Integer, Numeric, SmallInteger, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from kx.crm.models.base import DB_DEFAULT, TOUCHED, TZ, Base, Money, Pct, created_at, ref, updated_at, uuid_pk
+from kx.crm.models.base import (
+    DB_DEFAULT,
+    TOUCHED,
+    TZ,
+    Base,
+    Money,
+    Pct,
+    UnitPrice,
+    created_at,
+    ref,
+    updated_at,
+    uuid_pk,
+)
 
 
 class ProductCategory(Base):
@@ -22,6 +34,8 @@ class ProductCategory(Base):
 
     code: Mapped[str] = mapped_column(Text, primary_key=True)
     name: Mapped[str] = mapped_column(Text)
+    # D6 shortcut: minimum = list price less this %, unless the tier sets its own minimum
+    min_discount_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
 
 
 class Material(Base):
@@ -46,6 +60,34 @@ class Product(Base):
     moq: Mapped[int | None] = mapped_column(Integer)
     carton_qty: Mapped[int | None] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # D10: default delivery time "X-Y working days after advance payment", editable on the quote
+    default_lead_days_min: Mapped[int | None] = mapped_column(SmallInteger)
+    default_lead_days_max: Mapped[int | None] = mapped_column(SmallInteger)
+    # D8: printed variants are priced by the salesperson; not quotable = no list price, never AI-priced
+    custom_printing: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_quotable: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = created_at()
+    updated_at: Mapped[datetime] = updated_at()
+
+
+class ProductPriceTier(Base):
+    """D6 / §10: one row per product per quantity tier: the list price (the AI quotes it) and the
+    minimum (the AI never goes below it). Rows sharing a `valid_from` form one price-list version and never
+    overlap (DB exclusion constraint). Manager/admin data: never in AI or buyer payloads."""
+
+    __tablename__ = "product_price_tiers"
+    __mapper_args__ = TOUCHED
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    product_id: Mapped[uuid.UUID] = mapped_column(ref("products.id"))
+    min_qty: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    max_qty: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    list_price: Mapped[Decimal] = mapped_column(UnitPrice)
+    min_price: Mapped[Decimal | None] = mapped_column(UnitPrice)
+    currency: Mapped[str] = mapped_column(CHAR(3), default="AED")
+    valid_from: Mapped[datetime] = mapped_column(TZ, server_default=DB_DEFAULT)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))
     created_at: Mapped[datetime] = created_at()
     updated_at: Mapped[datetime] = updated_at()
 

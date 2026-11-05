@@ -47,6 +47,7 @@ class Order(Base):
     source: Mapped[str] = mapped_column(Text, default="manual")
     created_at: Mapped[datetime] = created_at()
     updated_at: Mapped[datetime] = updated_at()
+    expected_reorder_date: Mapped[date | None] = mapped_column(Date)  # D15: stored at WON for v2
 
 
 class OrderStatusHistory(Base):

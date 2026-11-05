@@ -2,8 +2,9 @@
 
 DB tests (`@pytest.mark.db`) need a Postgres 16+ with pgvector, reachable at KX_TEST_PG_DSN
 (admin DSN, e.g. postgresql://postgres@/postgres?host=/tmp&port=5433). Each session builds fresh
-pack_crm / pack_automation / pack_agents databases from db/ddl/*.sql, so tests never share state
-with a developer database. Without the env var, DB tests are skipped (unit + spec tests still run).
+test_crm / test_automation / test_agents databases through the Alembic migrations (revision 0001 applies
+db/ddl/*.sql, later revisions follow), so tests never share state with a developer database. Without the
+env var, DB tests are skipped (unit + spec tests still run).
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DDL = ROOT / "db" / "ddl"
 ADMIN_DSN = os.environ.get("KX_TEST_PG_DSN")
-DBS = {"crm": "01_crm.sql", "automation": "02_automation.sql", "agents": "03_agents.sql"}
+DBS = ("crm", "automation", "agents")
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -38,9 +39,24 @@ def _dsn(db: str, *, driver: str = "") -> str:
     return f"{head}/test_{db}" + (f"?{query}" if query else "")
 
 
+def migrate(dsns: dict[str, str], revision: str = "head") -> None:
+    """Apply the Alembic revisions (0001 = the reviewed DDL, then 0002+) exactly as `kx migrate` does."""
+    from arifaa_pack.migrations import upgrade
+    from kx.core.settings import LogicalDb
+
+    upgrade(
+        [LogicalDb(name) for name in dsns],
+        revision,
+        dsns={
+            LogicalDb(name): dsn.replace("postgresql://", "postgresql+psycopg://", 1)
+            for name, dsn in dsns.items()
+        },
+    )
+
+
 @pytest.fixture(scope="session")
 def pg_databases() -> Iterator[dict[str, str]]:
-    """Create test_crm/test_automation/test_agents from the DDL; yield asyncpg DSNs per logical DB."""
+    """Create test_crm/test_automation/test_agents through the migrations; yield asyncpg DSNs per DB."""
     import psycopg
 
     assert ADMIN_DSN
@@ -50,9 +66,7 @@ def pg_databases() -> Iterator[dict[str, str]]:
         for name in DBS:
             admin.execute(f'DROP DATABASE IF EXISTS "test_{name}" WITH (FORCE)')
             admin.execute(f'CREATE DATABASE "test_{name}"')
-    for name, file in DBS.items():
-        with psycopg.connect(_dsn(name), autocommit=True) as conn:
-            conn.execute((DDL / file).read_text(encoding="utf-8"))
+    migrate({name: _dsn(name) for name in DBS})
     yield {name: _dsn(name, driver="asyncpg") for name in DBS}
     with psycopg.connect(ADMIN_DSN, autocommit=True) as admin:
         for name in DBS:

@@ -68,8 +68,14 @@ def current(db: LogicalDb, dsn: str | None = None) -> None:
 
 def apply_ddl_file(db: LogicalDb) -> None:
     """Used by each baseline revision: execute the whole reviewed DDL file in the migration transaction."""
-    sql = (ddl_dir() / DDL_FILES[db]).read_text(encoding="utf-8")
-    # Raw psycopg cursor with params=None: no %-placeholder parsing (the DDL contains regexes and LIKE '%').
+    execute_sql((ddl_dir() / DDL_FILES[db]).read_text(encoding="utf-8"))
+
+
+def execute_sql(sql: str) -> None:
+    """Run a multi-statement SQL script inside the migration transaction.
+
+    Raw psycopg cursor with params=None: no %-placeholder or :bind parsing (the scripts contain regexes,
+    LIKE '%' and ::casts), and $$ bodies run as written."""
     dbapi = cast("psycopg.Connection[Any]", op.get_bind().connection.dbapi_connection)
     with dbapi.cursor() as cur:
-        cur.execute(sql)
+        cur.execute(sql.encode())

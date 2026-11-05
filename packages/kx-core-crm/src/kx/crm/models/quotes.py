@@ -83,6 +83,13 @@ class QuoteVersion(Base):
     pdf_s3_key: Mapped[str | None] = mapped_column(Text)
     content_sha256: Mapped[str | None] = mapped_column(CHAR(64))
     created_at: Mapped[datetime] = created_at()
+    # §11.2 delivery and terms (D10: product default, salesperson edits); FX line printed when converted
+    delivery_time_text: Mapped[str | None] = mapped_column(Text)
+    delivery_place: Mapped[str | None] = mapped_column(Text)
+    payment_terms_text: Mapped[str | None] = mapped_column(Text)
+    fx_rate: Mapped[Decimal | None] = mapped_column(Numeric(18, 8))  # AED per 1 unit, as printed
+    fx_rate_date: Mapped[date | None] = mapped_column(Date)
+    signed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))  # D11
 
 
 class QuoteLine(Base):
@@ -121,20 +128,38 @@ class QuoteLineCost(Base):
     markup_max_pct: Mapped[Decimal] = mapped_column(Pct)
 
 
+class QuoteLineTier(Base):
+    """Price-list snapshot per line (list, minimum, steps) in the quote currency. Like QuoteLineCost it
+    never reaches buyer or AI payloads; negotiation rebuilds the ladder from it (§12.1, §24)."""
+
+    __tablename__ = "quote_line_tiers"
+
+    quote_line_id: Mapped[uuid.UUID] = mapped_column(
+        ref("quote_lines.id", ondelete="CASCADE"), primary_key=True
+    )
+    price_tier_id: Mapped[uuid.UUID | None] = mapped_column(ref("product_price_tiers.id"))
+    list_price: Mapped[Decimal] = mapped_column(UnitPrice)
+    min_price: Mapped[Decimal] = mapped_column(UnitPrice)
+    max_steps: Mapped[int] = mapped_column(SmallInteger)
+    fx_rate_to_aed: Mapped[Decimal] = mapped_column(Numeric(18, 8), default=Decimal(1))
+
+
 class Approval(Base):
     __tablename__ = "approvals"
 
     id: Mapped[uuid.UUID] = uuid_pk()
     quote_version_id: Mapped[uuid.UUID] = mapped_column(ref("quote_versions.id"))
-    kind: Mapped[str] = mapped_column(Text)  # initial | final | below_range
-    required_role: Mapped[str] = mapped_column(Text)  # manager | md
+    kind: Mapped[str] = mapped_column(Text)  # initial | revision | counter | final | special_price
+    required_role: Mapped[str] = mapped_column(Text)  # sales | manager | md
     assigned_user_id: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))
+    approver_user_id: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))  # D1: owner at submit
     status: Mapped[str] = mapped_column(Text, default="pending")
     window_minutes: Mapped[int] = mapped_column(Integer)
     submitted_at: Mapped[datetime] = mapped_column(TZ, server_default=DB_DEFAULT)
     deadline_at: Mapped[datetime] = mapped_column(TZ)
     escalation_step: Mapped[int] = mapped_column(SmallInteger, default=0)
     escalated_to_md_at: Mapped[datetime | None] = mapped_column(TZ)
+    escalated_at: Mapped[datetime | None] = mapped_column(TZ)  # §16: 120 min -> manager
     decided_by: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))
     decided_at: Mapped[datetime | None] = mapped_column(TZ)
     decision_note: Mapped[str | None] = mapped_column(Text)
@@ -159,7 +184,7 @@ class QuoteSendGrant(Base):
     id: Mapped[uuid.UUID] = uuid_pk()
     quote_version_id: Mapped[uuid.UUID] = mapped_column(ref("quote_versions.id"))
     approval_id: Mapped[uuid.UUID | None] = mapped_column(ref("approvals.id"))
-    policy: Mapped[str] = mapped_column(Text)  # manager | md | within_range
+    policy: Mapped[str] = mapped_column(Text)  # sales | manager | md | within_range
     content_sha256: Mapped[str] = mapped_column(CHAR(64))
     channel: Mapped[str] = mapped_column(Text)
     recipient_hash: Mapped[str] = mapped_column(CHAR(64))

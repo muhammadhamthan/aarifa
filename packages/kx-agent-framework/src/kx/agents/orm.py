@@ -77,6 +77,7 @@ class Conversation(Base):
     ended_at: Mapped[datetime | None] = mapped_column(TS)
     summary: Mapped[str | None] = mapped_column(Text)
     recording_consent: Mapped[bool] = mapped_column(Boolean, server_default=sql("false"))
+    summary_upto_turn: Mapped[int | None] = mapped_column(Integer)  # summary covers turns 1..N
 
 
 class Turn(Base):
@@ -91,6 +92,7 @@ class Turn(Base):
     audio_s3_key: Mapped[str | None] = mapped_column(Text)
     stt_confidence: Mapped[float | None] = mapped_column(Float(precision=24))
     created_at: Mapped[datetime] = mapped_column(TS, server_default=_NOW)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)  # agent_runs.id of the run that wrote it
 
 
 class AgentRun(Base):

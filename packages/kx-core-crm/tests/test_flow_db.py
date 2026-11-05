@@ -156,7 +156,9 @@ async def test_orm_matches_ddl(databases: Databases) -> None:
     assert set(db) == set(m.metadata.tables.keys()) | set() or set(db) == {
         t.name for t in m.metadata.tables.values()
     }
-    assert len(m.metadata.tables) == 45
+    assert (
+        len(m.metadata.tables) == 48
+    )  # 45 baseline + product_price_tiers, quote_line_tiers, change_requests
     problems = []
     for table in m.metadata.tables.values():
         cols = db[table.name]

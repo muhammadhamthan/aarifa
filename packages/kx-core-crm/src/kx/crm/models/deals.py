@@ -32,6 +32,11 @@ class Deal(Base):
     source: Mapped[str] = mapped_column(Text)
     currency: Mapped[str] = mapped_column(CHAR(3), default="AED")
     concessions_used: Mapped[int] = mapped_column(SmallInteger, default=0)
+    # §12.2 rule 4: asks below the minimum in the open negotiation (the 2nd one pauses the AI)
+    low_ask_count: Mapped[int] = mapped_column(Integer, default=0)
+    # D5 / §3: MD takeover; the owner is read-only until hand-back
+    taken_over_by: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))
+    taken_over_at: Mapped[datetime | None] = mapped_column(TZ)
     lost_reason: Mapped[str | None] = mapped_column(Text)
     lost_note: Mapped[str | None] = mapped_column(Text)
     qualified_at: Mapped[datetime | None] = mapped_column(TZ)

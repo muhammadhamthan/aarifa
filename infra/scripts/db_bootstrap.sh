@@ -8,7 +8,7 @@
 #   databases  <p>cms <p>crm <p>automation <p>agents, each OWNED by its app role
 #   connect    REVOKE CONNECT/TEMP FROM PUBLIC; each role may connect only to its own DB;
 #              reporting_ro may connect to <p>crm
-#   extensions crm: citext, pg_trgm | automation: citext | agents: vector, pg_trgm
+#   extensions crm: citext, pg_trgm, btree_gist | automation: citext | agents: vector, pg_trgm
 #              (created here because the app roles are not allowed to)
 #   reporting  schema crm pre-created (owner crm_app) + read-only grants and default privileges
 #              for reporting_ro, so tables created later by `kx migrate` are readable too
@@ -24,7 +24,7 @@ set -euo pipefail
 LOGICALS=(cms crm automation agents)
 declare -A EXTENSIONS=(
   [cms]=""
-  [crm]="citext pg_trgm"
+  [crm]="citext pg_trgm btree_gist"
   [automation]="citext"
   [agents]="vector pg_trgm"
 )

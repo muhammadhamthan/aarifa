@@ -1,4 +1,4 @@
-"""Typed ORM for the 45 tables of the `crm` database (mirrors db/ddl/01_crm.sql exactly)."""
+"""Typed ORM for the 48 tables of the `crm` database (mirrors db/ddl/01_crm.sql exactly)."""
 
 from kx.crm.models.base import Base
 from kx.crm.models.catalogue import (
@@ -12,8 +12,10 @@ from kx.crm.models.catalogue import (
     Product,
     ProductCategory,
     ProductCosting,
+    ProductPriceTier,
     SupplierLeadTime,
 )
+from kx.crm.models.changes import ChangeRequest
 from kx.crm.models.customers import Company, Consent, Contact
 from kx.crm.models.deals import Deal, DealRequirement, StageHistory, Task, TimelineEvent
 from kx.crm.models.fulfilment import (
@@ -36,6 +38,7 @@ from kx.crm.models.quotes import (
     Quote,
     QuoteLine,
     QuoteLineCost,
+    QuoteLineTier,
     QuoteSendGrant,
     QuoteVersion,
 )
@@ -47,6 +50,7 @@ __all__ = [
     "ApprovalEvent",
     "AuditEvent",
     "Base",
+    "ChangeRequest",
     "Company",
     "Consent",
     "Contact",
@@ -72,9 +76,11 @@ __all__ = [
     "Product",
     "ProductCategory",
     "ProductCosting",
+    "ProductPriceTier",
     "Quote",
     "QuoteLine",
     "QuoteLineCost",
+    "QuoteLineTier",
     "QuoteSendGrant",
     "QuoteVersion",
     "ReorderOpportunity",

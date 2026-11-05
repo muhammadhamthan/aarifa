@@ -57,6 +57,8 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query", 
 "**/tests/**" = ["S", "PLR", "DTZ", "RUF001", "N817", "PLC0415", "E501"]
 "tests/**" = ["S", "PLR", "DTZ", "RUF001", "N817", "PLC0415", "E501"]
 "candidates/**" = ["RUF001", "PLR0917"]
+# Alembic revisions embed SQL scripts (seed rows and CHECK lists read best on one line)
+"apps/*/src/*/migrations/*/versions/*.py" = ["E501"]
 # contest judges: benchmark/fuzz scripts (random data, subprocess, short names)
 "candidates/judge_*.py" = ["ALL"]
 # multilingual digits, separators and punctuation are the point of this module

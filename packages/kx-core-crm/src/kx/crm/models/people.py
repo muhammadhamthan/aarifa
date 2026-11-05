@@ -24,9 +24,15 @@ class User(Base):
     phone_e164: Mapped[str | None] = mapped_column(Text)
     role: Mapped[str] = mapped_column(Text)  # md | manager | admin | sales
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    alert_channels: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), default=lambda: ["whatsapp", "email", "in_app"]
-    )
+    # D4: preferred alert channels per user (CRM in-app notifications are always on, §16)
+    alert_channels: Mapped[list[str]] = mapped_column(ARRAY(Text), default=lambda: ["whatsapp"])
+    # D5 / §9 optional assignment rules: what this salesperson covers (empty = no rule match)
+    languages: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
+    countries: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
+    category_codes: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
+    is_away: Mapped[bool] = mapped_column(Boolean, default=False)
+    backup_user_id: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))
+    round_robin_seq: Mapped[int | None] = mapped_column(BigInteger)  # last assignment, crm.assignment_seq
     created_at: Mapped[datetime] = created_at()
     updated_at: Mapped[datetime] = updated_at()
 
