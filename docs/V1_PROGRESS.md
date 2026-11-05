@@ -49,3 +49,25 @@ New revision `crm_0003` seeds `quote.payment_terms_text`, `quote.currency_by_cou
 `negotiation.free_samples_allowed`.
 Tests added: 36 spec tests (`test_spec_price_list.py`) and 11 DB tests (`test_price_list_db.py`).
 Totals: 362 passed.
+
+## WP3. Approvals: the salesperson approves
+
+**Plan.** New `services/access.py` (who may approve / edit / view); `services/approvals.py` (approver,
+escalation, special price, sweep to the manager), `services/staff.py` (`approver_for`, `manager_user`),
+`services/issuing.py` + `grants.py` (grant policy = who approved), `services/quotes.py` (`revise_quote`, final
+quote to the salesperson), API routes (`/approvals/{id}/decision` open to sales, `/deals/{id}/quotes/revise`,
+takeover read-only on write routes), `QuoteSubmitted` payload. Tests: `test_approvals_db.py` (DB + HTTP).
+
+**Done.** Every quote kind (initial, revision, final) is approved by the deal's salesperson; the manager may
+approve any deal; the MD only a deal it has taken over (approvals then go to the MD); the owner is read-only
+during a takeover (403 on quote, revise, stage and decision routes; view stays). `QuoteSubmitted`: approver =
+salesperson, escalate_to = manager, due = 120 alert-hour minutes. A revised price below the tier minimum opens
+a manager-only `special_price` approval first; once approved, the salesperson's approval opens on the same
+version (scenario 3). The MD value limit only applies when `approval.md_value_limit_aed` is set. The sweep
+escalates overdue approvals to the manager. Each buyer-facing version still gets a single-use grant
+(policy = the approver's role). The 4 Nov tests that asserted MD final approval were updated to the 5 Nov
+rules (D1).
+Tests added: 11 (`test_approvals_db.py`: own deal vs another salesperson, manager any deal, MD only after
+takeover, owner read-only over HTTP, final quote grant single-use, edit within range / above list refused,
+scenario 3 special price, special price declined, scenario 6 timer 14:00 → 16:00 and 21:30 → 09:30, MD value
+limit). Totals: 373 passed.

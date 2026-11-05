@@ -37,3 +37,24 @@ async def manager_for(session: AsyncSession, deal: Deal) -> User:
         if owner is not None and owner.is_active and owner.role in APPROVER_ROLES:
             return owner
     return await first_active(session, "manager") or await md_user(session)
+
+
+async def manager_user(session: AsyncSession) -> User:
+    """D2: the manager (escalations, notices, special prices); the MD only if no manager is configured."""
+    return await first_active(session, "manager") or await md_user(session)
+
+
+async def owner_of(session: AsyncSession, deal: Deal) -> User | None:
+    """The deal's salesperson, if assigned and active."""
+    if deal.owner_user_id is None:
+        return None
+    owner = await session.get(User, deal.owner_user_id)
+    return owner if owner is not None and owner.is_active else None
+
+
+async def approver_for(session: AsyncSession, deal: Deal) -> User:
+    """D1: the deal's salesperson approves; the MD while it has taken the deal over; the manager when the
+    deal has no active owner (§9: deals go to the manager when nobody is available)."""
+    if deal.taken_over_by is not None and (md := await session.get(User, deal.taken_over_by)) is not None:
+        return md
+    return await owner_of(session, deal) or await manager_user(session)

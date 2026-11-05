@@ -27,6 +27,7 @@ class DealSummary(_Out):
     concessions_used: int
     next_action_at: datetime | None
     owner_user_id: uuid.UUID | None
+    taken_over_by: uuid.UUID | None = None
     version: int
     updated_at: datetime
 
@@ -140,6 +141,11 @@ class QuoteVersionOut(_Out):
     valid_until: date | None
     clauses: list[str]
     approver_summary: str | None
+    delivery_time_text: str | None = None
+    delivery_place: str | None = None
+    payment_terms_text: str | None = None
+    fx_rate: Decimal | None = None
+    fx_rate_date: date | None = None
     pdf_s3_key: str | None
     created_at: datetime
     lines: list[QuoteLineOut] = []
@@ -167,12 +173,30 @@ class ApprovalOut(_Out):
     kind: str
     required_role: str
     assigned_user_id: uuid.UUID | None
+    approver_user_id: uuid.UUID | None = None
     status: str
     submitted_at: datetime
     deadline_at: datetime
     decided_by: uuid.UUID | None
     decided_at: datetime | None
     decision_note: str | None
+
+
+class LineEditIn(BaseModel):
+    line_no: int = Field(ge=1)
+    unit_price: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=6)
+    quantity: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=2)
+
+
+class QuoteEditsIn(BaseModel):
+    """§11.3 "Edit then approve" / §13.3 "Revise quote": only the fields that change."""
+
+    lines: list[LineEditIn] = []
+    delivery_time_text: str | None = Field(default=None, max_length=300)
+    delivery_place: str | None = Field(default=None, max_length=300)
+    incoterm: Literal["EXW", "FCA", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DDP"] | None = None
+    payment_terms_text: str | None = Field(default=None, max_length=1000)
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class DecisionIn(BaseModel):

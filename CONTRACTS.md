@@ -69,6 +69,8 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 **Counter-offer verdicts (WP2):** `CounterVerdictKind.REQUOTE` (§12.2 rule 5: the quantity moved into another tier; the CRM drafts a revised quote for the salesperson and the AI gets no price, `offer_unit_price=None`) and `CHANGE_REQUEST` (quantity below the MOQ or outside the tiers, or a hand-priced item: a human answers); `CounterVerdict.requires_approval`. `DealContext.allowed_prices` = the issued quote plus the ladder steps actually offered; steps not yet offered and the minimum never reach the AI.
 
+**Approval events (WP3):** `QuoteSubmitted.required_role` adds `sales`; `kind` adds `special_price`; `approver` is the deal's salesperson (the MD on a takeover, the manager for a special price) and `escalate_to` is the manager; `due_at` is the 120-minute escalation counted in alert hours. `ApprovalOverdue.escalate_to` is the manager. Grant `policy` adds `sales`.
+
 **Planned contract additions (WP4):** event `change_request.raised.v1` with an `event_payloads.ChangeRequested` payload, and `CrmGateway.raise_change_request(...)`.
 
 ## 4. Code standards

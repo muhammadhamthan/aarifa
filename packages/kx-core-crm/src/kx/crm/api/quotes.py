@@ -23,7 +23,8 @@ from kx.crm.services.issuing import lines_of
 Staff = Annotated[Principal, Depends(require_role(*STAFF))]
 Manager = Annotated[Principal, Depends(require_role(*MANAGERS))]
 MdOnly = Annotated[Principal, Depends(require_role(Role.MD))]
-Approver = Annotated[Principal, Depends(require_human_mfa(Role.MANAGER, Role.MD))]
+# D1: the salesperson, the manager or the MD on takeover; the service checks which deal (access.py)
+Approver = Annotated[Principal, Depends(require_human_mfa(Role.SALES, Role.MANAGER, Role.MD))]
 
 
 def router(ctx: ApiContext) -> APIRouter:
@@ -81,7 +82,7 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.post("/approvals/{approval_id}/decision", response_model=ApprovalOut)
     async def decide(approval_id: uuid.UUID, body: DecisionIn, s: Session, p: Approver) -> ApprovalOut:
-        """Human + MFA only. Final approvals additionally require the MD (checked in the service)."""
+        """Human + MFA only. Whose deal it is, takeover and special price are checked in the service."""
         return ApprovalOut.model_validate(
             await approvals.decide(s, ctx.deps, approval_id, p, decision=body.decision, note=body.note)
         )

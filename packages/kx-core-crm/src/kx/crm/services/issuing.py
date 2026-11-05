@@ -1,5 +1,7 @@
 """Releasing a quote to the buyer after a human approval: freeze the PDF, store it, grant one send,
-tell automation. Runs after approval 1 (commercial quote) and after approval 2 (MD, final quote).
+tell automation. Runs after Approval 1 (first and revised quotes) and Approval 2 (final quote), both by the
+deal's salesperson, the manager, or the MD on a takeover (D1); every buyer-facing version gets its own
+single-use grant.
 
 Order matters: the PDF is uploaded before the grant row commits. If the transaction then fails, an
 orphan PDF is left in S3 (harmless, content-addressed key); the reverse order could leave a grant
@@ -32,7 +34,7 @@ from kx.crm.models import (
 )
 from kx.crm.pdf import DocLine, QuoteDocument, pdf_key, quote_message
 from kx.crm.services import deals as deal_svc
-from kx.crm.services.grants import issue_grant
+from kx.crm.services.grants import GrantPolicy, issue_grant
 from kx.crm.services.journal import Actor, Emit, Timeline, record
 from kx.crm.services.settings import BusinessSettings
 
@@ -100,6 +102,7 @@ async def issue_to_buyer(
     kind: Literal["commercial", "final"],
     actor: Actor,
     now: datetime,
+    policy: GrantPolicy = "sales",
 ) -> QuoteSendGrant:
     """Approved: render + upload the PDF, freeze its hash, issue the single-use grant, emit QUOTE_APPROVED."""
     contact = await deal_svc.contact_of(session, deal)
@@ -115,7 +118,6 @@ async def issue_to_buyer(
     version.status, version.pdf_s3_key, version.content_sha256 = "approved", key, pdf_sha
     deal.low_ask_count = 0  # §12.2 rule 4 counts low asks per open negotiation: a new version starts one
     await session.flush()
-    policy: Literal["manager", "md"] = "md" if approval.required_role == "md" else "manager"
     grant, channel, address = await issue_grant(
         session,
         version=version,
@@ -136,8 +138,7 @@ async def issue_to_buyer(
         after={"status": "approved", "pdf_s3_key": key, "pdf_sha256": pdf_sha, "grant_id": grant.id},
         timeline=Timeline(
             "quote_approved",
-            f"{kind.title()} quote {quote.number} v{version.version_no} "
-            f"approved ({approval.required_role}); ready to send",
+            f"{kind.title()} quote {quote.number} v{version.version_no} approved ({policy}); ready to send",
             deal.id,
             contact.id,
             ref_type="quote_version",

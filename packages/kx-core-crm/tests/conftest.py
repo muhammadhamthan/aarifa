@@ -63,6 +63,9 @@ class Seed:
 MD_ID = uuid.UUID("00000000-0000-7000-8000-0000000000a1")
 MGR_ID = uuid.UUID("00000000-0000-7000-8000-0000000000a2")
 PRODUCT_ID = uuid.UUID("00000000-0000-7000-8000-0000000000b1")
+# §23 salespersons: Sara (Arabic + English, GCC) and Ravi
+SALES_ID = uuid.UUID("00000000-0000-7000-8000-0000000000a3")
+SALES2_ID = uuid.UUID("00000000-0000-7000-8000-0000000000a4")
 SKU, MATERIAL, CATEGORY = "ALU-750", "AL_COIL_8011", "ALU_CONTAINER"
 
 
@@ -91,6 +94,23 @@ async def ensure_seed(dbs: object, now: datetime | None = None) -> Seed:
                         full_name="The Manager",
                         role="manager",
                         phone_e164="+971501110002",
+                    ),
+                    m.User(
+                        id=SALES_ID,
+                        email="sara@test.ae",
+                        full_name="Sara",
+                        role="sales",
+                        phone_e164="+971501110003",
+                        languages=["en", "ar"],
+                        countries=["AE", "SA"],
+                    ),
+                    m.User(
+                        id=SALES2_ID,
+                        email="ravi@test.ae",
+                        full_name="Ravi",
+                        role="sales",
+                        phone_e164="+971501110004",
+                        languages=["en", "hi", "ta"],
                     ),
                     m.ProductCategory(code=CATEGORY, name="Aluminium containers"),
                     m.Material(code=MATERIAL, name="Aluminium coil 8011"),
@@ -219,6 +239,17 @@ async def ensure_price_list(dbs: object) -> str:
 @pytest.fixture
 async def price_list(databases: object) -> str:
     return await ensure_price_list(databases)
+
+
+async def assign(dbs: object, deal_id: uuid.UUID, user_id: uuid.UUID | None) -> None:
+    """Set the deal owner directly (tests that are not about assignment)."""
+    from sqlalchemy import update
+
+    from kx.core.settings import LogicalDb
+    from kx.crm import models as m
+
+    async with dbs.transaction(LogicalDb.CRM) as s:  # type: ignore[attr-defined]
+        await s.execute(update(m.Deal).where(m.Deal.id == deal_id).values(owner_user_id=user_id))
 
 
 async def set_setting(dbs: object, key: str, value: object) -> None:

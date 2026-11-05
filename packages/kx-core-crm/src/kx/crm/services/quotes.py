@@ -27,6 +27,7 @@ from kx.crm.models import (
     Approval,
     Deal,
     DealRequirement,
+    Product,
     Quote,
     QuoteLine,
     QuoteLineCost,
@@ -34,6 +35,7 @@ from kx.crm.models import (
     QuoteVersion,
 )
 from kx.crm.pricing.engine import price_line, quote_totals
+from kx.crm.pricing.price_list import TierPrice, convert_tier, min_price_for, resolve_tier
 from kx.crm.pricing.types import PricedLine
 from kx.crm.rules import QUOTABLE_STAGES
 from kx.crm.services import approvals, grants
@@ -44,6 +46,8 @@ from kx.crm.services.pricing import (
     ListPricingInputs,
     PricingInputs,
     build_delivery_estimate,
+    category_min_pct,
+    current_tiers,
     fx_to_aed,
     fx_with_date,
     lead_time_text,
@@ -508,7 +512,7 @@ async def _after_draft(
         deal=deal,
         quote=quote,
         version=version,
-        kind="initial",
+        kind="revision" if version.kind == "revision" else "initial",
         role=approvals.initial_role(version.total_aed, s),
         actor=actor,
         now=now,
@@ -526,8 +530,8 @@ async def create_final_version(
     quantity: Decimal,
     actor: Actor,
 ) -> QuoteVersion:
-    """The buyer agreed: a 'final' version at the agreed price/quantity for the primary line (other lines
-    unchanged), sent straight to the MD's final approval (T2)."""
+    """§14.3: the buyer agreed: a 'final' version at the agreed price/quantity for the primary line (other
+    lines unchanged), sent to Approval 2 by the deal's salesperson (§14.4, D1)."""
     now = deps.now()
     s = await deps.settings.get(session)
     quote = await session.get(Quote, issued.quote_id)
@@ -589,7 +593,145 @@ async def create_final_version(
         quote=quote,
         version=version,
         kind="final",
-        role="md",
+        role=approvals.initial_role(version.total_aed, s),
+        actor=actor,
+        now=now,
+    )
+    return version
+
+
+# ---------------------------------------------------------------- §11.3 "Edit then approve"
+@dataclass(frozen=True, slots=True)
+class LineEdit:
+    line_no: int
+    unit_price: Decimal | None = None
+    quantity: Decimal | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class QuoteEdits:
+    """What the salesperson changed on the approval screen or the change-request card (§11.3, §13.3)."""
+
+    lines: tuple[LineEdit, ...] = ()
+    delivery_time_text: str | None = None
+    delivery_place: str | None = None
+    incoterm: str | None = None
+    payment_terms_text: str | None = None
+    note: str | None = None
+
+
+async def _tier_snapshot(
+    session: AsyncSession,
+    product_id: uuid.UUID,
+    qty: Decimal,
+    *,
+    fx: Decimal,
+    s: BusinessSettings,
+    now: datetime,
+) -> QuoteLineTier | None:
+    """Price-list snapshot for `qty` in the quote currency, or None when no tier contains it."""
+    product = await session.get(Product, product_id)
+    try:
+        tier = resolve_tier(await current_tiers(session, product_id, now), qty)
+    except LookupError:
+        return None
+    assert product is not None
+    floor = min_price_for(tier, await category_min_pct(session, product.category_code))
+    conv = convert_tier(TierPrice(tier.list_price, floor, tier.tier_id), fx)
+    assert conv.min_price is not None
+    return QuoteLineTier(
+        price_tier_id=tier.tier_id,
+        list_price=conv.list_price,
+        min_price=min(conv.min_price, conv.list_price),
+        max_steps=s.max_steps,
+        fx_rate_to_aed=fx,
+    )
+
+
+async def revise_quote(
+    session: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID, edits: QuoteEdits, actor: Actor
+) -> QuoteVersion:
+    """A new version from the latest one with the salesperson's edits (§11.3.3: approval locks a version,
+    any change creates a new one). A unit price must stay between the tier minimum and the list price; a
+    price below the minimum first goes to the manager as a special price (§11.3, §12.2 rule 4, D3)."""
+    now = deps.now()
+    deal = await deal_svc.get_deal(session, deal_id, lock=True)
+    s = await deps.settings.get(session)
+    base = await latest_version(session, deal.id, (*LIVE, "expired"))
+    if base is None:
+        raise RuleViolation("there is no quote to revise yet")
+    quote = await session.get(Quote, base.quote_id)
+    assert quote is not None
+    by_no = {e.line_no: e for e in edits.lines}
+    drafts: list[DraftLine] = []
+    special = False
+    for line, old_snap in await tiers_of(session, base.id):
+        snap = old_snap
+        e = by_no.get(line.line_no, LineEdit(line.line_no))
+        price = line.unit_price if e.unit_price is None else e.unit_price
+        qty = line.quantity if e.quantity is None else e.quantity
+        if price <= 0 or qty <= 0:
+            raise RuleViolation(f"line {line.line_no}: price and quantity must be positive")
+        total = (
+            line.line_total
+            if (price, qty) == (line.unit_price, line.quantity)
+            else q(price * qty, MONEY_PLACES)
+        )
+        if snap is not None and qty != line.quantity and line.product_id is not None:
+            # a new quantity may sit in another tier (or outside them: then it is priced by hand, D12)
+            snap = await _tier_snapshot(session, line.product_id, qty, fx=base.fx_rate_to_aed, s=s, now=now)
+        new_snap: QuoteLineTier | None = None
+        if snap is not None:
+            if price > max(snap.list_price, line.unit_price):
+                raise RuleViolation(f"line {line.line_no}: the unit price may not exceed the list price")
+            special = special or price < snap.min_price
+            new_snap = QuoteLineTier(**{c: getattr(snap, c) for c in _TIER_COLS})
+        drafts.append(
+            DraftLine(
+                LineValues(line.description, qty, line.unit, price, total, line.product_id), tier=new_snap
+            )
+        )
+    incoterm = edits.incoterm or base.incoterm
+    contact = await deal_svc.contact_of(session, deal)
+    await _supersede_live(session, quote, now)
+    version = await _insert_version(
+        session,
+        quote=quote,
+        deal=deal,
+        kind="final" if base.kind == "final" else "revision",
+        currency=base.currency,
+        fx=base.fx_rate_to_aed,
+        drafts=drafts,
+        vat=base.vat_rate,
+        incoterm=incoterm,
+        lane_id=base.freight_lane_id,
+        s=s,
+        language=contact.language,
+        summary=(edits.note or "Revised by the salesperson")
+        + (" — special price below the minimum" if special else ""),
+        estimate_id=base.delivery_estimate_id,
+        actor=actor,
+        correction_note=edits.note,
+        terms=VersionTerms(
+            delivery_time_text=edits.delivery_time_text or base.delivery_time_text,
+            delivery_place=edits.delivery_place or base.delivery_place,
+            payment_terms_text=edits.payment_terms_text or base.payment_terms_text,
+            fx_rate=base.fx_rate,
+            fx_rate_date=base.fx_rate_date,
+            signed_by_user_id=deal.owner_user_id or base.signed_by_user_id,
+        ),
+    )
+    if DealStage(deal.stage) is DealStage.NEGOTIATION and version.kind == "revision":
+        await deal_svc.move_stage(session, deal, DealStage.QUOTATION, actor, now=now, reason="quote revised")
+    await approvals.open_approval(
+        session,
+        deps,
+        s,
+        deal=deal,
+        quote=quote,
+        version=version,
+        kind="special_price" if special else ("final" if version.kind == "final" else "revision"),
+        role=approvals.initial_role(version.total_aed, s),
         actor=actor,
         now=now,
     )

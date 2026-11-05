@@ -25,7 +25,6 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 
 | Capability | Will live in |
 |---|---|
-| Salesperson approvals, special-price approval, takeover | `kx.crm.services.approvals` (WP3) |
 | Change requests | `kx.crm.services.change_requests`, `kx.core.event_payloads.ChangeRequested`, `CrmGateway.raise_change_request`, agents tool `raise_change_request` (WP4) |
 | Deal assignment (round-robin + rules + away/backup) | `kx.crm.services.assignment` (WP5) |
 | Regional WhatsApp routing | `kx.automation.outbound` + `channel_accounts.countries` (WP6) |
@@ -40,6 +39,10 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Pricing maths (pure; cost-based = **v2**) | `kx.crm.pricing.engine`: `unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, `price_line`, `quote_totals`, `concession_ladder`, `evaluate_counter`, `estimate_delivery` |
 | Business rules (pure) | `kx.crm.rules` (stage machine, LOST reasons, staleness 3/7 days, qualification fields) |
 | Audit + timeline + outbox in one call | `kx.crm.services.journal.record()` |
+| Who may act on a deal (approve, edit, view; MD takeover read-only) | `kx.crm.services.access`: `ensure_can_approve`, `ensure_can_edit`, `ensure_can_view` |
+| Approvals (salesperson, manager any deal, MD on takeover; special price; 120-min escalation) | `kx.crm.services.approvals`: `open_approval`, `decide`, `sweep_overdue`, `initial_role` |
+| Edit then approve / revise a quote (special price below the minimum) | `kx.crm.services.quotes.revise_quote` (`QuoteEdits`, `LineEdit`) |
+| Who is alerted | `kx.crm.services.staff`: `approver_for`, `manager_user`, `owner_of`, `staff_contact` |
 | Services | `kx.crm.services.*`: settings, deals, pricing, price_proposals, quotes, approvals, issuing, grants, negotiation, orders, retention |
 | Gateways for other packages | `kx.crm.gateway`: `CrmGatewayImpl`, `GrantConsumerImpl`, `ApprovalStatusReaderImpl` |
 | HTTP API | `kx.crm.api.build_router(databases, deps)` |

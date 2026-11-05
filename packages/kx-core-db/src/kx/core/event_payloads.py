@@ -64,17 +64,19 @@ class NegotiationPaused(EventPayload):
 
 
 class QuoteSubmitted(EventPayload):
-    """An approval is open. Automation runs the alert ladder (3 IVR calls / 20 min, then MD)."""
+    """An approval is open (§11.3, §16). `approver` is the deal's salesperson (D1; the MD on a takeover,
+    the manager for a special price); automation alerts them and runs the reminder ladder, escalating to
+    `escalate_to` (the manager) at `due_at`."""
 
     approval_ref: uuid.UUID
     quote_ref: uuid.UUID
     quote_version_ref: uuid.UUID
     deal_ref: uuid.UUID
-    kind: Literal["commercial", "final"]
-    required_role: Literal["manager", "md"]
+    kind: Literal["commercial", "final", "special_price"]
+    required_role: Literal["sales", "manager", "md"]
     approver: StaffContact
     escalate_to: StaffContact | None
-    due_at: datetime  # computed with the 08:00-22:00 window (timer pauses)
+    due_at: datetime  # escalation time, counted in 08:00-22:00 alert hours (the timer pauses outside)
     quote_number: str
     total_display: str  # e.g. "AED 11,390.20" for the alert text
 

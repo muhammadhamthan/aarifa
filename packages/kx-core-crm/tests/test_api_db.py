@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 import pytest
-from conftest import MD_ID, MGR_ID, SKU, Seed, new_phone
+from conftest import MD_ID, MGR_ID, SALES_ID, SKU, Seed, assign, new_phone
 from fastapi import FastAPI
 
 from kx.core.auth import Principal, Role, current_principal
@@ -78,8 +78,11 @@ async def test_staff_api_flow(api: tuple[httpx.AsyncClient, Auth], databases: An
     r = await client.post(f"/v1/deals/{deal_ids[0]}/stage", json={"to": "QUALIFIED", "expected_version": 1})
     assert r.status_code == 200 and r.json()["stage"] == "QUALIFIED"
 
-    # quote by a user, approvals list, decision needs MFA; costs are MD-only
-    auth.as_(Role.SALES, MGR_ID)
+    # quote by the deal's salesperson, approvals list, decision needs MFA; costs are MD-only
+    auth.as_(Role.SALES, MGR_ID)  # a salesperson who does not own the deal (§3)
+    assert (await client.post(f"/v1/deals/{deal_ids[0]}/quotes")).status_code == 403
+    await assign(databases, deal_ids[0], SALES_ID)
+    auth.as_(Role.SALES, SALES_ID)
     version = (await client.post(f"/v1/deals/{deal_ids[0]}/quotes")).json()
     assert version["status"] == "pending_approval" and "unit_cost" not in str(version)
     assert (await client.get("/v1/approvals")).status_code == 403

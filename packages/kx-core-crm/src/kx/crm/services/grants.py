@@ -41,12 +41,15 @@ def recipient(contact: Contact) -> tuple[SendChannel, str]:
     raise RuleViolation("contact has no WhatsApp number or email to send the quote to")
 
 
+GrantPolicy = Literal["sales", "manager", "md", "within_range"]  # who released it (D1)
+
+
 async def issue_grant(
     session: AsyncSession,
     *,
     version: QuoteVersion,
     approval_id: uuid.UUID | None,
-    policy: Literal["manager", "md", "within_range"],
+    policy: GrantPolicy,
     contact: Contact,
     sha: str,
     s: BusinessSettings,

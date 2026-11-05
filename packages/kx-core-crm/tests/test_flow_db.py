@@ -10,7 +10,7 @@ from decimal import Decimal as D
 from typing import Any
 
 import pytest
-from conftest import CATEGORY, MGR_ID, SKU, FakeUploader, Seed, new_phone
+from conftest import CATEGORY, MGR_ID, SALES_ID, SKU, FakeUploader, Seed, assign, new_phone
 from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects import postgresql
 
@@ -41,6 +41,7 @@ def principal(role: Role, user_id: uuid.UUID, *, mfa: bool = True, human: bool =
 
 MD = principal(Role.MD, uuid.UUID("00000000-0000-7000-8000-0000000000a1"))
 MGR = principal(Role.MANAGER, MGR_ID)
+SARA = principal(Role.SALES, SALES_ID)
 
 
 async def outbox(dbs: Databases, event_type: str, deal_id: uuid.UUID | None = None) -> list[dict[str, Any]]:
@@ -62,6 +63,7 @@ async def qualified_deal(
     )
     await gw.set_contact(deal_id, ContactPatch(name="Ahmed", company="Gulf Catering"), AiRole.CONTACT_CAPTURE)
     assert (await gw.try_qualify(deal_id, AiRole.LEAD_QUALIFICATION)).qualified
+    await assign(gw._dbs, deal_id, SALES_ID)  # Sara owns the deal (assignment itself: test_assignment_db.py)
     return deal_id
 
 
@@ -193,7 +195,7 @@ async def test_happy_path_new_to_needs_manager(
     assert (await gw.deal_context(deal_id)).stage is DealStage.QUALIFIED
     assert await outbox(databases, ev.DEAL_QUALIFIED, deal_id)
 
-    # ---- request_quote: top of band, frozen, approval 1 to the manager, MD informed
+    # ---- request_quote: top of band, frozen, approval 1 to the salesperson, the manager is the escalation
     await gw.request_quote(deal_id, AI)
     async with databases.transaction(CRM) as s:
         v = await quotes.latest_version(s, deal_id)
@@ -212,20 +214,23 @@ async def test_happy_path_new_to_needs_manager(
         async with databases.transaction(CRM) as s:
             await s.execute(update(m.QuoteVersion).where(m.QuoteVersion.id == v.id).values(total=D(1)))
     submitted = await outbox(databases, ev.QUOTE_SUBMITTED, deal_id)
-    assert submitted[-1]["kind"] == "commercial" and submitted[-1]["required_role"] == "manager"
+    assert submitted[-1]["kind"] == "commercial" and submitted[-1]["required_role"] == "sales"
+    assert submitted[-1]["approver"]["name"] == "Sara"
     assert (
-        submitted[-1]["escalate_to"]["name"] == "The MD" and submitted[-1]["total_display"] == "AED 11,959.71"
+        submitted[-1]["escalate_to"]["name"] == "The Manager"
+        and submitted[-1]["total_display"] == "AED 11,959.71"
     )
     assert (await gw.deal_context(deal_id)).allowed_prices == ()  # nothing approved yet
 
-    # ---- approval 1 by the manager (human + MFA) releases the commercial quote: PDF, grant, QUOTE_APPROVED
+    # ---- approval 1 by the manager (D1: any deal; human + MFA) releases the quote: PDF, grant, QUOTE_APPROVED
     a1 = await open_approval(databases, deal_id)
     reader = ApprovalStatusReaderImpl(databases)
     assert await reader.is_pending(a1.id)
     for bad in (
         principal(Role.MANAGER, MGR_ID, mfa=False),
         principal(Role.SERVICE, MGR_ID, human=False),
-        principal(Role.SALES, MGR_ID),
+        principal(Role.SALES, MGR_ID),  # a salesperson who does not own the deal
+        MD,  # D1: the MD only on a deal it has taken over
     ):
         with pytest.raises(Forbidden):
             async with databases.transaction(CRM) as s:
@@ -336,26 +341,26 @@ async def test_agreement_payment_won(databases: Databases, seed: Seed, deps: Crm
     await gw.request_quote(deal_id, AI)
     first = await approve_and_send(databases, deps, deal_id)
     await gw.evaluate_counter(deal_id, D("0.22"), D(50_000), "web_chat")
-    # manager sets a price and hands back to the AI; buyer agrees -> final version for the MD
+    # manager sets a price and hands back to the AI; buyer agrees -> final version for the salesperson
     async with databases.transaction(CRM) as s:
         await negotiation.manager_offer(s, deps, deal_id, D("0.221"), actor=Actor.user(MGR))
     assert D("0.221") in {p.amount for p in (await gw.deal_context(deal_id)).allowed_prices}
     await gw.mark_agreed(deal_id, AiRole.DEAL_CLOSER)
     a = await open_approval(databases, deal_id)
-    assert (a.kind, a.required_role) == ("final", "md")
-    with pytest.raises(Forbidden):  # T2: only the MD confirms the final quote
+    assert (a.kind, a.required_role, a.assigned_user_id) == ("final", "sales", SALES_ID)
+    with pytest.raises(Forbidden):  # D1: the MD approves only deals it has taken over
         async with databases.transaction(CRM) as s:
-            await approvals.decide(s, deps, a.id, MGR, decision="approve")
+            await approvals.decide(s, deps, a.id, MD, decision="approve")
     async with databases.transaction(CRM) as s:
         v = await quotes.latest_version(s, deal_id)
         assert v is not None and v.kind == "final"
         (line,) = await quotes.lines_of(s, v.id)
         assert (line.unit_price, line.line_total) == (D("0.221"), D("11050.0000"))
-    final = await approve_and_send(databases, deps, deal_id, MD)
+    final = await approve_and_send(databases, deps, deal_id, SARA)
     assert final["kind"] == "final" and final["grant_ref"] != first["grant_ref"]
     async with databases.transaction(CRM) as s:
         g = await s.get(m.QuoteSendGrant, uuid.UUID(final["grant_ref"]))
-        assert g is not None and g.policy == "md" and g.consumed_at is not None
+        assert g is not None and g.policy == "sales" and g.consumed_at is not None
     assert (await gw.deal_context(deal_id)).stage is DealStage.READY_TO_CLOSE
     async with databases.transaction(CRM) as s:
         order = await orders.record_payment(s, deps, deal_id, Actor.user(MGR), amount=D(5000), currency="AED")
@@ -493,7 +498,9 @@ async def test_warn_level_is_flagged_for_the_approver(
 
 
 # ---------------------------------------------------------------- approvals: window, sweep, MD limit, correction
-async def test_overdue_sweep_escalates_to_md(databases: Databases, seed: Seed, deps: CrmDeps) -> None:
+async def test_overdue_sweep_escalates_to_the_manager(
+    databases: Databases, seed: Seed, deps: CrmDeps
+) -> None:
     gw = CrmGatewayImpl(databases, deps)
     deal_id = await qualified_deal(gw)
     await gw.request_quote(deal_id, AI)
@@ -505,12 +512,12 @@ async def test_overdue_sweep_escalates_to_md(databases: Databases, seed: Seed, d
     assert await run_approval_sweep(CrmRuntime(databases, late, publish=_noop)) >= 1
     async with databases.transaction(CRM) as s:
         row = await s.get(m.Approval, a.id, populate_existing=True)
-        assert row is not None and row.status == "overdue" and row.escalated_to_md_at is not None
+        assert row is not None and row.status == "overdue" and row.escalated_at is not None
         assert (await s.get(m.QuoteVersion, a.quote_version_id)).status == "overdue"  # type: ignore[union-attr]
     overdue = [
         e for e in await outbox(databases, ev.APPROVAL_OVERDUE, deal_id) if e["approval_ref"] == str(a.id)
     ]
-    assert len(overdue) == 1 and overdue[0]["escalate_to"]["name"] == "The MD"
+    assert len(overdue) == 1 and overdue[0]["escalate_to"]["name"] == "The Manager"
     assert await run_approval_sweep(CrmRuntime(databases, late, publish=_noop)) == 0  # idempotent
     await decide(databases, deps, deal_id, MGR)  # overdue can still be decided
     assert (await outbox(databases, ev.QUOTE_APPROVED, deal_id))[-1]["approval_ref"] == str(a.id)

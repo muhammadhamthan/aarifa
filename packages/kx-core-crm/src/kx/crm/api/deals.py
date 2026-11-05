@@ -24,14 +24,15 @@ from kx.crm.api.schemas import (
     OrderOut,
     OrderStatusIn,
     PaymentIn,
+    QuoteEditsIn,
     QuoteVersionOut,
     RequirementOut,
     StageMoveIn,
     TimelineOut,
 )
 from kx.crm.models import Deal, Quote, QuoteVersion, TimelineEvent
+from kx.crm.services import access, negotiation, orders, quotes
 from kx.crm.services import deals as deal_svc
-from kx.crm.services import negotiation, orders, quotes
 from kx.crm.services.journal import Actor
 
 Staff = Annotated[Principal, Depends(require_role(*STAFF))]
@@ -76,8 +77,10 @@ def router(ctx: ApiContext) -> APIRouter:
         return Page(items=[DealSummary.model_validate(d) for d in rows], next_cursor=nxt)
 
     @r.get("/{deal_id}", response_model=DealDetail)
-    async def get_deal(deal_id: uuid.UUID, s: Session, _: Staff) -> DealDetail:
-        return await detail(s, await deal_svc.get_deal(s, deal_id))
+    async def get_deal(deal_id: uuid.UUID, s: Session, p: Staff) -> DealDetail:
+        deal = await deal_svc.get_deal(s, deal_id)
+        access.ensure_can_view(p, deal)
+        return await detail(s, deal)
 
     @r.get("/{deal_id}/timeline", response_model=Page[TimelineOut])
     async def timeline(
@@ -106,6 +109,7 @@ def router(ctx: ApiContext) -> APIRouter:
     @r.post("/{deal_id}/stage", response_model=DealDetail)
     async def move(deal_id: uuid.UUID, body: StageMoveIn, s: Session, p: Staff) -> DealDetail:
         deal = await deal_svc.get_deal(s, deal_id, lock=True)
+        access.ensure_can_edit(p, deal)
         await deal_svc.move_stage(
             s,
             deal,
@@ -121,7 +125,24 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.post("/{deal_id}/quotes", response_model=QuoteVersionOut, status_code=201)
     async def request_quote(deal_id: uuid.UUID, s: Session, p: Staff) -> QuoteVersionOut:
+        access.ensure_can_edit(p, await deal_svc.get_deal(s, deal_id))
         return QuoteVersionOut.model_validate(await quotes.request_quote(s, deps, deal_id, Actor.user(p)))
+
+    @r.post("/{deal_id}/quotes/revise", response_model=QuoteVersionOut, status_code=201)
+    async def revise_quote(deal_id: uuid.UUID, body: QuoteEditsIn, s: Session, p: Staff) -> QuoteVersionOut:
+        """§11.3 Edit then approve: a new version; below the minimum goes to the manager first (D3)."""
+        access.ensure_can_edit(p, await deal_svc.get_deal(s, deal_id))
+        edits = quotes.QuoteEdits(
+            lines=tuple(quotes.LineEdit(e.line_no, e.unit_price, e.quantity) for e in body.lines),
+            delivery_time_text=body.delivery_time_text,
+            delivery_place=body.delivery_place,
+            incoterm=body.incoterm,
+            payment_terms_text=body.payment_terms_text,
+            note=body.note,
+        )
+        return QuoteVersionOut.model_validate(
+            await quotes.revise_quote(s, deps, deal_id, edits, Actor.user(p))
+        )
 
     @r.post("/{deal_id}/ai", response_model=DealDetail)
     async def toggle_ai(deal_id: uuid.UUID, body: AiToggleIn, s: Session, p: Manager) -> DealDetail:
