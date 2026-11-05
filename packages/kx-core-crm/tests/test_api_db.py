@@ -19,7 +19,7 @@ from kx.crm.api import build_router
 from kx.crm.deps import CrmDeps
 from kx.crm.gateway import CrmGatewayImpl
 
-pytestmark = pytest.mark.db
+pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cost_mode")]
 
 
 class Auth:

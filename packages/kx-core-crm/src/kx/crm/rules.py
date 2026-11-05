@@ -108,6 +108,8 @@ def round_verdict(v: CounterVerdict) -> RoundVerdict:
     match v.kind:
         case CounterVerdictKind.NEEDS_MANAGER:
             return "below_range" if v.reason == "below_range" else "exception"
+        case CounterVerdictKind.REQUOTE | CounterVerdictKind.CHANGE_REQUEST:
+            return "exception"  # a human handles it: revised quote or change request (§12.2 rule 5, D12)
         case CounterVerdictKind.ACCEPT:
             return "accepted"
         case CounterVerdictKind.COUNTER if v.traded_for is not None:
@@ -116,7 +118,15 @@ def round_verdict(v: CounterVerdict) -> RoundVerdict:
             return "within_range"
 
 
-PauseReason = Literal["human_takeover", "below_range", "exception", "md_takeover", "opt_out"]
+PauseReason = Literal[
+    "human_takeover",
+    "below_range",
+    "exception",
+    "md_takeover",
+    "opt_out",
+    "handover",  # D13 / §14.6: final quote approved; the AI stops replying on the deal
+    "concessions_exhausted",  # §12.2 rule 4: all steps used and the buyer still wants lower
+]
 PAUSE_REASONS: Final[frozenset[str]] = frozenset(get_args(PauseReason))
 
 

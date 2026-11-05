@@ -1,4 +1,5 @@
-"""kx.crm against real Postgres (fresh DB built from db/ddl by the root `databases` fixture)."""
+"""kx.crm against real Postgres: the 4 Nov cost-based flow, kept for v2 (D14), so every test here runs with
+pricing.mode = 'cost' (the `cost_mode` fixture). The v1 price-list flow is test_price_list_db.py."""
 
 from __future__ import annotations
 
@@ -29,7 +30,7 @@ from kx.crm.jobs import HANDLERS, CrmRuntime, dispatch, run_approval_sweep, run_
 from kx.crm.services import approvals, deals, negotiation, orders, price_proposals, quotes
 from kx.crm.services.journal import Actor
 
-pytestmark = pytest.mark.db
+pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cost_mode")]
 CRM = LogicalDb.CRM
 AI = AiRole.QUOTATION
 

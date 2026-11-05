@@ -33,7 +33,7 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 | Auth | `current_principal`, `require_role(...)`, `require_human_mfa(...)` (approvals), `Role`, `Principal` |
 | Logging | `get_logger(__name__)`, `configure_logging`, `mask_pii`; PII is masked by a processor — don't hand-mask |
 | Price safety | `kx.core.price_guard.check_prices(text, allowed, default_currency=..., allowed_percentages=...)` |
-| Pricing maths | `kx.crm.pricing.engine` (`unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, `price_line`, `quote_totals`, `concession_ladder`, `evaluate_counter`, `estimate_delivery`) |
+| Pricing maths | v1: `kx.crm.pricing.price_list` (`resolve_tier`, `min_price_for`, `convert_tier`, `list_line`) and `kx.crm.pricing.engine` (`ladder_between`, `evaluate_ladder_counter`, `quote_totals`); v2 (off): `unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, `price_line`, `concession_ladder`, `evaluate_counter`, `estimate_delivery` |
 | HTTP client | one shared `httpx.AsyncClient` per process (created in app lifespan, injected) |
 | Retries | `tenacity` (`AsyncRetrying`, exponential + jitter); never hand-rolled loops |
 | JSON | `orjson` |
@@ -66,6 +66,8 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
   - 09:00–18:00 buyer local time, on the buyer country's working days;
   - stop on reply or opt-out.
 - **Handover:** after final approval, the salesperson is alerted and the manager notified, and the AI stops replying on that deal.
+
+**Counter-offer verdicts (WP2):** `CounterVerdictKind.REQUOTE` (§12.2 rule 5: the quantity moved into another tier; the CRM drafts a revised quote for the salesperson and the AI gets no price, `offer_unit_price=None`) and `CHANGE_REQUEST` (quantity below the MOQ or outside the tiers, or a hand-priced item: a human answers); `CounterVerdict.requires_approval`. `DealContext.allowed_prices` = the issued quote plus the ladder steps actually offered; steps not yet offered and the minimum never reach the AI.
 
 **Planned contract additions (WP4):** event `change_request.raised.v1` with an `event_payloads.ChangeRequested` payload, and `CrmGateway.raise_change_request(...)`.
 

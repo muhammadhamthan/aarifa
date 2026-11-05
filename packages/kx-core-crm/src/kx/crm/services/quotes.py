@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Final, Literal
 
@@ -23,7 +23,16 @@ from kx.core.errors import RuleViolation
 from kx.core.identity import new_id
 from kx.core.money import MONEY_PLACES, display, q
 from kx.crm.deps import CrmDeps
-from kx.crm.models import Approval, Deal, Quote, QuoteLine, QuoteLineCost, QuoteVersion
+from kx.crm.models import (
+    Approval,
+    Deal,
+    DealRequirement,
+    Quote,
+    QuoteLine,
+    QuoteLineCost,
+    QuoteLineTier,
+    QuoteVersion,
+)
 from kx.crm.pricing.engine import price_line, quote_totals
 from kx.crm.pricing.types import PricedLine
 from kx.crm.rules import QUOTABLE_STAGES
@@ -31,7 +40,17 @@ from kx.crm.services import approvals, grants
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.issuing import lines_of, local_today
 from kx.crm.services.journal import Actor, Timeline, record
-from kx.crm.services.pricing import PricingInputs, build_delivery_estimate, fx_to_aed, pricing_inputs, vat_pct
+from kx.crm.services.pricing import (
+    ListPricingInputs,
+    PricingInputs,
+    build_delivery_estimate,
+    fx_to_aed,
+    fx_with_date,
+    lead_time_text,
+    list_pricing_inputs,
+    pricing_inputs,
+    vat_pct,
+)
 from kx.crm.services.settings import BusinessSettings
 
 VersionKind = Literal["initial", "revision", "counter", "final"]
@@ -55,11 +74,37 @@ CLAUSES: Final[dict[str, tuple[str, ...]]] = {
 
 
 @dataclass(frozen=True, slots=True)
-class DraftLine:
-    """A priced line plus its MD-only cost snapshot, ready to insert."""
+class LineValues:
+    """The buyer-visible values of one quote line (price-list mode has no cost or markup)."""
 
-    priced: PricedLine
-    cost: QuoteLineCost
+    description: str
+    quantity: Decimal
+    unit: str
+    unit_price: Decimal
+    line_total: Decimal
+    product_id: uuid.UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DraftLine:
+    """A priced line plus its staff-only snapshot, ready to insert: the cost snapshot (v2 cost mode) or
+    the price-list snapshot (v1: list price, minimum, steps)."""
+
+    priced: PricedLine | LineValues
+    cost: QuoteLineCost | None = None
+    tier: QuoteLineTier | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class VersionTerms:
+    """§11.2 delivery and terms, D10 default delivery time, D11 signature, §10 printed FX line."""
+
+    delivery_time_text: str | None = None
+    delivery_place: str | None = None
+    payment_terms_text: str | None = None
+    fx_rate: Decimal | None = None
+    fx_rate_date: date | None = None
+    signed_by_user_id: uuid.UUID | None = None
 
 
 def clauses_for(language: str, validity_days: int, exw: bool) -> list[str]:
@@ -97,6 +142,7 @@ def _approver_summary(
     parts = []
     for inp, d in zip(inputs, drafts, strict=True):
         p = d.priced
+        assert isinstance(p, PricedLine)  # cost mode only
         warn = " — PRICE REVIEW DUE" if inp.staleness == "warn" else ""
         parts.append(
             f"{p.quantity:,.0f} x {inp.product.sku} @ {currency} {p.unit_price} (markup {p.markup_pct}% "
@@ -143,6 +189,19 @@ async def costs_of(session: AsyncSession, version_id: uuid.UUID) -> list[tuple[Q
         .order_by(QuoteLine.line_no)
     )
     return [r.tuple() for r in (await session.execute(stmt)).all()]
+
+
+async def tiers_of(
+    session: AsyncSession, version_id: uuid.UUID
+) -> list[tuple[QuoteLine, QuoteLineTier | None]]:
+    """Staff-only: lines with their price-list snapshot (None for a line the salesperson priced by hand)."""
+    stmt = (
+        select(QuoteLine, QuoteLineTier)
+        .outerjoin(QuoteLineTier, QuoteLineTier.quote_line_id == QuoteLine.id)
+        .where(QuoteLine.quote_version_id == version_id)
+        .order_by(QuoteLine.line_no)
+    )
+    return [(r[0], r[1]) for r in (await session.execute(stmt)).all()]
 
 
 async def _supersede_live(session: AsyncSession, quote: Quote, now: datetime) -> str | None:
@@ -201,7 +260,9 @@ async def _insert_version(
     estimate_id: uuid.UUID | None,
     actor: Actor,
     correction_note: str | None,
+    terms: VersionTerms | None = None,
 ) -> QuoteVersion:
+    terms = terms or VersionTerms()
     totals = quote_totals((d.priced.line_total for d in drafts), vat)
     next_no = (
         await session.scalar(
@@ -233,6 +294,12 @@ async def _insert_version(
         created_by_type="ai" if actor.type == "ai" else "user",
         created_by=actor.id,
         correction_note=correction_note,
+        delivery_time_text=terms.delivery_time_text,
+        delivery_place=terms.delivery_place,
+        payment_terms_text=terms.payment_terms_text,
+        fx_rate=terms.fx_rate,
+        fx_rate_date=terms.fx_rate_date,
+        signed_by_user_id=terms.signed_by_user_id,
     )
     session.add(version)
     await session.flush()
@@ -251,8 +318,10 @@ async def _insert_version(
         )
         session.add(line)
         await session.flush()
-        d.cost.quote_line_id = line.id
-        session.add(d.cost)
+        for snap in (d.cost, d.tier):
+            if snap is not None:
+                snap.quote_line_id = line.id
+                session.add(snap)
     await session.flush()
     version.status = "pending_approval"  # from here the DB freezes prices and lines
     quote.current_version_id = version.id
@@ -277,10 +346,93 @@ async def _insert_version(
     return version
 
 
+def _list_summary(inputs: Sequence[ListPricingInputs], currency: str, total: Decimal) -> str:
+    """Approval-card summary for the salesperson (staff-only: may name the minimum, §11.3)."""
+    parts = [
+        f"{i.line.quantity:,.0f} x {i.product.sku} @ {currency} {i.line.unit_price} (list price; "
+        f"minimum {currency} {i.snapshot_min})"
+        for i in inputs
+    ]
+    parts.append(f"Total {currency} {display(total, currency):,}")
+    return "\n".join(parts)
+
+
+async def _request_list_quote(
+    session: AsyncSession,
+    deps: CrmDeps,
+    deal: Deal,
+    *,
+    reqs: Sequence[DealRequirement],
+    s: BusinessSettings,
+    actor: Actor,
+    now: datetime,
+) -> QuoteVersion:
+    """v1 (D6, §11.1): every line at its tier's list price, converted at the day's FX, VAT by country."""
+    currency = s.quote_currency(reqs[0].delivery_country, deal.currency)
+    deal.currency = currency
+    fx, fx_date = await fx_with_date(session, currency, now.date())
+    inputs = [await list_pricing_inputs(session, r, quote_fx=fx, now=now) for r in reqs]
+    drafts = [
+        DraftLine(
+            LineValues(
+                i.description,
+                i.line.quantity,
+                i.product.unit,
+                i.line.unit_price,
+                i.line.line_total,
+                i.product.id,
+            ),
+            tier=QuoteLineTier(
+                price_tier_id=i.tier.tier_id,
+                list_price=i.snapshot_list,
+                min_price=i.snapshot_min,
+                max_steps=s.max_steps,
+                fx_rate_to_aed=fx,
+            ),
+        )
+        for i in inputs
+    ]
+    contact = await deal_svc.contact_of(session, deal)
+    quote = await quote_for(session, deal)
+    note = await _supersede_live(session, quote, now)
+    has_versions = bool(await session.scalar(select(func.count()).where(QuoteVersion.quote_id == quote.id)))
+    vat = vat_pct(reqs[0], s)
+    total = quote_totals((d.priced.line_total for d in drafts), vat).total
+    return await _insert_version(
+        session,
+        quote=quote,
+        deal=deal,
+        kind="revision" if has_versions else "initial",
+        currency=currency,
+        fx=fx,
+        drafts=drafts,
+        vat=vat,
+        incoterm=s.default_incoterm,
+        lane_id=None,
+        s=s,
+        language=contact.language,
+        summary=_list_summary(inputs, currency, total),
+        estimate_id=None,
+        actor=actor,
+        correction_note=note,
+        terms=VersionTerms(
+            delivery_time_text=lead_time_text(inputs[0].product),
+            delivery_place=None,
+            payment_terms_text=s.payment_terms_text,
+            fx_rate=None if fx == 1 else fx,
+            fx_rate_date=fx_date,
+            signed_by_user_id=deal.owner_user_id,
+        ),
+    )
+
+
 async def request_quote(
     session: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID, actor: Actor
 ) -> QuoteVersion:
-    """Price every requirement at the top of the MD's band, freeze a new version, open approval 1."""
+    """Price every requirement, freeze a new version, open approval 1.
+
+    v1 (`pricing.mode = 'price_list'`): the tier's list price (§11.1). v2 (`'cost'`): the top of the MD's
+    markup band on cost, with the delivery estimate."""
     now = deps.now()
     deal = await deal_svc.get_deal(session, deal_id, lock=True)
     stage = DealStage(deal.stage)
@@ -290,6 +442,11 @@ async def request_quote(
     reqs = await deal_svc.requirements_of(session, deal.id)
     if not reqs:
         raise RuleViolation("deal has no requirements to quote")
+    if s.pricing_mode == "price_list":
+        version = await _request_list_quote(session, deps, deal, reqs=reqs, s=s, actor=actor, now=now)
+        return await _after_draft(
+            session, deps, s, deal=deal, version=version, stage=stage, actor=actor, now=now
+        )
     fx = await fx_to_aed(session, deal.currency, now.date())
     inputs = [await pricing_inputs(session, deal, r, s=s, quote_fx=fx, now=now) for r in reqs]
     drafts = [
@@ -323,10 +480,27 @@ async def request_quote(
         actor=actor,
         correction_note=note,
     )
+    return await _after_draft(session, deps, s, deal=deal, version=version, stage=stage, actor=actor, now=now)
+
+
+async def _after_draft(
+    session: AsyncSession,
+    deps: CrmDeps,
+    s: BusinessSettings,
+    *,
+    deal: Deal,
+    version: QuoteVersion,
+    stage: DealStage,
+    actor: Actor,
+    now: datetime,
+) -> QuoteVersion:
+    """Stage to QUOTATION (§5: NEGOTIATION -> QUOTATION when a revised quote is drafted), open approval 1."""
     if stage is not DealStage.QUOTATION:
         await deal_svc.move_stage(
             session, deal, DealStage.QUOTATION, actor, now=now, reason="quote requested"
         )
+    quote = await session.get(Quote, version.quote_id)
+    assert quote is not None
     await approvals.open_approval(
         session,
         deps,
@@ -358,22 +532,27 @@ async def create_final_version(
     s = await deps.settings.get(session)
     quote = await session.get(Quote, issued.quote_id)
     assert quote is not None
+    costs = {line.id: cost for line, cost in await costs_of(session, issued.id)}
     drafts: list[DraftLine] = []
-    for idx, (line, cost) in enumerate(await costs_of(session, issued.id)):
+    for idx, (line, tier) in enumerate(await tiers_of(session, issued.id)):
         price, qty = (unit_price, quantity) if idx == 0 else (line.unit_price, line.quantity)
-        markup = q((price / cost.unit_cost - 1) * 100, Decimal("0.01")) if cost.unit_cost else cost.markup_pct
-        pl = PricedLine(
-            description=line.description,
-            quantity=qty,
-            unit=line.unit,
-            unit_cost=cost.unit_cost,
-            markup_pct=markup,
-            unit_price=price,
-            line_total=q(price * qty, MONEY_PLACES),
-            product_id=line.product_id,
+        total = q(price * qty, MONEY_PLACES)
+        if (cost := costs.get(line.id)) is not None:  # v2 cost mode: MD cost snapshot at the agreed markup
+            markup = (
+                q((price / cost.unit_cost - 1) * 100, Decimal("0.01")) if cost.unit_cost else cost.markup_pct
+            )
+            pl = PricedLine(
+                line.description, qty, line.unit, cost.unit_cost, markup, price, total, line.product_id
+            )
+            snap = QuoteLineCost(**{c: getattr(cost, c) for c in _COST_COLS}, markup_pct=markup)
+            drafts.append(DraftLine(pl, cost=snap))
+            continue
+        tier_snap = None if tier is None else QuoteLineTier(**{c: getattr(tier, c) for c in _TIER_COLS})
+        drafts.append(
+            DraftLine(
+                LineValues(line.description, qty, line.unit, price, total, line.product_id), tier=tier_snap
+            )
         )
-        snap = QuoteLineCost(**{c: getattr(cost, c) for c in _COST_COLS}, markup_pct=markup)
-        drafts.append(DraftLine(pl, snap))
     contact = await deal_svc.contact_of(session, deal)
     await _supersede_live(session, quote, now)
     version = await _insert_version(
@@ -393,6 +572,14 @@ async def create_final_version(
         estimate_id=issued.delivery_estimate_id,
         actor=actor,
         correction_note=None,
+        terms=VersionTerms(  # §14.3: the agreed price and the terms of the issued quote
+            delivery_time_text=issued.delivery_time_text,
+            delivery_place=issued.delivery_place,
+            payment_terms_text=issued.payment_terms_text,
+            fx_rate=issued.fx_rate,
+            fx_rate_date=issued.fx_rate_date,
+            signed_by_user_id=deal.owner_user_id or issued.signed_by_user_id,
+        ),
     )
     await approvals.open_approval(
         session,
@@ -422,6 +609,7 @@ _COST_COLS: Final = (
     "markup_min_pct",
     "markup_max_pct",
 )
+_TIER_COLS: Final = ("price_tier_id", "list_price", "min_price", "max_steps", "fx_rate_to_aed")
 
 
 async def expire_quotes(session: AsyncSession, deps: CrmDeps) -> int:

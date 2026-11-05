@@ -113,6 +113,7 @@ async def issue_to_buyer(
     subject, body = quote_message(doc)
     sha = priced_content_sha256(body, pdf_sha)
     version.status, version.pdf_s3_key, version.content_sha256 = "approved", key, pdf_sha
+    deal.low_ask_count = 0  # §12.2 rule 4 counts low asks per open negotiation: a new version starts one
     await session.flush()
     policy: Literal["manager", "md"] = "md" if approval.required_role == "md" else "manager"
     grant, channel, address = await issue_grant(

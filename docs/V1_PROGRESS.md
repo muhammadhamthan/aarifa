@@ -26,3 +26,26 @@ Test DBs are now built by Alembic (0001 then 0002), so every DB test runs on the
 Tests added: `tests/db/test_migrations_v1.py` (8 tests: upgrade from a 0001 DB with data, twice; SQL re-run;
 seeds kept/added; recipient hashes = Python; approval CHECKs; tier overlap/min ≤ list; freeze; automation
 UNIQUE/default; agents columns); the 3 ORM tests now cover the new tables and columns.
+
+## WP2. Pricing: price-list mode
+
+**Plan.** New `kx/crm/pricing/price_list.py` (pure); `ladder_between` + `evaluate_ladder_counter` and
+`LadderState` in `pricing/engine.py` / `types.py` (cost functions untouched); price-list branch in
+`services/pricing.py`, `services/quotes.py` (`request_quote`, `create_final_version`) and
+`services/negotiation.py`; typed settings for the new keys; contract verdict kinds `REQUOTE`/`CHANGE_REQUEST`.
+Tests first: `tests/spec/test_spec_price_list.py` (§11-12, §23 numbers, 2 hypothesis properties, 3 benches),
+`packages/kx-core-crm/tests/test_price_list_db.py` (DB).
+
+**Done.** Quotes in `pricing.mode='price_list'` are built from the product's current tier version: list
+price, FX at the day's rate (the converted line total is the AED line total at the printed rate, so
+12,500.00 AED = USD 3,403.68), VAT by country (5 % / export 0 %), Incoterm from `quote.default_incoterm`,
+delivery time text from the product default (D10), payment terms from a setting, signed by the owner (D11).
+No staleness block, no delivery estimate. Each line keeps a price-list snapshot (`quote_line_tiers`) so an open
+quote keeps its prices (§24). Negotiation in price-list mode builds `LadderState` from that snapshot (never
+from cost) and applies §12.2 rules 1-5; a tier change drafts a revised quote for approval; quantity outside the
+tiers or a hand-priced line returns `CHANGE_REQUEST`. The 4 Nov cost-based DB tests now run with
+`pricing.mode='cost'` (fixture `cost_mode`): the v2 path keeps its coverage.
+New revision `crm_0003` seeds `quote.payment_terms_text`, `quote.currency_by_country`,
+`negotiation.free_samples_allowed`.
+Tests added: 36 spec tests (`test_spec_price_list.py`) and 11 DB tests (`test_price_list_db.py`).
+Totals: 362 passed.

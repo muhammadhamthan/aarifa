@@ -12,6 +12,7 @@ import pathlib
 import random
 import sys
 import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal as D
@@ -162,6 +163,83 @@ async def ensure_seed(dbs: object, now: datetime | None = None) -> Seed:
 @pytest.fixture
 async def seed(databases: object) -> Seed:
     return await ensure_seed(databases)
+
+
+# ---------------------------------------------------------------- v1 price list (BUSINESS_FLOW_V1 §23)
+LIST_SKU, LIST_PRODUCT_ID = "ALC-750-L", uuid.UUID("00000000-0000-7000-8000-0000000000b2")
+LIST_CATEGORY = "ALUMINIUM"
+TIERS_23 = ((5_000, 9_999, "0.32", "0.29"), (10_000, 49_999, "0.28", "0.255"), (50_000, None, "0.25", "0.23"))
+PRICE_LIST_FROM = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+async def ensure_price_list(dbs: object) -> str:
+    """§23 price list: ALC-750-L, three tiers, 10-14 working days, MOQ 5,000; category minimum 8 %."""
+    from sqlalchemy import select
+
+    from kx.core.settings import LogicalDb
+    from kx.crm import models as m
+
+    await ensure_seed(dbs)
+    async with dbs.transaction(LogicalDb.CRM) as s:  # type: ignore[attr-defined]
+        if await s.get(m.Product, LIST_PRODUCT_ID) is not None:
+            return LIST_SKU
+        if (
+            await s.execute(select(m.ProductCategory).where(m.ProductCategory.code == LIST_CATEGORY))
+        ).first() is None:
+            s.add(m.ProductCategory(code=LIST_CATEGORY, name="Aluminium", min_discount_pct=D(8)))
+            await s.flush()
+        s.add(
+            m.Product(
+                id=LIST_PRODUCT_ID,
+                sku=LIST_SKU,
+                name="Aluminium container 750 ml + lid",
+                category_code=LIST_CATEGORY,
+                moq=5_000,
+                default_lead_days_min=10,
+                default_lead_days_max=14,
+                custom_printing=True,
+            )
+        )
+        await s.flush()
+        s.add_all(
+            m.ProductPriceTier(
+                product_id=LIST_PRODUCT_ID,
+                min_qty=D(lo),
+                max_qty=None if hi is None else D(hi),
+                list_price=D(lp),
+                min_price=D(mp),
+                valid_from=PRICE_LIST_FROM,
+                created_by=MGR_ID,
+            )
+            for lo, hi, lp, mp in TIERS_23
+        )
+    return LIST_SKU
+
+
+@pytest.fixture
+async def price_list(databases: object) -> str:
+    return await ensure_price_list(databases)
+
+
+async def set_setting(dbs: object, key: str, value: object) -> None:
+    import orjson
+    from sqlalchemy import text
+
+    from kx.core.settings import LogicalDb
+
+    async with dbs.transaction(LogicalDb.CRM) as s:  # type: ignore[attr-defined]
+        await s.execute(
+            text("UPDATE crm.settings SET value = CAST(:v AS jsonb) WHERE key = :k"),
+            {"k": key, "v": orjson.dumps(value).decode()},
+        )
+
+
+@pytest.fixture
+async def cost_mode(databases: object) -> AsyncIterator[None]:
+    """v2 cost-based pricing (D14 keeps the code): the 4 Nov flow tests run with pricing.mode = 'cost'."""
+    await set_setting(databases, "pricing.mode", "cost")
+    yield
+    await set_setting(databases, "pricing.mode", "price_list")
 
 
 @pytest.fixture

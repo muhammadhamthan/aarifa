@@ -23,6 +23,7 @@ from kx.core.contracts import (
     ContactPatch,
     ContactView,
     CounterVerdict,
+    CounterVerdictKind,
     DealContext,
     DealStage,
     DeliveryEstimateView,
@@ -190,7 +191,7 @@ class CrmGatewayImpl:
         self, deal_id: uuid.UUID, ask_unit_price: Decimal, ask_quantity: Decimal | None, channel: Channel
     ) -> CounterVerdict:
         async with self._tx() as s:
-            return await negotiation.evaluate_counter(
+            verdict = await negotiation.evaluate_counter(
                 s,
                 self._deps,
                 deal_id,
@@ -199,6 +200,10 @@ class CrmGatewayImpl:
                 channel=channel,
                 actor=Actor.ai(AiRole.DEAL_CLOSER),
             )
+        if verdict.kind is CounterVerdictKind.REQUOTE:
+            # §12.2 rule 5: the new tier price is not approved yet, so the AI must not state it
+            verdict = verdict.model_copy(update={"offer_unit_price": None})
+        return verdict
 
     async def pause_ai(self, deal_id: uuid.UUID, reason: str, actor: AiRole) -> None:
         async with self._tx() as s:
@@ -269,8 +274,7 @@ async def build_context(s: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID) -> D
             ).scalars()
         )
         latest_quote, prices = quote_view(number or "", issued, lines), allowed_prices(issued, lines, offers)
-    neg = await negotiation.load_state(s, deal, settings)
-    max_c = neg.state.band.max_concessions if neg else settings.max_concessions_default
+    left = await negotiation.steps_left(s, deal, settings)
     estimate = await _latest_estimate(s, deal.id)
     return DealContext(
         deal_id=deal.id,
@@ -283,7 +287,7 @@ async def build_context(s: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID) -> D
         missing_fields=await deal_svc.missing_for(s, deal),
         latest_quote=latest_quote,
         allowed_prices=prices,
-        concessions_left=max(max_c - deal.concessions_used, 0),
+        concessions_left=left,
         estimated_delivery=(estimate.confirmed_date or estimate.estimated_delivery) if estimate else None,
         next_action_at=deal.next_action_at,
     )

@@ -1,9 +1,11 @@
-"""Assemble pricing-engine inputs from CRM data: approved material rates only, current cost recipe,
-freight lane with its risk buffer, FX, and the MD's margin band. The maths itself is
-kx.crm.pricing.engine (pure); this module is the I/O that feeds it.
+"""Assemble pricing inputs from CRM data. The maths itself is kx.crm.pricing (pure); this module is the
+I/O that feeds it.
 
-Staleness is enforced HERE, at quote time: a rate not reviewed for `pricing.stale_block_days` raises
-RuleViolation, so quotes stay blocked even if the daily staleness job never runs.
+* v1, `pricing.mode = 'price_list'` (D6): the manager's price list per product and quantity tier (list
+  price + minimum), FX at the day's rate, VAT by delivery country. No staleness block (D14).
+* v2, `pricing.mode = 'cost'` (kept, off): approved material rates, cost recipe, freight lane with its risk
+  buffer, FX and the MD's margin band. Staleness is enforced HERE, at quote time: a rate not reviewed for
+  `pricing.stale_block_days` raises RuleViolation, so quotes stay blocked even if the daily job never runs.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ import math
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Final
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,12 +32,23 @@ from kx.crm.models import (
     MaterialRate,
     Order,
     Product,
+    ProductCategory,
     ProductCosting,
+    ProductPriceTier,
     QuoteLine,
     StockItem,
     SupplierLeadTime,
 )
 from kx.crm.pricing.engine import estimate_delivery, freight_per_1000, resolve_band
+from kx.crm.pricing.price_list import (
+    ListLine,
+    PriceTier,
+    TierPrice,
+    convert_tier,
+    list_line,
+    min_price_for,
+    resolve_tier,
+)
 from kx.crm.pricing.types import (
     CostInputs,
     DeliveryInputs,
@@ -267,8 +280,8 @@ def _describe(product: Product, req: DealRequirement) -> str:
 
 
 def vat_pct(req: DealRequirement, s: BusinessSettings) -> Decimal:
-    """UAE VAT on domestic supplies; exports are zero-rated."""
-    return s.vat_pct_domestic if (req.delivery_country or "AE") == "AE" else Decimal(0)
+    """§10: UAE VAT on domestic supplies, the export rate (0 %) otherwise; both are settings."""
+    return s.vat_for(req.delivery_country)
 
 
 # ---------------------------------------------------------------- delivery estimate (T14)
@@ -359,3 +372,152 @@ async def _available(session: AsyncSession, cond: Any, *, raw: bool = False) -> 
         )
     ).first()
     return None if row is None else max(row[0] - row[1], Decimal(0))
+
+
+# ---------------------------------------------------------------- v1: price list (D6, §10, §11.1)
+class PricingNeeded(RuleViolation):
+    """D8 / §10: custom, printed, unpriced or new products. The AI never guesses a price: the
+    salesperson prices them by hand ("Pricing needed" task)."""
+
+
+class QuantityOutsideTiers(RuleViolation):
+    """D12 / §13 "Quantity": below the MOQ or outside the listed tiers. A change request goes to the
+    salesperson; the AI promises nothing."""
+
+
+# Requirement spec keys that mean the buyer wants printing or branding (§13 "Printing / branding").
+PRINT_KEYS: Final = frozenset({"printing", "print", "logo", "branding", "custom_print", "custom_printing"})
+_NO: Final = frozenset({"", "no", "none", "false", "0", "plain"})
+
+
+def wants_printing(spec: dict[str, Any]) -> bool:
+    """Printed variants are priced by the salesperson (§10 "Custom printing allowed")."""
+    return any(k.lower() in PRINT_KEYS and str(v).strip().lower() not in _NO for k, v in spec.items() if v)
+
+
+@dataclass(frozen=True, slots=True)
+class ListPricingInputs:
+    """One requirement priced from the price list, with the snapshot negotiation needs (staff-only)."""
+
+    requirement: DealRequirement
+    product: Product
+    tiers: tuple[PriceTier, ...]  # AED, the product's current price-list version
+    tier: TierPrice  # AED, minimum resolved (tier value or category %)
+    line: ListLine  # quote currency
+    snapshot_list: Decimal  # quote currency
+    snapshot_min: Decimal  # quote currency, rounded up
+    description: str
+
+
+def _tier(r: ProductPriceTier) -> PriceTier:
+    return PriceTier(r.id, r.min_qty, r.max_qty, r.list_price, r.min_price)
+
+
+async def current_tiers(session: AsyncSession, product_id: Any, now: datetime) -> tuple[PriceTier, ...]:
+    """The product's current price-list version: the tiers with the latest valid_from not after `now`
+    (a newer valid_from is a scheduled next version; §10 "a change affects new quotes only")."""
+    latest = (
+        select(func.max(ProductPriceTier.valid_from))
+        .where(ProductPriceTier.product_id == product_id, ProductPriceTier.valid_from <= now)
+        .scalar_subquery()
+    )
+    rows = (
+        await session.execute(
+            select(ProductPriceTier)
+            .where(ProductPriceTier.product_id == product_id, ProductPriceTier.valid_from == latest)
+            .order_by(ProductPriceTier.min_qty)
+        )
+    ).scalars()
+    return tuple(_tier(r) for r in rows)
+
+
+async def tiers_of_version(session: AsyncSession, tier_id: Any) -> tuple[PriceTier, ...]:
+    """All tiers of the price-list version a quote line was priced from (same product and valid_from)."""
+    row = await session.get(ProductPriceTier, tier_id)
+    if row is None:
+        return ()
+    rows = (
+        await session.execute(
+            select(ProductPriceTier)
+            .where(
+                ProductPriceTier.product_id == row.product_id, ProductPriceTier.valid_from == row.valid_from
+            )
+            .order_by(ProductPriceTier.min_qty)
+        )
+    ).scalars()
+    return tuple(_tier(r) for r in rows)
+
+
+async def category_min_pct(session: AsyncSession, category_code: str) -> Decimal | None:
+    return await session.scalar(
+        select(ProductCategory.min_discount_pct).where(ProductCategory.code == category_code)
+    )
+
+
+async def list_pricing_inputs(
+    session: AsyncSession, req: DealRequirement, *, quote_fx: Decimal, now: datetime
+) -> ListPricingInputs:
+    """§11.1 steps 1-3 for one requirement. No staleness block in price-list mode (D14)."""
+    if req.product_id is None or req.quantity is None:
+        raise PricingNeeded("requirement needs a matched catalogue product and a quantity before quoting")
+    product = await session.get(Product, req.product_id)
+    assert product is not None
+    if not product.is_active or not product.is_quotable:
+        raise PricingNeeded(f"{product.sku} has no list price; the salesperson prices it by hand")
+    if wants_printing(req.spec):
+        raise PricingNeeded(f"printed {product.sku}: the salesperson prices printed variants by hand")
+    if product.moq is not None and req.quantity < product.moq:
+        raise QuantityOutsideTiers(f"{req.quantity:,.0f} pcs is below the MOQ of {product.sku}")
+    tiers = await current_tiers(session, product.id, now)
+    if not tiers:
+        raise PricingNeeded(f"{product.sku} has no price list yet; the salesperson prices it by hand")
+    try:
+        tier = resolve_tier(tiers, req.quantity)
+    except LookupError as exc:
+        raise QuantityOutsideTiers(
+            f"{req.quantity:,.0f} pcs is outside the price tiers of {product.sku}"
+        ) from exc
+    floor = min_price_for(tier, await category_min_pct(session, product.category_code))
+    tier = TierPrice(list_price=tier.list_price, min_price=floor, tier_id=tier.tier_id)
+    in_quote = convert_tier(tier, quote_fx)
+    assert in_quote.min_price is not None
+    return ListPricingInputs(
+        requirement=req,
+        product=product,
+        tiers=tiers,
+        tier=tier,
+        line=list_line(tier, req.quantity, quote_fx),
+        snapshot_list=in_quote.list_price,
+        snapshot_min=min(in_quote.min_price, in_quote.list_price),
+        description=_describe(product, req),
+    )
+
+
+def lead_time_text(product: Product) -> str | None:
+    """D10: the product's default delivery time, shown on the quote; the salesperson can edit it."""
+    lo, hi = product.default_lead_days_min, product.default_lead_days_max
+    if lo is None and hi is None:
+        return None
+    if lo is not None and hi is not None and lo != hi:
+        span = f"{lo}–{hi}"  # noqa: RUF001 - en dash, as written in §10
+    else:
+        span = str(lo if lo is not None else hi)
+    return f"{span} working days after advance payment"
+
+
+async def fx_with_date(session: AsyncSession, currency: str, on: date) -> tuple[Decimal, date | None]:
+    """AED per 1 unit of `currency` and the date of that rate (printed on the quote, §10). A manager
+    override is simply the fx_rates row for that day (source 'manager')."""
+    if currency.upper() == BASE:
+        return Decimal(1), None
+    row = (
+        await session.execute(
+            select(FxRate.rate_to_aed, FxRate.as_of)
+            .where(FxRate.currency == currency.upper(), FxRate.as_of <= on)
+            .order_by(FxRate.as_of.desc())
+            .limit(1)
+        )
+    ).first()
+    if row is None:
+        raise RuleViolation(f"no FX rate for {currency} on or before {on}")
+    return row[0], row[1]

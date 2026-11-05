@@ -65,15 +65,18 @@ def upgraded(at_0001: dict[str, str]) -> dict[str, str]:
     return at_0001
 
 
-def _revision_sql(db: str) -> str:
+def _revisions(db: str) -> list[Any]:
+    """The 5 Nov revisions (0002 and later) of one database, oldest first."""
     import arifaa_pack.migrations as mig
 
-    path = pathlib.Path(mig.__file__).parent / db / "versions" / "0002_v1_flow.py"
-    spec = importlib.util.spec_from_file_location(f"_mig_{db}_0002", path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return str(module.SQL)
+    out = []
+    for path in sorted((pathlib.Path(mig.__file__).parent / db / "versions").glob("000[2-9]_*.py")):
+        spec = importlib.util.spec_from_file_location(f"_mig_{db}_{path.stem}", path)
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        out.append(module)
+    return out
 
 
 def _one(dsn: str, sql: str, params: tuple[Any, ...] = ()) -> Any:
@@ -97,14 +100,15 @@ def _fails(dsn: str, sql: str) -> bool:
 
 def test_versions_are_head(upgraded: dict[str, str]) -> None:
     for key, dsn in upgraded.items():
-        assert _one(dsn, "select version_num from public.alembic_version") == f"{key}_0002"
+        assert _one(dsn, "select version_num from public.alembic_version") == _revisions(key)[-1].revision
 
 
 def test_sql_is_idempotent_when_rerun(upgraded: dict[str, str]) -> None:
     """A half-applied revision can be re-run: every statement is IF NOT EXISTS / ON CONFLICT."""
     for key, dsn in upgraded.items():
-        with psycopg.connect(dsn) as c:
-            c.execute(_revision_sql(key).encode())
+        for module in _revisions(key):
+            with psycopg.connect(dsn) as c:
+                c.execute(str(module.SQL).encode())
 
 
 def test_settings_seeded_and_existing_values_kept(upgraded: dict[str, str]) -> None:

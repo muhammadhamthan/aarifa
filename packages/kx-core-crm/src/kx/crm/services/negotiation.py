@@ -1,11 +1,17 @@
-"""Deterministic negotiation (T5/T6). The engine decides; this module loads its state and records rounds.
+"""Deterministic negotiation. The engine decides; this module loads its state and records rounds.
 
-* State comes from the latest ISSUED version (approved/sent) and its MD-only cost snapshot; the per-piece
-  cost is rebuilt UNROUNDED (cost/1000 / 1000) so the ladder top equals the quoted price exactly.
-* Max concessions per deal come from the margin rule; concessions are traded for quantity, never for
-  longer delivery (DB CHECK on negotiation_rounds.traded_for).
-* Below range / exhausted: the AI tells the buyer "within 60 minutes", AI is paused for the deal, and
-  the manager + MD are alerted immediately (NEGOTIATION_PAUSED).
+v1 (`pricing.mode = 'price_list'`, §12, D7): the state is the latest ISSUED version's primary line and its
+price-list snapshot (list price, minimum, steps, in the quote currency): a ladder of at most 3 equal steps
+from the line's price to the minimum. Steps used and offers count per version; asks below the minimum
+count per open negotiation (deals.low_ask_count, reset when a new version is issued). A line priced by
+hand (no snapshot: custom/printed, D8) is never negotiated by the AI.
+
+v2 (`'cost'`, kept): state from the MD-only cost snapshot; the per-piece cost is rebuilt UNROUNDED
+(cost/1000 / 1000) so the ladder top equals the quoted price exactly; max concessions from the margin rule.
+
+Both: concessions are traded for quantity, never for longer delivery (DB CHECK on
+negotiation_rounds.traded_for). When a human must decide, the AI tells the buyer "within 60 minutes" and
+is paused for the deal (NEGOTIATION_PAUSED).
 """
 
 from __future__ import annotations
@@ -20,24 +26,114 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kx.core import events as ev
-from kx.core.contracts import CounterVerdict, CounterVerdictKind, DealStage
+from kx.core.contracts import CounterVerdict, CounterVerdictKind, DealStage, RequirementPatch
 from kx.core.errors import RuleViolation
 from kx.core.event_payloads import NegotiationPaused
 from kx.crm.deps import CrmDeps
 from kx.crm.models import Deal, MarginRuleRow, NegotiationRound, QuoteLine, QuoteLineCost, QuoteVersion, Task
 from kx.crm.pricing.engine import evaluate_counter as engine_counter
-from kx.crm.pricing.engine import unit_cost_per_1000
-from kx.crm.pricing.types import CostInputs, MarginBand, NegotiationState
+from kx.crm.pricing.engine import evaluate_ladder_counter, ladder_between, unit_cost_per_1000
+from kx.crm.pricing.price_list import PriceTier, TierPrice, convert_tier
+from kx.crm.pricing.types import CostInputs, LadderState, MarginBand, NegotiationState
 from kx.crm.rules import PauseReason, round_verdict
 from kx.crm.services import deals as deal_svc
-from kx.crm.services import staff
+from kx.crm.services import quotes, staff
 from kx.crm.services.issuing import local_today
 from kx.crm.services.journal import Actor, Emit, Timeline, record
-from kx.crm.services.quotes import ISSUED, costs_of, create_final_version, latest_version
+from kx.crm.services.pricing import tiers_of_version
+from kx.crm.services.quotes import ISSUED, costs_of, create_final_version, latest_version, tiers_of
 from kx.crm.services.settings import BusinessSettings
 
 THOUSAND = Decimal(1000)
 EventReason = Literal["below_range", "concessions_exhausted", "exception", "manual"]
+
+
+@dataclass(frozen=True, slots=True)
+class LadderNegotiation:
+    """v1 state for the deal's primary line; `state` None = a hand-priced line the AI never negotiates."""
+
+    version: QuoteVersion
+    line: QuoteLine
+    state: LadderState | None
+    tiers: tuple[PriceTier, ...]  # the line's price-list version, list prices in the quote currency
+
+
+async def load_ladder(session: AsyncSession, deal: Deal) -> LadderNegotiation | None:
+    """§12.1 ladder of the latest issued version (None before any quote is issued)."""
+    version = await latest_version(session, deal.id, ISSUED)
+    if version is None:
+        return None
+    line, snap = (await tiers_of(session, version.id))[0]
+    if snap is None:
+        return LadderNegotiation(version, line, None, ())
+    # top = the line's own price, so a quote the salesperson edited inside the range never re-opens higher
+    ladder = ladder_between(line.unit_price, min(snap.min_price, line.unit_price), snap.max_steps)
+    rounds = list(
+        (
+            await session.execute(
+                select(NegotiationRound)
+                .where(NegotiationRound.deal_id == deal.id, NegotiationRound.quote_version_id == version.id)
+                .order_by(NegotiationRound.round_no)
+            )
+        ).scalars()
+    )
+    offers = [r.offered_unit_price for r in rounds if r.offered_unit_price is not None]
+    traded_qty = [
+        r.buyer_ask_quantity
+        for r in rounds
+        if r.traded_for == "quantity_increase" and r.buyer_ask_quantity is not None
+    ]
+    fx = snap.fx_rate_to_aed
+    tiers = tuple(
+        PriceTier(
+            t.tier_id,
+            t.min_qty,
+            t.max_qty,
+            convert_tier(TierPrice(t.list_price, None, t.tier_id), fx).list_price,
+        )
+        for t in (await tiers_of_version(session, snap.price_tier_id) if snap.price_tier_id else ())
+    )
+    state = LadderState(
+        ladder=ladder,
+        steps_used=sum(1 for r in rounds if r.traded_for is not None),
+        current_offer=offers[-1] if offers else line.unit_price,
+        base_quantity=max([line.quantity, *traded_qty]),
+        low_ask_count=deal.low_ask_count,
+        tier_id=snap.price_tier_id,
+        currency=version.currency,
+    )
+    return LadderNegotiation(version, line, state, tiers)
+
+
+async def steps_left(session: AsyncSession, deal: Deal, s: BusinessSettings) -> int:
+    """Concession steps still open on the deal (DealContext.concessions_left; a count, never the steps)."""
+    if s.pricing_mode == "price_list":
+        neg = await load_ladder(session, deal)
+        if neg is None:
+            return s.max_steps
+        if neg.state is None:
+            return 0
+        return max(len(neg.state.ladder) - 1 - neg.state.steps_used, 0)
+    cost = await load_state(session, deal, s)
+    max_c = cost.state.band.max_concessions if cost else s.max_concessions_default
+    return max(max_c - deal.concessions_used, 0)
+
+
+async def agreed_terms(
+    session: AsyncSession, deal: Deal, s: BusinessSettings
+) -> tuple[QuoteVersion, Decimal, Decimal] | None:
+    """The issued version, the current offer per piece and the quantity it was made for."""
+    if s.pricing_mode == "price_list":
+        neg = await load_ladder(session, deal)
+        if neg is None:
+            return None
+        if neg.state is None:
+            return neg.version, neg.line.unit_price, neg.line.quantity
+        return neg.version, neg.state.current_offer, neg.state.base_quantity
+    cost = await load_state(session, deal, s)
+    if cost is None:
+        return None
+    return cost.version, cost.state.current_offer_unit_price, cost.state.base_quantity
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,6 +240,17 @@ async def evaluate_counter(
             concessions_left=0,
             reason="ai_paused",
         )
+    if s.pricing_mode == "price_list":
+        return await _evaluate_ladder(
+            session,
+            deps,
+            deal,
+            s,
+            ask_unit_price=ask_unit_price,
+            ask_quantity=ask_quantity,
+            channel=channel,
+            actor=actor,
+        )
     neg = await load_state(session, deal, s)
     if neg is None:
         raise RuleViolation("no approved quote to negotiate on yet")
@@ -206,6 +313,103 @@ async def evaluate_counter(
                 "ask_quantity": str(ask_quantity) if ask_quantity else None,
             },
         )
+    await session.flush()
+    return verdict
+
+
+_K = CounterVerdictKind
+
+
+async def _evaluate_ladder(
+    session: AsyncSession,
+    deps: CrmDeps,
+    deal: Deal,
+    s: BusinessSettings,
+    *,
+    ask_unit_price: Decimal,
+    ask_quantity: Decimal | None,
+    channel: str,
+    actor: Actor,
+) -> CounterVerdict:
+    """v1: §12.2 rules 1-5 on the issued version's ladder; every answer is a recorded round."""
+    neg = await load_ladder(session, deal)
+    if neg is None:
+        raise RuleViolation("no approved quote to negotiate on yet")
+    now = deps.now()
+    if neg.version.valid_until is not None and neg.version.valid_until < local_today(now, s):
+        raise RuleViolation("the quote has expired; request a fresh quote")
+    if neg.state is None:  # D8 / §23 scenario 5: custom items are never negotiated by the AI
+        verdict = CounterVerdict(
+            kind=_K.CHANGE_REQUEST,
+            offer_unit_price=None,
+            currency=neg.version.currency,
+            concessions_left=0,
+            reason="custom_item",
+        )
+    else:
+        verdict = evaluate_ladder_counter(neg.state, ask_unit_price, ask_quantity, tiers=neg.tiers)
+        if ask_unit_price < neg.state.ladder[-1] and verdict.kind in (_K.COUNTER, _K.NEEDS_MANAGER):
+            deal.low_ask_count += 1  # §12.2 rule 4: the second one pauses the AI
+    offered = verdict.offer_unit_price if verdict.kind in (_K.ACCEPT, _K.COUNTER) else None
+    session.add(
+        NegotiationRound(
+            deal_id=deal.id,
+            quote_version_id=neg.version.id,
+            round_no=await _next_round_no(session, deal.id),
+            channel=channel,
+            buyer_ask_unit_price=ask_unit_price,
+            buyer_ask_quantity=ask_quantity,
+            verdict=round_verdict(verdict),
+            offered_unit_price=offered,
+            concession_no=(neg.state.steps_used + 1) if neg.state and verdict.traded_for else None,
+            traded_for=verdict.traded_for,
+            ai_reasoning=verdict.reason or None,
+        )
+    )
+    if verdict.traded_for is not None:
+        deal.concessions_used += 1
+    if DealStage(deal.stage) is DealStage.QUOTATION:
+        await deal_svc.move_stage(
+            session, deal, DealStage.NEGOTIATION, actor, now=now, reason="buyer countered"
+        )
+    await record(
+        session,
+        actor,
+        "negotiation.round",
+        "deal",
+        deal.id,
+        after={"ask": ask_unit_price, "qty": ask_quantity, "verdict": verdict.kind.value, "offer": offered},
+        timeline=Timeline(
+            "negotiation",
+            _round_summary(verdict, ask_unit_price),
+            deal.id,
+            deal.primary_contact_id,
+            channel=channel,
+        ),
+    )
+    await session.flush()
+    match verdict.kind:
+        case _K.NEEDS_MANAGER:
+            reason: Literal["below_range", "concessions_exhausted"] = (
+                "below_range" if verdict.reason == "below_range" else "concessions_exhausted"
+            )
+            await pause_ai(
+                session,
+                deps,
+                deal,
+                reason=reason,
+                event_reason=reason,
+                actor=actor,
+                task_payload={
+                    "ask_unit_price": str(ask_unit_price),
+                    "ask_quantity": str(ask_quantity) if ask_quantity else None,
+                },
+            )
+        case _K.REQUOTE if ask_quantity is not None:  # §12.2 rule 5: revised quote for the salesperson
+            await deal_svc.patch_requirement(session, deal, RequirementPatch(quantity=ask_quantity), actor)
+            await quotes.request_quote(session, deps, deal.id, actor)
+        case _:
+            pass
     await session.flush()
     return verdict
 
@@ -296,13 +500,14 @@ async def manager_offer(
     Recorded as an 'exception' round so the price becomes an allowed price the AI may say."""
     deal = await deal_svc.get_deal(session, deal_id, lock=True)
     s = await deps.settings.get(session)
-    neg = await load_state(session, deal, s)
-    if neg is None:
+    terms = await agreed_terms(session, deal, s)
+    if terms is None:
         raise RuleViolation("no approved quote to negotiate on")
+    issued = terms[0]
     session.add(
         NegotiationRound(
             deal_id=deal.id,
-            quote_version_id=neg.version.id,
+            quote_version_id=issued.id,
             round_no=await _next_round_no(session, deal.id),
             channel="crm",
             verdict="exception",
@@ -319,7 +524,7 @@ async def manager_offer(
         after={"unit_price": unit_price},
         timeline=Timeline(
             "negotiation",
-            f"Manager approved {neg.version.currency} {unit_price}/pc",
+            f"Manager approved {issued.currency} {unit_price}/pc",
             deal.id,
             deal.primary_contact_id,
         ),
@@ -329,22 +534,17 @@ async def manager_offer(
 
 
 async def mark_agreed(session: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID, actor: Actor) -> QuoteVersion:
-    """Buyer accepted the current offer: READY_TO_CLOSE and a 'final' version at the agreed price and
-    quantity, which goes to the MD (approval 2) before the final quote is sent."""
+    """§14: the buyer accepted the current offer: READY_TO_CLOSE and a 'final' version at the agreed price
+    and quantity, which goes to Approval 2 before the final quote is sent (§12.2 rule 7: agreement in chat
+    is not the final quote)."""
     deal = await deal_svc.get_deal(session, deal_id, lock=True)
     s = await deps.settings.get(session)
-    neg = await load_state(session, deal, s)
-    if neg is None:
+    terms = await agreed_terms(session, deal, s)
+    if terms is None:
         raise RuleViolation("no approved quote to agree on")
-    st = neg.state
+    issued, price, qty = terms
     version = await create_final_version(
-        session,
-        deps,
-        deal,
-        neg.version,
-        unit_price=st.current_offer_unit_price,
-        quantity=st.base_quantity,
-        actor=actor,
+        session, deps, deal, issued, unit_price=price, quantity=qty, actor=actor
     )
     if DealStage(deal.stage) is not DealStage.READY_TO_CLOSE:
         await deal_svc.move_stage(

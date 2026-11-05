@@ -90,6 +90,21 @@ class NegotiationState:
 
 
 @dataclass(frozen=True, slots=True)
+class LadderState:
+    """v1 negotiation state for one quote line (§12): the concession ladder from list price down to the
+    minimum, how many steps were used, the current offer, the quantity the offers were made for, and how
+    many asks below the minimum the buyer made in this negotiation (§12.2 rule 4)."""
+
+    ladder: tuple[Decimal, ...]  # ladder[0] = list price ... ladder[-1] = minimum (rounded up)
+    steps_used: int
+    current_offer: Decimal
+    base_quantity: Decimal
+    low_ask_count: int = 0
+    tier_id: uuid.UUID | None = None
+    currency: str = "AED"
+
+
+@dataclass(frozen=True, slots=True)
 class DeliveryInputs:
     today: date
     quantity: Decimal

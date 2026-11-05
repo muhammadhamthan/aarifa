@@ -163,7 +163,12 @@ class QualifyResult(_Frozen):
 class CounterVerdictKind(StrEnum):
     ACCEPT = "accept"  # buyer's ask is at or above the current offer
     COUNTER = "counter"  # AI may offer `offer_unit_price`
-    NEEDS_MANAGER = "needs_manager"  # below range, concessions exhausted, or exception
+    NEEDS_MANAGER = "needs_manager"  # a human decides: insisted below minimum, steps used up, exception
+    # §12.2 rule 5: the quantity moved into another tier; a revised quote at that tier's list price goes to
+    # the salesperson for approval. The AI says no new price until that version is approved and sent.
+    REQUOTE = "requote"
+    # D12: quantity below the MOQ or outside the tiers; a change request goes to the salesperson
+    CHANGE_REQUEST = "change_request"
 
 
 class CounterVerdict(_Frozen):
@@ -173,6 +178,7 @@ class CounterVerdict(_Frozen):
     concessions_left: int
     traded_for: Literal["quantity_increase", "goodwill"] | None = None
     reason: str = ""
+    requires_approval: bool = False  # the answer needs a salesperson-approved quote version first
 
 
 class DeliveryEstimateView(_Frozen):

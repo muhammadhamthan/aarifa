@@ -12,7 +12,7 @@ import time as _time
 from collections.abc import Callable
 from datetime import time
 from decimal import Decimal
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from sqlalchemy import select
@@ -44,6 +44,11 @@ def _alias(key: str, default: Any, **kw: Any) -> Any:
     return Field(default, alias=key, **kw)
 
 
+Incoterm = Literal["EXW", "FCA", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DDP"]
+# §9.2 optional assignment rules, checked in this order when listed: language, country, category
+AssignmentRule = Literal["language", "country", "category"]
+
+
 class BusinessSettings(BaseModel):
     """Typed view of crm.settings. Defaults mirror the DDL seed so a missing row never breaks a rule."""
 
@@ -70,6 +75,26 @@ class BusinessSettings(BaseModel):
     retention_open_lead_chat_months: int = _alias("retention.open_lead_chat_months", 24, gt=0)
     retention_won_customer_years: int = _alias("retention.won_customer_years", 5, gt=0)
     retention_lost_lead_months: int = _alias("retention.lost_lead_months", 12, gt=0)
+    # ---- 5 Nov flow (docs/V1_CHANGE_PLAN.md WP1 seed); defaults mirror the seed
+    pricing_mode: Literal["price_list", "cost"] = _alias("pricing.mode", "price_list")  # D6; cost = v2
+    vat_pct_export: Decimal = _alias("quote.vat_pct_export", Decimal(0), ge=0)  # §10
+    default_incoterm: Incoterm = _alias("quote.default_incoterm", "EXW")  # §11.2, D6
+    # §11.2 "Terms: payment terms (advance %, balance)... default terms; salesperson can edit". The advance
+    # % per customer type (§15.1) is still to confirm, so the default names no % (docs/OPEN_QUESTIONS.md).
+    payment_terms_text: str = _alias(
+        "quote.payment_terms_text", "Advance payment is required before production starts.", min_length=1
+    )
+    # §8 "delivery country ... sets currency": ISO-2 country -> ISO currency; unlisted countries quote in AED
+    currency_by_country: dict[str, str] = _alias("quote.currency_by_country", {})
+    max_steps: int = _alias("negotiation.max_steps", 3, ge=0, le=10)  # §12.1, D7
+    free_samples_allowed: bool = _alias("negotiation.free_samples_allowed", False)  # §12.2 rule 6
+    change_request_sla_working_hours: int = _alias("change_request.sla_working_hours", 4, gt=0)  # §13, D12
+    reminder_minutes: tuple[int, int, int] = _alias("approval.reminder_minutes", (30, 60, 120))  # §16, D4
+    followup_lost_after_days: int = _alias("followup.lost_after_days", 14, gt=0)  # §16, D15
+    assignment_rules: tuple[AssignmentRule, ...] = _alias("assignment.rules", ())  # §9, D5
+    feature_scraping: bool = _alias("features.scraping", False)  # D14 (v2)
+    feature_delivery_calc: bool = _alias("features.delivery_calc", False)  # D14 (v2)
+    feature_news_digest: bool = _alias("features.news_digest", False)  # D14 (v2)
     flags: dict[str, bool] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -81,7 +106,26 @@ class BusinessSettings(BaseModel):
             raise ValueError("followup.cadence_days must be increasing positive days")
         if self.alert_hours.tz is None:
             raise ValueError("approval.alert_hours needs a tz")
+        mins = self.reminder_minutes
+        if any(m <= 0 for m in mins) or list(mins) != sorted(set(mins)):
+            raise ValueError("approval.reminder_minutes must be 3 increasing positive minutes")
+        if len(set(self.assignment_rules)) != len(self.assignment_rules):
+            raise ValueError("assignment.rules lists a rule twice")
+        if any(len(k) != 2 or len(v) != 3 for k, v in self.currency_by_country.items()):
+            raise ValueError("quote.currency_by_country maps ISO-2 countries to ISO-3 currencies")
         return self
+
+    def quote_currency(self, country: str | None, fallback: str = "AED") -> str:
+        """§8: the delivery country sets the quote currency (AED unless the setting maps it)."""
+        return self.currency_by_country.get((country or "").upper(), fallback).upper()
+
+    def vat_for(self, country: str | None) -> Decimal:
+        """§10: 5 % inside the UAE, 0 % for exports (both settings). No country yet = domestic."""
+        return self.vat_pct_domestic if (country or "AE").upper() == "AE" else self.vat_pct_export
+
+    def escalate_after_minutes(self) -> int:
+        """§16: the last reminder step escalates to the manager (120 alert-hour minutes by default)."""
+        return self.reminder_minutes[-1]
 
     def alert_window(self) -> Window:
         """Manager alert hours; the approval timer only runs inside this window."""

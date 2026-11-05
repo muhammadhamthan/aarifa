@@ -25,7 +25,6 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 
 | Capability | Will live in |
 |---|---|
-| Price-list tiers, `ladder_between`, ladder-based counter evaluation | `kx.crm.pricing.price_list`, `kx.crm.pricing.engine` (WP2) |
 | Salesperson approvals, special-price approval, takeover | `kx.crm.services.approvals` (WP3) |
 | Change requests | `kx.crm.services.change_requests`, `kx.core.event_payloads.ChangeRequested`, `CrmGateway.raise_change_request`, agents tool `raise_change_request` (WP4) |
 | Deal assignment (round-robin + rules + away/backup) | `kx.crm.services.assignment` (WP5) |
@@ -35,6 +34,9 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 ## kx.crm — sales CRM (any manufacturer)
 | Capability | Import |
 |---|---|
+| Price list (pure, v1) | `kx.crm.pricing.price_list`: `PriceTier`, `TierPrice`, `resolve_tier`, `min_price_for`, `convert_tier`, `list_line`, `discount_from_list_pct` |
+| Negotiation ladder (pure, v1) | `kx.crm.pricing.engine`: `ladder_between`, `evaluate_ladder_counter` (§12.2 rules 1-5) over `kx.crm.pricing.types.LadderState` |
+| Price-list I/O | `kx.crm.services.pricing`: `list_pricing_inputs`, `current_tiers`, `tiers_of_version`, `lead_time_text`, `fx_with_date`, `PricingNeeded`, `QuantityOutsideTiers` |
 | Pricing maths (pure; cost-based = **v2**) | `kx.crm.pricing.engine`: `unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, `price_line`, `quote_totals`, `concession_ladder`, `evaluate_counter`, `estimate_delivery` |
 | Business rules (pure) | `kx.crm.rules` (stage machine, LOST reasons, staleness 3/7 days, qualification fields) |
 | Audit + timeline + outbox in one call | `kx.crm.services.journal.record()` |
