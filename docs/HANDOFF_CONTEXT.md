@@ -4,6 +4,46 @@ Last updated: Thu 5 Nov 2026. Owner: Hamthan (Team Lead / CTO, Kairox AI Tech, I
 This file replaces earlier context notes. Where it conflicts with older documents, this file wins.
 
 ---------------------------------------------------------------------------------------------------------
+## ⚠ 5 Nov changes. These OVERRIDE sections 5 and 6a below; the code still follows the old rules.
+- **Approvals:**
+  - The **assigned salesperson** approves both the 1st quote and the final quote.
+  - The MD is not in the approval path; the MD can take over any deal.
+  - Several salespersons each handle their own deals.
+- **v1 pricing = price list.** The client's manager or IT role enters, per product, a unit price per quantity tier (e.g. 1 unit = X, 100 units = Y).
+  - The AI quotes at the top and negotiates **price only**, down to the minimum the manager set.
+  - Every quote says the price is open to discussion; the wording is still to agree.
+- **Quote fields:**
+  - product full details, quantity, unit price and total;
+  - delivery time, set or confirmed by the salesperson;
+  - payment terms and validity.
+  - Fields are filled by the assigned salesperson; the price comes from the list.
+- **Product or delivery-time change requests:** the AI promises nothing. The salesperson is alerted immediately, and the CRM shows what the buyer asked next to the current values. The salesperson edits, approves and resends.
+- **CMS** = the website admin panel: text, photos, videos, products, 3D labels, without a developer.
+- **Moved to v2:**
+  - delivery-time calculation and prediction;
+  - raw-material scraping, cost build-up and auto price range;
+  - ERP plugin (stock, production status, stock-based quoting);
+  - re-order follow-up.
+- **Code impact:** about 1 week for one backend developer (estimate).
+  - Approvals change from manager/MD to salesperson.
+  - Pricing changes from cost + markup to price-list tiers.
+  - New: change request record, deal assignment, salesperson inbox.
+  - Scraper and delivery estimate are switched off by flag.
+- **Docs:**
+  - **DETAILED business flow v1 (SRS basis, the master doc):** https://claude.ai/artifact/MbcE3qg4MEGYvcKFybcix5
+  - Hamthan's 5 Nov answers built into it:
+    - no second approval check, but the manager is notified when the buyer pushes below the minimum;
+    - there is no "sales manager" role, only a manager;
+    - assignment is round-robin, with optional language/country matching; the manager or MD can reassign;
+    - email comes from one company address, and WhatsApp uses one number per region, signed by the salesperson;
+    - after the final quote the salesperson is alerted and the manager notified; payment is handled by humans only;
+    - quantity, delivery or spec changes alert the salesperson;
+    - the news digest is v2;
+    - the expected re-order date is stored in v1.
+  - short flow summary: https://claude.ai/artifact/9hRXK9QW2vNKuShYNBbWUo
+  - questions for Hamthan: https://claude.ai/artifact/R3s1AshbNiwwTqwYx2coPy
+  - questions for the client: https://claude.ai/artifact/K4UAEoFYiNdcVCDGzTkJdj
+
 ## 0. How to start the next session
 1. Attach **kairox-platform-v1.zip** (the code; the cloud workspace is temporary and may be wiped).
 2. Paste this file (or point to project doc `claude/arifaa-pack-context.md`).
@@ -83,93 +123,35 @@ Weekly reporting to the CEO is one report covering both projects: the Monday pla
 
 Suggested review order (about 1 day per reviewer): CONTRACTS.md → contracts.py → pricing engine + spec tests → price guard + agents guard → approvals/issuing/grants + outbound → container.py → infra README → `terraform plan`.
 
-## 5. Business flow (final, Round 3 answers 4 Nov)
-1. **Visitor arrives.** One click on "Enter the factory", then the AI speaks first and drives the site via LiveKit RPC.
-   - The site is in English; the AI speaks the visitor's language: en, ar, hi, ta, zh or si.
-   - The AI says it is an AI assistant and never pretends to be human, but keeps the conversation natural.
-   - A recording notice plays at the start of every voice conversation.
-2. **Qualification.** The AI collects product, quantity, delivery country and city, application, needed-by date, and contact name plus phone or email.
-   - The phone number is confirmed by sending the Requirement Summary PDF to WhatsApp.
-   - That PDF contains no prices; an indicative price range is off by default.
-3. **AI drafts the quote** from the cost build-up (§6) at the top of the MD's markup range. Quote validity is 7 days.
-4. **Approval 1.**
-   - The manager approves; the MD is notified of every quote.
-   - The MD must approve if the deal is above a value the MD sets, and can take over any deal at any time.
-   - The approval window is 2 hours, counted only 08:00–22:00 UAE time (the timer pauses overnight).
-   - Alert ladder: 3 IVR calls 20 minutes apart, then the MD.
-   - Approvals need MFA and a human (no service tokens).
-   - Once approved, the CRM issues a single-use send grant and the quote is sent.
-5. **Negotiation.** The AI negotiates inside the range with no approval needed, on web voice, web chat, WhatsApp, email/text, and calls the buyer starts or asks for. It never negotiates on cold outbound calls.
-   - The AI opens at the top of the range and makes at most 3 concessions.
-   - Concession 1 can be goodwill; later concessions only for a bigger quantity.
-   - Advance payment is always required; it is never a concession.
-   - Longer delivery is NEVER offered as a concession.
-6. **Below range or concessions used up.** The AI says: "Let me check with our sales manager; you'll hear back as soon as possible, within 60 minutes." It then pauses.
-   - The manager and MD are alerted.
-   - The manager replies, or sets an approved price and hands the deal back to the AI; the MD may take over.
-7. **Buyer agrees → Approval 2.** The MD must confirm the final quote. A second grant is issued and the final quote is sent. The manager then takes over.
-8. **Payment and order.**
-   - Payment is confirmed outside the system (advance), and the deal moves to WON.
-   - An Order record follows: In production → Ready → Shipped → Delivered, updated by the manager.
-   - Future: the Pack ERP connects as a plugin to the CRM (the integration seam is designed now).
-9. **Follow-ups.** Day 2, 5 and 10 after the quote. Maximum 2 per week, only 09:00–18:00 in the buyer's local time. WhatsApp and text follow-up matter most, because buyers rarely return to the website.
-10. **Deal stages:** NEW → QUALIFIED → QUOTATION → NEGOTIATION → READY_TO_CLOSE → PAYMENT → WON / LOST. LOST requires a reason.
-11. **Stock:** a simple table of raw materials and finished goods, updated manually in v1; ERP sync later.
-12. **Unknown destination port:** quote EXW plus a separate freight line later.
-13. **Retention:**
-    - audio 90 days;
-    - open-lead chats 24 months;
-    - won customers 5 years;
-    - lost leads anonymised after 12 months;
-    - consent log for the lifetime of the relationship plus 5 years.
-14. **Law (UAE):** contact only buyers who asked.
-    - AI calls to UAE numbers the buyer did not request need TDRA approval and a licensed local line; they stay off until then.
-    - WhatsApp voice calls are blocked in the UAE.
-    - UAE PDPL does not require data localisation, so encrypted DR backups abroad are allowed, but only with written client consent.
+## 5. Business flow (5 Nov, current)
+
+The full detail, with 26 sections and 10 worked scenarios, is in **`docs/BUSINESS_FLOW_V1.md`**, exported from the Claude Doc https://claude.ai/artifact/MbcE3qg4MEGYvcKFybcix5, which also has 3 diagrams.
+
+**In short:**
+1. Enquiry on web voice/chat, WhatsApp or email.
+2. The AI qualifies the buyer and sends a Requirement Summary (no prices).
+3. Round-robin assignment to a salesperson.
+4. The AI drafts the quote from the price list (tier list price).
+5. **Approval 1 by the salesperson.**
+6. The quote is sent from the regional WhatsApp number or company email, signed by the salesperson, with a natural "open to discuss" line in the message.
+7. The AI negotiates **price only**, inside the tier range.
+8. Other requests become change requests to the salesperson.
+9. Agreement leads to the final quote and **Approval 2 by the salesperson**. The salesperson is then alerted and the manager notified.
+10. Payment is handled by humans only, then WON (with the expected re-order date) and order tracking.
+11. Follow-ups on day 2/5/10.
 
 ## 6. Pricing
-### 6a. Quote pricing (implemented in `kx.crm.pricing.engine`, contest winner A)
-All pricing inputs are entered in the CRM by the MD or manager: raw-material rates, production, packaging, freight lanes, FX, margin rules.
 
-**Cost per 1,000 pcs:**
-- kg per 1,000 ÷ (yield% / 100) × material rate per kg + production + packaging + freight;
-- rounded to 4 decimal places.
+### 6a. Quote pricing in v1 = manual price list
 
-**Freight per 1,000:** (container cost + surcharge) × (1 + lane buffer%) ÷ pieces per 40HC × 1,000.
-
-**Price per piece:** cost per 1,000 × (1 + markup%) ÷ 1,000, rounded to 6 decimal places. Line total is rounded to 4 decimal places. VAT is 5% on UAE deliveries.
-
-**Markup is ON COST** (cost 100 at 40% = 140).
-- Ranges are set per product category.
-- Optional overrides apply per customer type and quantity band.
-- The lowest priority number wins; on a tie, the most specific rule wins.
-
-**Concession ladder:** n equal steps from the top of the range to the bottom. The bottom of the range is the floor.
-
-**Worked example:**
-- **Inputs:** AED 12/kg, 8.5 kg per 1,000, 92% yield, production 35, packaging 6.
-- **Cost:** 151.8696 per 1,000.
-- **Ladder** (40–50% range, 3 concessions): 0.227804 → 0.222742 → 0.217680 → 0.212617.
-- **Line total:** 50,000 pcs = AED 11,390.20.
-
-The negotiation must use the UNROUNDED unit cost; using the rounded one drifts the opening offer to 0.227805.
-
-**Raw-material prices:**
-- Every day the system checks official price websites (scraping where allowed) and creates *proposed* prices.
-- The manager reviews and approves them; they are never applied automatically.
-- If prices aren't updated, it warns after 3 days and blocks new quotes after 7 days.
-- Daily index feeds: LME, resin futures, SCFI, FX.
-- Freight per lane carries a war-risk buffer tier; quote validity is 7 days during the Hormuz crisis.
-
-**No ML price prediction:**
-- Official sites publish current prices, and freight is driven by war risk.
-- Delivery-time prediction IS wanted: v1 is rule-based (production days + stock + supplier lead time + transit + buffer, skipping Sundays), always labelled "estimated, confirmed by our team".
-- Every actual outcome is stored as training data for a later ML model.
-
-**Safety:**
-- Nothing the AI sees contains cost, markup or floor.
-- Every AI reply passes the price guard (contest winner C, fails closed). It only allows approved quote prices and issued counter-offers, and blocks bare prices like "0.21 each".
-- Priced messages leave only through OutboundService with a single-use grant bound to the content hash and recipient.
+- **Price list:** per product and quantity tier, a list price (top) and a minimum (floor), entered by the client's manager (with Excel import). An optional minimum % per category; a per-product value overrides it.
+- **Example (illustrative):** 50,000 pcs at AED 0.25 = AED 12,500 + 5% VAT (UAE) = AED 13,125.
+- **Ladder:** 0.2500 → 0.2433 → 0.2367 → 0.2300 (3 equal steps; steps 2–3 for more quantity).
+- **Below the minimum:**
+  - the first ask gets the next step;
+  - an insisted ask pauses the AI, alerts the salesperson and notifies the manager;
+  - a special price needs the manager.
+- **v2:** the cost build-up engine (§6a of the 4 Nov version, still in `kx.crm.pricing.engine`) with daily raw-material feeds sets the ranges automatically.
 
 ### 6b. Running cost per company per month (estimates; check the AWS Pricing Calculator before quoting)
 | Item | Staging (both companies) | Each prod (pack / auto) |

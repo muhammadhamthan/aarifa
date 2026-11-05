@@ -38,15 +38,36 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 | Retries | `tenacity` (`AsyncRetrying`, exponential + jitter); never hand-rolled loops |
 | JSON | `orjson` |
 
-## 3. Hard rules (business safety)
+## 3. Hard rules (business safety): 5 Nov flow, see docs/BUSINESS_FLOW_V1.md
 
-- **Nothing reaching the AI may contain cost, markup, margin range or floor.** `kx.core.contracts` DTOs are the only shapes agents see.
-- **Priced messages** (`PRICED_KINDS`) leave only via `MessageSender.send`, which must call `GrantConsumer.consume_grant(...)` first; a `False` means do not send. The recipient comes from the contact record, never from the AI.
-- **Human approvals** require `require_human_mfa(Role.MANAGER | Role.MD)`; final quotes require MD.
-- Every AI reply passes `check_prices` against `DealContext.allowed_prices` before it is sent or spoken.
-- Advance payment is always required; longer delivery is never a concession (DB CHECK enforces).
-- Manager alerts only 08:00–22:00 Asia/Dubai; the 2 h approval window pauses outside (`Window.add_open_minutes`).
-- Follow-ups day 2/5/10, max 2 per week, 09:00–18:00 buyer local time.
+**Status:** the code still implements the 4 Nov rules (MD approvals, cost-based pricing). `docs/V1_CHANGE_PLAN.md` lists the changes needed to reach these rules.
+
+- **Nothing reaching the AI may contain cost, markup, the minimum price, the ladder steps or other customers' data.** `kx.core.contracts` DTOs are the only shapes agents see.
+- **Priced messages** (`PRICED_KINDS`) leave only via `MessageSender.send`, which must call `GrantConsumer.consume_grant(...)` first; `False` means do not send. The recipient comes from the contact record, never from the AI.
+- **Approvals:**
+  - the deal's assigned **salesperson** (role `sales`) approves the 1st quote, every revision and the final quote;
+  - the **manager** may approve any deal;
+  - the **MD** only deals it has taken over (the owner is read-only meanwhile);
+  - all approvals need `require_human_mfa`;
+  - a price **below the tier minimum** needs a manager-approved `special_price` approval.
+- **Pricing v1 = price list:**
+  - per product and quantity tier, a list price (the AI quotes it) and a minimum (the AI never goes below it);
+  - at most 3 equal concession steps; steps 2–3 only for a bigger quantity;
+  - cost/markup pricing, scraping and the staleness block are v2 and off by flag.
+- **The AI negotiates price only.** Product, spec, printing, quantity outside the tiers, delivery, samples and payment all become a **change request** to the salesperson. Payment is never discussed by the AI.
+- **Every AI reply passes `check_prices`** against `DealContext.allowed_prices` (the approved quote plus the ladder steps for that deal) before it is sent or spoken.
+- **Advance payment is always required.** Longer delivery is never a concession (a DB CHECK enforces it).
+- **Staff alerts:**
+  - only 08:00–22:00 Asia/Dubai;
+  - reminders at 30 min (WhatsApp), 60 min (call) and 120 min (escalate to the manager);
+  - timers pause outside those hours (`Window.add_open_minutes`).
+- **Buyer follow-ups:**
+  - day 2/5/10, at most 2 per week;
+  - 09:00–18:00 buyer local time, on the buyer country's working days;
+  - stop on reply or opt-out.
+- **Handover:** after final approval, the salesperson is alerted and the manager notified, and the AI stops replying on that deal.
+
+**Planned contract additions (WP4):** event `change_request.raised.v1` with an `event_payloads.ChangeRequested` payload, and `CrmGateway.raise_change_request(...)`.
 
 ## 4. Code standards
 

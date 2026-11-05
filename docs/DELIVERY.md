@@ -1,5 +1,18 @@
 # Delivery — Kairox platform v1 (Arifaa Pack)
 
+> **Update 5 Nov 2026.** Everything below describes the code as delivered on 4 Nov (309 tests). The business flow changed on 5 Nov:
+> - the salesperson approves quotes;
+> - pricing comes from a manual price list;
+> - change requests go to the salesperson;
+> - delivery calculation and scraping move to v2.
+>
+> The code changes are planned in `docs/V1_CHANGE_PLAN.md` (WP1–WP12), and the rules are in `docs/BUSINESS_FLOW_V1.md`. The DDL v1.1 items below are now part of WP1. The client questions are in the *v1 Questions for the Client* Claude Doc (https://claude.ai/artifact/K4UAEoFYiNdcVCDGzTkJdj). The ★ items block development:
+> - the salesperson list;
+> - the product Excel with tier prices and minimums;
+> - a sample quote and payment terms;
+> - website content and media;
+> - the WhatsApp number(s) per region and the email domain.
+
 Date: 4 Nov 2026. Repo: `kairox-platform` (uv workspace, Python 3.14). Git history included.
 
 ## What is built
@@ -17,7 +30,7 @@ Date: 4 Nov 2026. Repo: `kairox-platform` (uv workspace, Python 3.14). Git histo
 Gates: ruff clean, ruff format clean (158 files), mypy `--strict` clean (113 files), import-linter 3/3 contracts kept.
 
 ## Competing builds (details: `docs/CONTESTS.md`)
-- Pricing engine — **A (tuned Decimal)**: exact on 200k cases, 1.6 µs per counter-offer.
+- Pricing engine — **A (tuned Decimal)**: exact on 200k cases, 1.6 µs per counter-offer. Its cost-based functions become v2; v1 adds price-list tiers + `ladder_between` (WP2).
 - Price guard — **C (two-stage hybrid)**, hardened to fail closed: 40/40 spec + 29/29 hidden, ~5.4 ms / 1000 replies.
 
 ## Verified vs not verified (honest list)

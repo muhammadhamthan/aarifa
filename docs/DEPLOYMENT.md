@@ -46,8 +46,22 @@ KX_TEST_PG_DSN="postgresql://postgres@localhost:5432/postgres" uv run pytest
   `BEDROCK_MODEL_IDS`, `EMBEDDING_MODEL_ID`/`EMBEDDING_REGION`, `LANGFUSE_*`, `CORS_ORIGINS`.
 - Migrations: `KX_DDL_DIR=/app/db/ddl` (set in the image); optional `KX_MIGRATE_<DB>_DSN` overrides.
 
+## v1 business settings (crm.settings, seeded by migration 0002; WP1)
+These are changed in the CRM by the manager, MD or admin, not through env vars.
+
+| Group | Keys and defaults |
+|---|---|
+| Pricing | `pricing.mode=price_list` |
+| Quote defaults | `quote.vat_pct_domestic=5`, `quote.validity_days=7`, `quote.default_incoterm=EXW` |
+| Negotiation and change requests | `negotiation.max_steps=3`, `change_request.sla_working_hours=4` |
+| Approvals | `approval.reminder_minutes=[30,60,120]`, `approval.md_value_limit_aed=null` (off) |
+| Follow-ups and assignment | `followup.lost_after_days=14`, `assignment.rules=[]` |
+| v2 features | **off in v1:** `features.scraping=false`, `features.delivery_calc=false`, `features.news_digest=false` |
+
+**Regional WhatsApp numbers.** Each number is an `automation.channel_accounts` row with `region` and `countries[]`. The Meta access token and app secret come from Secrets Manager. Email stays on one SES identity.
+
 ## Manual / external steps before go-live
-SES production access + domain DKIM; Meta Tech Provider + WhatsApp templates approved; Twilio UAE number
+SES production access + domain DKIM; one Meta WhatsApp number per region (client to confirm the list); Meta Tech Provider + WhatsApp templates approved; Twilio UAE number
 (manager alert calls); TDRA approval before any AI call to UAE numbers the buyer didn't request; LiveKit
 Cloud project + speech vendor keys (ElevenLabs, Sarvam, Azure); Cognito users for MD / managers with TOTP;
 Bedrock model access (check UAE availability or a cross-region inference profile, with client consent).

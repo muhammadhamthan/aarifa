@@ -1262,6 +1262,7 @@ dependencies = [
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
     { name = "psycopg-pool" },
+    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -1282,6 +1283,7 @@ requires-dist = [
     { name = "pgvector", specifier = "==0.5.1" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.7" },
     { name = "psycopg-pool", specifier = "==3.3.3" },
+    { name = "pyyaml", specifier = "==6.0.3" },
 ]
 provides-extras = ["voice"]
 

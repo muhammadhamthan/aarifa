@@ -25,6 +25,26 @@ lint: ## ruff + mypy + import-linter
 test: ## pytest (DB tests need KX_TEST_PG_DSN, e.g. make up then KX_TEST_PG_DSN=postgresql://postgres:postgres@localhost:5432/postgres)
 	uv run pytest
 
+.PHONY: test-spec
+test-spec: ## spec suites only (pricing, price guard): fast, no DB
+	uv run pytest tests/spec -q
+
+.PHONY: bench
+bench: ## speed benchmarks of the hot paths
+	uv run pytest tests/spec -m bench --benchmark-enable --benchmark-columns=min,mean,ops
+
+.PHONY: migrate
+migrate: ## apply Alembic migrations + job-queue schema (uses KX_*_DSN)
+	uv run kx migrate
+
+.PHONY: api
+api: ## run the API locally on :8000
+	uv run kx api
+
+.PHONY: worker
+worker: ## run the job worker locally
+	uv run kx worker
+
 .PHONY: up
 up: ## Start postgres + valkey
 	docker compose up -d postgres valkey

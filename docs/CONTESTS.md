@@ -48,3 +48,9 @@ quantity right after "price" with an unlisted noun ("price for 2 crates") is che
 
 - No helper is written twice: `CONTRACTS.md` §2 lists the one place each helper lives.
 - Packages never import each other; import-linter enforces it in CI.
+
+## 4. After the 5 Nov flow change
+
+- **Pricing engine A stays.** Its cost functions (`unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, the cost-based ladder) are kept for **v2** automatic pricing.
+- v1 adds a pure price-list layer (`resolve_tier`, `ladder_between`, a ladder-based `evaluate_counter` with `low_ask_count`) in WP2. Re-run `candidates/judge_pricing.py`-style exactness checks on the new functions, and add the §11–12 numbers as spec tests.
+- **Price guard C is unchanged.** `allowed_prices` becomes the approved quote prices plus the ladder steps from the price list.

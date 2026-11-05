@@ -21,10 +21,21 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Price safety | `kx.core.price_guard`: `check_prices`, `extract_prices` | contest winner C, fails closed |
 | Cross-package contracts | `kx.core.contracts`: `CrmGateway`, `GrantConsumer`, `MessageSender`, DTOs | no cost/markup fields, ever |
 
+## Planned in docs/V1_CHANGE_PLAN.md (do not build twice; add them here when done)
+
+| Capability | Will live in |
+|---|---|
+| Price-list tiers, `ladder_between`, ladder-based counter evaluation | `kx.crm.pricing.price_list`, `kx.crm.pricing.engine` (WP2) |
+| Salesperson approvals, special-price approval, takeover | `kx.crm.services.approvals` (WP3) |
+| Change requests | `kx.crm.services.change_requests`, `kx.core.event_payloads.ChangeRequested`, `CrmGateway.raise_change_request`, agents tool `raise_change_request` (WP4) |
+| Deal assignment (round-robin + rules + away/backup) | `kx.crm.services.assignment` (WP5) |
+| Regional WhatsApp routing | `kx.automation.outbound` + `channel_accounts.countries` (WP6) |
+| Price-list Excel import/export | `kx.crm.api` + `openpyxl` (WP11) |
+
 ## kx.crm — sales CRM (any manufacturer)
 | Capability | Import |
 |---|---|
-| Pricing maths (pure) | `kx.crm.pricing.engine`: `unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, `price_line`, `quote_totals`, `concession_ladder`, `evaluate_counter`, `estimate_delivery` |
+| Pricing maths (pure; cost-based = **v2**) | `kx.crm.pricing.engine`: `unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, `price_line`, `quote_totals`, `concession_ladder`, `evaluate_counter`, `estimate_delivery` |
 | Business rules (pure) | `kx.crm.rules` (stage machine, LOST reasons, staleness 3/7 days, qualification fields) |
 | Audit + timeline + outbox in one call | `kx.crm.services.journal.record()` |
 | Services | `kx.crm.services.*`: settings, deals, pricing, price_proposals, quotes, approvals, issuing, grants, negotiation, orders, retention |
