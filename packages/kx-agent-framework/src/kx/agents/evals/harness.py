@@ -67,7 +67,10 @@ class EvalResult(BaseModel):
 
 
 def load_scenarios(directory: pathlib.Path = SCENARIO_DIR) -> list[Scenario]:
-    return [Scenario.model_validate(yaml.safe_load(p.read_text())) for p in sorted(directory.glob("*.yaml"))]
+    return [
+        Scenario.model_validate(yaml.safe_load(p.read_text(encoding="utf-8")))
+        for p in sorted(directory.glob("*.yaml"))
+    ]
 
 
 def _script(s: Scenario) -> list[Any]:

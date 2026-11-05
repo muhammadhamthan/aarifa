@@ -44,7 +44,7 @@ def pg_databases() -> Iterator[dict[str, str]]:
     import psycopg
 
     assert ADMIN_DSN
-    roles = (DDL / "00_roles.sql").read_text()
+    roles = (DDL / "00_roles.sql").read_text(encoding="utf-8")
     with psycopg.connect(ADMIN_DSN, autocommit=True) as admin:
         admin.execute(roles)
         for name in DBS:
@@ -52,7 +52,7 @@ def pg_databases() -> Iterator[dict[str, str]]:
             admin.execute(f'CREATE DATABASE "test_{name}"')
     for name, file in DBS.items():
         with psycopg.connect(_dsn(name), autocommit=True) as conn:
-            conn.execute((DDL / file).read_text())
+            conn.execute((DDL / file).read_text(encoding="utf-8"))
     yield {name: _dsn(name, driver="asyncpg") for name in DBS}
     with psycopg.connect(ADMIN_DSN, autocommit=True) as admin:
         for name in DBS:

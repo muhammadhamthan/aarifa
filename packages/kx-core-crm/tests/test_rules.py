@@ -148,7 +148,7 @@ def test_content_sha_binds_body_and_pdf() -> None:
 
 # ---------------------------------------------------------------- settings parsing
 def _ddl_settings() -> dict[str, object]:
-    rows = re.findall(r"\('([a-z_.]+)',\s+'(.*?)',\s+'", DDL.read_text())
+    rows = re.findall(r"\('([a-z_.]+)',\s+'(.*?)',\s+'", DDL.read_text(encoding="utf-8"))
     return {k: orjson.loads(v) for k, v in rows}
 
 
