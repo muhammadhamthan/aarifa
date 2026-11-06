@@ -206,3 +206,25 @@ and a quantity outside the tiers into a change request (D12); the two WP2 tests 
 both layers.
 Tests added: 2 unit (Excel row validation), 6 HTTP/DB (inbox per person, handed-over buyer messages, tier CRUD +
 MFA + audit, Excel export/import, stock, settings). Totals: 445 passed.
+
+## WP12. Notifications matrix (§17)
+
+| §17 row | Event | Handler / where | Recipients and channel |
+|---|---|---|---|
+| New qualified deal assigned | `deal.assigned.v1` | automation `_deal_assigned` | salesperson WhatsApp notice (+ CRM inbox); buyer Requirement Summary **not built** |
+| Quote waiting for approval | `quote.submitted.v1` | automation ladder | salesperson 0/30 min WhatsApp, 60 min call; manager at 120 min |
+| Quote sent | `quote.approved.v1` | automation `_quote_approved` | buyer quote PDF + message (salesperson: CRM timeline) |
+| Counter-offer handled by the AI | (CRM `negotiation.round` timeline) | CRM | salesperson CRM timeline; buyer AI reply |
+| Buyer pushes below the minimum | `negotiation.paused.v1` | automation `PauseAlerts` | salesperson WhatsApp + call; manager WhatsApp; buyer 60-minute sentence (AI) |
+| Change request | `change_request.raised.v1` | automation ladder | salesperson at once + reminders; manager at 120 min; buyer 4-hour sentence (AI) |
+| Final quote approved and sent | `quote.approved.v1` (final) | automation | buyer final quote; salesperson alert; manager notice |
+| Payment recorded / WON | `deal.won.v1` | automation `_deal_won` | manager + MD WhatsApp notice; buyer thank-you template |
+| Order status changed | `order.status_changed.v1` | automation `_order_status_changed` | buyer WhatsApp only when `notifications.order_status_to_buyer` (default off) |
+| MD takes over / reassigned | `deal.assigned.v1` | automation `_deal_assigned` | salesperson(s) + manager (not the MD on its own takeover) |
+| Buyer opts out | `message.received.v1` (`opted_out`) | CRM (AI off, `opt_out`, timeline) + automation | buyer one confirmation template (passes the suppression); salesperson CRM |
+
+The MD "Dashboard" column is the CRM data (no message). Tests added: 11 parametrized matrix rows, the pause
+alert split, the opt-out confirmation (automation), the opt-out bypass on the real OutboundService, and 2 CRM DB
+tests (WON event recipients + order-update flag; opt-out pauses the deal). The 4 Nov assertion "manager + MD
+alerted on a pause" now reads "salesperson alerted, manager notified". New revision `crm_0007`
+(`notifications.order_status_to_buyer`). Totals: 461 passed.

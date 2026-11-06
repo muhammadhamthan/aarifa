@@ -43,6 +43,7 @@ AGENT_RUN_COMPLETED: Final = "agent.run_completed.v1"
 CHANGE_REQUESTED: Final = "change_request.raised.v1"  # §13 / D12: a buyer change for the salesperson
 CHANGE_REQUEST_CLOSED: Final = "change_request.closed.v1"  # resolved (new version) or declined
 DEAL_ASSIGNED: Final = "deal.assigned.v1"  # §9 assignment, reassignment, MD takeover and hand-back
+DEAL_WON: Final = "deal.won.v1"  # §17 "Payment recorded / WON": manager + MD notified, buyer thanked
 
 
 class Event(BaseModel):

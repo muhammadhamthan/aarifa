@@ -103,6 +103,7 @@ async def _received(
     media: tuple[str, ...],
     at: datetime,
     provider_message_id: str,
+    opted_out: bool = False,
 ) -> None:
     await emit(
         s,
@@ -117,6 +118,7 @@ async def _received(
             media_s3_keys=media,
             received_at=at,
             provider_message_id=provider_message_id,
+            opted_out=opted_out,
         ),
     )
 
@@ -149,7 +151,8 @@ async def record_whatsapp(
         )
         if stored is None:
             continue
-        if m.kind == "text" and m.text.strip().casefold() in opt_out_keywords:
+        opted_out = m.kind == "text" and m.text.strip().casefold() in opt_out_keywords
+        if opted_out:  # §8: opt-out words stop all messages at once (one confirmation follows, §17)
             await suppress(s, "whatsapp", recipient_hash("whatsapp", m.from_e164), "stop_keyword")
         if m.media is not None:
             media_pending.append(stored.id)
@@ -163,6 +166,7 @@ async def record_whatsapp(
                 media=(),
                 at=m.received_at,
                 provider_message_id=m.message_id,
+                opted_out=opted_out,
             )
     for st in hook.statuses:
         if st.status != "deleted" and await first_receipt(s, wa.PROVIDER, f"{st.message_id}:{st.status}"):

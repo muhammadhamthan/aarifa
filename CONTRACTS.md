@@ -83,6 +83,8 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 **AI behaviour (WP10):** `QuoteView.delivery_time_text` / `incoterm` let the AI confirm the agreed terms back (§14.2); the agreed total (CRM price × agreed quantity) is the only new amount it may state.
 
+**Notifications (WP12):** event `deal.won.v1` (`DealWon`); `NegotiationPaused.notify` (the manager; `alert` is the salesperson); `OrderStatusChanged.notify_buyer` + buyer address (setting `notifications.order_status_to_buyer`); `MessageReceived.opted_out` (automation sends the single `opt_out_confirmation` template the suppression lets through).
+
 ## 4. Code standards
 
 - Python 3.14, `from __future__ import annotations`, full type hints, `mypy --strict` clean, `ruff` clean (config in root `pyproject.toml`).

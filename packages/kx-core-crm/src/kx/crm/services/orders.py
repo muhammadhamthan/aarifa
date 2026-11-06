@@ -22,11 +22,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from kx.core import events as ev
 from kx.core.contracts import DealStage
 from kx.core.errors import Conflict, NotFound, RuleViolation
-from kx.core.event_payloads import OrderStatusChanged
+from kx.core.event_payloads import DealWon, OrderStatusChanged
 from kx.core.identity import new_id
 from kx.crm.deps import CrmDeps
-from kx.crm.models import Order, OrderStatusHistory, Payment, StockItem, StockMovement
+from kx.crm.models import Contact, Deal, Order, OrderStatusHistory, Payment, StockItem, StockMovement
 from kx.crm.services import deals as deal_svc
+from kx.crm.services import staff
+from kx.crm.services.grants import recipient
 from kx.crm.services.journal import Actor, Emit, Timeline, record
 from kx.crm.services.quotes import ISSUED, latest_version
 
@@ -130,6 +132,7 @@ async def mark_won(
         production_started_on=now.date(),
         expected_reorder_date=expected_reorder_date,
     )
+    await _announce_won(session, deal, actor)
     session.add(order)
     await session.flush()
     await _order_changed(
@@ -140,6 +143,7 @@ async def mark_won(
         day=now.date(),
         actor=actor,
         note="order created",
+        buyer_update=(await deps.settings.get(session)).order_status_to_buyer,
     )
     return order
 
@@ -175,6 +179,7 @@ async def update_order_status(
         day=day,
         actor=actor,
         note=tracking_ref or "",
+        buyer_update=(await deps.settings.get(session)).order_status_to_buyer,
     )
     return order
 
@@ -188,7 +193,12 @@ async def _order_changed(
     day: date,
     actor: Actor,
     note: str,
+    buyer_update: bool = False,
 ) -> None:
+    """Order status history, timeline and ORDER_STATUS_CHANGED; with `buyer_update` (the client's choice,
+    §15.3) the event carries the buyer's WhatsApp so automation can send the update (§17)."""
+    contact = await session.get(Contact, contact_id) if buyer_update else None
+    phone = (contact.whatsapp_e164 or contact.phone_e164) if contact else None
     session.add(
         OrderStatusHistory(
             order_id=order.id, status=status, on_date=day, by_user=actor.user_id, source=order.source
@@ -214,7 +224,16 @@ async def _order_changed(
             "order",
             order.id,
             OrderStatusChanged(
-                order_ref=order.id, deal_ref=order.deal_id, contact_ref=contact_id, status=status, note=note
+                order_ref=order.id,
+                deal_ref=order.deal_id,
+                contact_ref=contact_id,
+                status=status,
+                note=note,
+                notify_buyer=phone is not None,
+                buyer_address=phone,
+                order_number=order.number,
+                language=contact.language if contact else None,
+                buyer_timezone=contact.timezone if contact else None,
             ),
         ),
     )
@@ -294,3 +313,39 @@ async def set_stock(
     if delta:
         await move_stock(session, item.id, delta, "adjust", actor, note="stock table update")
     return item
+
+
+async def _announce_won(session: AsyncSession, deal: Deal, actor: Actor) -> None:
+    """§17 "Payment recorded / WON": the manager and the MD are notified; the buyer is thanked."""
+    contact = await deal_svc.contact_of(session, deal)
+    owner = await staff.owner_of(session, deal)
+    notify = tuple(
+        {
+            u.id: staff.staff_contact(u)
+            for u in (await staff.manager_user(session), await staff.md_user(session))
+        }.values()
+    )
+    channel, address = recipient(contact)
+    await record(
+        session,
+        actor,
+        "deal.won_announced",
+        "deal",
+        deal.id,
+        emit=Emit(
+            ev.DEAL_WON,
+            "deal",
+            deal.id,
+            DealWon(
+                deal_ref=deal.id,
+                deal_number=deal.number,
+                contact_ref=contact.id,
+                notify=notify,
+                salesperson_name=owner.full_name if owner else None,
+                buyer_channel=channel,
+                buyer_address=address,
+                language=contact.language,
+                buyer_timezone=contact.timezone,
+            ),
+        ),
+    )

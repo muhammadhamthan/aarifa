@@ -429,22 +429,24 @@ async def pause_ai(
     actor: Actor,
     task_payload: dict[str, str | None] | None = None,
 ) -> None:
-    """Stop the AI on this deal and alert manager + MD with the 60-minute promise made to the buyer."""
+    """Stop the AI on this deal: the buyer was promised an answer within 60 minutes (§12.2 rule 4), so
+    the salesperson is alerted at once and the manager notified (§17, D3); the task goes to their inbox."""
     now = deps.now()
     s = await deps.settings.get(session)
-    manager, md = await staff.manager_for(session, deal), await staff.md_user(session)
+    owner, manager = await staff.approver_for(session, deal), await staff.manager_user(session)
     respond_by = now + timedelta(minutes=s.below_range_reply_minutes)
     deal.ai_enabled, deal.ai_paused_reason, deal.ai_paused_at = False, reason, now
     session.add(
         Task(
             deal_id=deal.id,
             kind="below_range_review",
-            assigned_user_id=manager.id,
+            assigned_user_id=owner.id,
             due_at=respond_by,
             payload={"reason": event_reason, **(task_payload or {})},
         )
     )
-    alert = tuple(staff.staff_contact(u) for u in {manager.id: manager, md.id: md}.values())
+    alert = (staff.staff_contact(owner),)
+    notify = () if manager.id == owner.id else (staff.staff_contact(manager),)
     await session.flush()
     await record(
         session,
@@ -469,6 +471,7 @@ async def pause_ai(
                 reason=event_reason,
                 alert=alert,
                 respond_by=respond_by,
+                notify=notify,
             ),
         ),
     )

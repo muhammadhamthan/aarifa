@@ -147,3 +147,58 @@ async def test_a_reply_stops_the_lost_proposal(databases: Databases, deps: CrmDe
 async def _proposals(s: Any, deal_id: uuid.UUID) -> list[m.Task]:
     rows = await s.execute(select(m.Task).where(m.Task.deal_id == deal_id, m.Task.kind == "lost_proposal"))
     return list(rows.scalars())
+
+
+# ---------------------------------------------------------------- WP12: §17 rows emitted by the CRM
+async def test_won_notifies_manager_and_md_and_thanks_the_buyer(databases: Databases, deps: CrmDeps) -> None:
+    from conftest import set_setting
+
+    deal_id = await agreed_deal(databases, deps)
+    await set_setting(databases, "notifications.order_status_to_buyer", True)
+    try:
+        async with databases.transaction(CRM) as s:
+            await orders.record_payment(
+                s, deps, deal_id, Actor.user(SARA), amount=D(100), currency="AED", method="cash"
+            )
+            await orders.mark_won(
+                s,
+                deps,
+                deal_id,
+                Actor.user(SARA),
+                expected_reorder_date=deps.now().date() + timedelta(days=30),
+            )
+    finally:
+        await set_setting(databases, "notifications.order_status_to_buyer", False)
+    (won,) = await outbox(databases, ev.DEAL_WON, deal_id)
+    assert {n["name"] for n in won["notify"]} == {"The Manager", "The MD"}
+    assert (won["salesperson_name"], won["buyer_channel"]) == ("Sara", "whatsapp") and won["buyer_address"]
+    (created,) = await outbox(databases, ev.ORDER_STATUS_CHANGED, deal_id)
+    assert created["notify_buyer"] is True and created["order_number"].startswith("O-")
+
+
+async def test_opt_out_pauses_the_deal_for_the_salesperson(databases: Databases, deps: CrmDeps) -> None:
+    from kx.core.event_payloads import MessageReceived, make_event
+    from kx.crm.jobs import HANDLERS, CrmRuntime, dispatch
+
+    deal_id = await sara_deal(databases, deps)
+    msg = MessageReceived(
+        message_ref=uuid.uuid4(),
+        thread_ref=uuid.uuid4(),
+        channel="whatsapp",
+        from_address_hash="h" * 64,
+        contact_ref=None,
+        deal_ref=deal_id,
+        text="STOP",
+        received_at=datetime.now(UTC),
+        provider_message_id="wamid.x",
+        opted_out=True,
+    )
+
+    async def _noop(_: object) -> None:
+        return None
+
+    event = make_event(ev.MESSAGE_RECEIVED, "x", uuid.uuid4(), msg)
+    await dispatch(CrmRuntime(databases, deps, publish=_noop), event, HANDLERS[ev.MESSAGE_RECEIVED])
+    async with databases.transaction(CRM) as s:
+        deal = await deals.get_deal(s, deal_id)
+        assert (deal.ai_enabled, deal.ai_paused_reason) == (False, "opt_out")

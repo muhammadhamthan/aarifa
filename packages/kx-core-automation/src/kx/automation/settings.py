@@ -65,6 +65,10 @@ class AlertSettings(_Group):
     negotiation_paused_template: str = "negotiation_paused"
     notice_template: str = "staff_notice"  # one-line notices (manager notified, takeover, handover ...)
     final_quote_template: str = "final_quote_alert"  # §14.5: the salesperson takes over for payment
+    # buyer-facing §17 templates (approved WhatsApp templates; outside the 24 h window only these may go)
+    thank_you_template: str = "thank_you"  # WON
+    order_update_template: str = "order_update"  # order status (client choice)
+    opt_out_confirmation_template: str = "opt_out_confirmation"  # the one message after STOP
 
 
 class FollowUpSettings(_Group):

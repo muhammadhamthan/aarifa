@@ -114,6 +114,23 @@ async def on_message_received(session: AsyncSession, deps: CrmDeps, event: Event
     if deal is None:
         log.info("crm.message_received.unmatched", message_ref=str(m.message_ref))
         return
+    if m.opted_out and deal.ai_enabled:  # §8: opt-out stops all messages; §17: the salesperson sees it
+        deal.ai_enabled, deal.ai_paused_reason, deal.ai_paused_at = False, "opt_out", deps.now()
+        await session.flush()
+        await record(
+            session,
+            Actor.system("inbound"),
+            "deal.opted_out",
+            "deal",
+            deal.id,
+            after={"ai_paused_reason": "opt_out"},
+            timeline=Timeline(
+                "opt_out",
+                "Buyer opted out: no more messages on any channel",
+                deal.id,
+                deal.primary_contact_id,
+            ),
+        )
     await record(
         session,
         Actor.system("inbound"),

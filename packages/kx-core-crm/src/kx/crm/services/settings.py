@@ -95,6 +95,7 @@ class BusinessSettings(BaseModel):
     feature_scraping: bool = _alias("features.scraping", False)  # D14 (v2)
     feature_delivery_calc: bool = _alias("features.delivery_calc", False)  # D14 (v2)
     feature_news_digest: bool = _alias("features.news_digest", False)  # D14 (v2)
+    order_status_to_buyer: bool = _alias("notifications.order_status_to_buyer", False)  # §15.3 client choice
     flags: dict[str, bool] = Field(default_factory=dict)
 
     @model_validator(mode="after")

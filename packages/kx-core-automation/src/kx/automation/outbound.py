@@ -153,6 +153,14 @@ class OutboundService:
         self._recipient_bucket = Bucket(rl.recipient_capacity, rl.recipient_refill_per_minute)
         self._channel_bucket = Bucket(rl.channel_capacity, rl.channel_refill_per_minute)
 
+    def _opt_out_confirmation(self, request: OutboundRequest) -> bool:
+        """§17 "Buyer opts out -> Confirmation": the single message allowed after STOP (approved template)."""
+        return (
+            request.kind is OutboundKind.NOTIFICATION
+            and request.template_name == self._settings.alerts.opt_out_confirmation_template
+            and request.idempotency_key.startswith("opt-out:")
+        )
+
     # ============================================================ send
     async def send(self, request: OutboundRequest) -> uuid.UUID:
         if (existing := await self._existing(request.idempotency_key)) is not None:
@@ -277,7 +285,7 @@ class OutboundService:
     ) -> str | None:
         if p.text is None and request.media_s3_key is None:
             raise RuleViolation("message has no content", reason="empty")
-        if await is_suppressed(s, request.channel, p.rhash):
+        if await is_suppressed(s, request.channel, p.rhash) and not self._opt_out_confirmation(request):
             return "opt_out"
         if request.channel == "whatsapp" and template is None and not self._session_open(thread):
             return "window_closed"

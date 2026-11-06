@@ -295,15 +295,14 @@ async def test_happy_path_new_to_needs_manager(
         p.amount for p in (await gw.deal_context(deal_id)).allowed_prices
     }
 
-    # ---- below the floor: AI pauses, manager + MD alerted with the 60-minute promise
+    # ---- below the floor: AI pauses, the salesperson alerted and the manager notified (60-minute promise)
     before = datetime.now(UTC)
     v4 = await gw.evaluate_counter(deal_id, D("0.20"), D(80_000), "whatsapp")
     assert v4.kind is CounterVerdictKind.NEEDS_MANAGER and v4.offer_unit_price is None
     paused = (await outbox(databases, ev.NEGOTIATION_PAUSED, deal_id))[-1]
-    assert paused["reason"] == "below_range" and {a["name"] for a in paused["alert"]} == {
-        "The Manager",
-        "The MD",
-    }
+    # §17 / D3: the salesperson is alerted at once, the manager notified
+    assert paused["reason"] == "below_range" and {a["name"] for a in paused["alert"]} == {"Sara"}
+    assert {n["name"] for n in paused["notify"]} == {"The Manager"}
     assert paused["deal_number"] == ctx.number
     respond_by = datetime.fromisoformat(paused["respond_by"])
     assert timedelta(minutes=59) < respond_by - before < timedelta(minutes=61)

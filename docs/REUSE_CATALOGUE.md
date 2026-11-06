@@ -14,7 +14,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Priced-content hash | `kx.core.identity.priced_content_sha256(body, pdf_sha)` | CRM issues, automation verifies — one function |
 | Business hours / paused timers | `kx.core.timewindow.Window`: `contains`, `next_open`, `add_open_minutes` | 2 h approval timer pauses overnight |
 | Events | `kx.core.events`: `Event`, `Outbox.add`, `relay_once`, `inbox_once`, `InMemoryBus`, event names | outbox in same transaction |
-| Typed event payloads | `kx.core.event_payloads`: `make_event`, `parse_payload`, 22 payload models (incl. `ChangeRequested`, `ChangeRequestClosed`, `DealAssigned`) | |
+| Typed event payloads | `kx.core.event_payloads`: `make_event`, `parse_payload`, 23 payload models (incl. `ChangeRequested`, `ChangeRequestClosed`, `DealAssigned`, `DealWon`) | |
 | HTTP errors | `kx.core.errors`: `NotFound`, `Conflict`, `Forbidden`, `Unauthorized`, `RuleViolation`, `install_problem_handlers` | RFC 9457 |
 | Auth | `kx.core.auth`: `current_principal`, `require_role`, `require_human_mfa`, `Role` | approvals need MFA |
 | Logging | `kx.core.logging`: `get_logger`, `configure_logging`, `mask_pii` | PII masked automatically |
@@ -66,6 +66,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Staff alert calls (Twilio) | `kx.automation.channels.voice_ivr.TwilioCaller`, `kx.automation.alerts.VoiceAlerts`, `PauseAlerts` |
 | §16 reminder ladder (approvals and change requests) | `kx.automation.alerts.ApprovalLadder` over `LadderTicket.for_approval` / `.for_change` |
 | Staff notices (§17 "notified", alert hours) | `kx.automation.alerts.notify_staff` |
+| §17 notifications matrix (event → recipients) | `kx.automation.handlers.EventHandlers.registry()`; table test `kx-core-automation/tests/test_notifications_matrix_db.py` |
 | Webhooks router | `kx.automation.webhooks.build_router(WebhookDeps)` |
 | Jobs | `kx.automation.jobs.build_jobs(scraping=...)` (scraper scheduled only with `features.scraping`, D14), `AutomationRuntime`, `ProcrastinateScheduler` |
 | Kill switch / rate limits | `kx.automation.killswitch.KillSwitch`, `kx.automation.ratelimit.TokenBucketLimiter` |

@@ -59,8 +59,9 @@ class NegotiationPaused(EventPayload):
     deal_ref: uuid.UUID
     deal_number: str = ""  # spoken in the alert call ("deal D-2026-0042")
     reason: Literal["below_range", "concessions_exhausted", "exception", "manual"]
-    alert: tuple[StaffContact, ...]
+    alert: tuple[StaffContact, ...]  # §17: the salesperson, alerted at once (WhatsApp + call)
     respond_by: datetime
+    notify: tuple[StaffContact, ...] = ()  # §17: the manager, notified (WhatsApp)
 
 
 class QuoteSubmitted(EventPayload):
@@ -190,6 +191,7 @@ class MessageReceived(EventPayload):
     media_s3_keys: tuple[str, ...] = ()
     received_at: datetime
     provider_message_id: str
+    opted_out: bool = False  # §8 / §17: STOP, unsubscribe, إيقاف ... (the address is already suppressed)
 
 
 class MessageStatus(EventPayload):
@@ -225,6 +227,26 @@ class OrderStatusChanged(EventPayload):
     contact_ref: uuid.UUID
     status: str
     note: str = ""
+    # §15.3 / §17: the optional buyer WhatsApp update (client choice: notifications.order_status_to_buyer)
+    notify_buyer: bool = False
+    buyer_address: str | None = None
+    order_number: str = ""
+    language: str | None = None
+    buyer_timezone: str | None = None
+
+
+class DealWon(EventPayload):
+    """§17 "Payment recorded / WON": manager and MD notified; the buyer gets a thank-you message."""
+
+    deal_ref: uuid.UUID
+    deal_number: str
+    contact_ref: uuid.UUID
+    notify: tuple[StaffContact, ...]
+    salesperson_name: str | None = None
+    buyer_channel: Literal["whatsapp", "email"] | None = None
+    buyer_address: str | None = None
+    language: str | None = None
+    buyer_timezone: str | None = None
 
 
 class ContactAnonymised(EventPayload):
@@ -282,6 +304,7 @@ PAYLOADS: dict[str, type[EventPayload]] = {
     ev.CHANGE_REQUESTED: ChangeRequested,
     ev.CHANGE_REQUEST_CLOSED: ChangeRequestClosed,
     ev.DEAL_ASSIGNED: DealAssigned,
+    ev.DEAL_WON: DealWon,
 }
 
 

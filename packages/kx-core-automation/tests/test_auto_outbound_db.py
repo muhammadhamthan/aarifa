@@ -355,3 +355,27 @@ async def test_window_rechecked_at_delivery(env: Env) -> None:
     env.clock.now += timedelta(hours=30)
     await env.service.deliver(message_id)
     assert (await env.rows())[0].block_reason == "window_closed"
+
+
+async def test_opt_out_confirmation_is_the_one_message_after_stop(env: Env) -> None:
+    """§17 "Buyer opts out -> Confirmation": everything else stays blocked by the suppression."""
+    await open_session(env)
+    await env.sql(
+        "INSERT INTO message_templates (channel, name, language, category, provider_status, body) "
+        "VALUES ('whatsapp', 'opt_out_confirmation', 'en', 'utility', 'approved', 'You will not receive more messages.')"
+    )
+    await env.sql(
+        "INSERT INTO suppressions VALUES ('whatsapp', :h, 'stop_keyword', now())",
+        h=recipient_hash("whatsapp", BUYER),
+    )
+    with pytest.raises(RuleViolation) as info:
+        await env.service.send(req())
+    assert info.value.extra["reason"] == "opt_out"
+    confirm = req(
+        OutboundKind.NOTIFICATION, key="opt-out:abc", body=None, template_name="opt_out_confirmation"
+    )
+    assert await env.service.send(confirm)
+    with pytest.raises(RuleViolation):  # the template alone does not open the door
+        await env.service.send(
+            req(OutboundKind.NOTIFICATION, body=None, template_name="opt_out_confirmation")
+        )

@@ -28,7 +28,10 @@ from kx.core.event_payloads import (
     ContactAnonymised,
     DealAssigned,
     DealNextActionSet,
+    DealWon,
+    MessageReceived,
     NegotiationPaused,
+    OrderStatusChanged,
     QuoteApproved,
     QuoteSubmitted,
     parse_payload,
@@ -126,6 +129,9 @@ class EventHandlers:
             ev.NEGOTIATION_PAUSED: ("automation.negotiation_paused", self._negotiation_paused),
             ev.CONTACT_ANONYMISED: ("automation.anonymise_contact", self._contact_anonymised),
             ev.DEAL_ASSIGNED: ("automation.deal_assigned", self._deal_assigned),
+            ev.DEAL_WON: ("automation.deal_won", self._deal_won),
+            ev.ORDER_STATUS_CHANGED: ("automation.order_update", self._order_status_changed),
+            ev.MESSAGE_RECEIVED: ("automation.opt_out_confirmation", self._message_received),
         }
 
     async def dispatch(self, event: Event) -> bool:
@@ -219,14 +225,94 @@ class EventHandlers:
             "hand_back": f"Deal {p.deal_number} was handed back to {p.assigned_to.name}",
             "reassigned": f"Deal {p.deal_number} was reassigned to {p.assigned_to.name}",
         }.get(p.reason, f"New deal {p.deal_number} assigned to you")
+        # §17 "MD takes over": the salesperson and the manager are told; the MD did it, so not the MD
+        to = p.notify if p.reason == "takeover" else (p.assigned_to, *p.notify)
         await notify_staff(
             self.sender,
-            (p.assigned_to, *p.notify),
+            to,
             self.settings.alerts.notice_template,
             (text,),
             key=f"assigned:{event.event_id}",
             deal_ref=p.deal_ref,
             not_before=self.settings.alert_window.next_open(self.clock()),
+        )
+
+    async def _deal_won(self, _: AsyncSession, event: Event) -> None:
+        """§17 "Payment recorded / WON": manager + MD notified, the buyer gets the thank-you message."""
+        p = parse_payload(event, DealWon)
+        await notify_staff(
+            self.sender,
+            p.notify,
+            self.settings.alerts.notice_template,
+            (
+                f"Deal {p.deal_number} is WON"
+                + (f" by {p.salesperson_name}" if p.salesperson_name else "")
+                + ".",
+            ),
+            key=f"won:{event.event_id}",
+            deal_ref=p.deal_ref,
+            not_before=self.settings.alert_window.next_open(self.clock()),
+        )
+        if p.buyer_channel is not None and p.buyer_address is not None:
+            await _send_or_skip(
+                self.sender,
+                OutboundRequest(
+                    channel=p.buyer_channel,
+                    to_address=p.buyer_address,
+                    kind=OutboundKind.NOTIFICATION,
+                    template_name=self.settings.alerts.thank_you_template,
+                    template_params=(p.salesperson_name or "",),
+                    deal_ref=p.deal_ref,
+                    contact_ref=p.contact_ref,
+                    buyer_timezone=p.buyer_timezone,
+                    language=p.language,
+                    requested_by="system:deal_won",
+                    idempotency_key=f"won-thanks:{p.deal_ref}",
+                ),
+            )
+
+    async def _order_status_changed(self, _: AsyncSession, event: Event) -> None:
+        """§17 "Order status changed -> Buyer: optional WhatsApp" (the CRM sets `notify_buyer`)."""
+        p = parse_payload(event, OrderStatusChanged)
+        if not p.notify_buyer or p.buyer_address is None:
+            return
+        await _send_or_skip(
+            self.sender,
+            OutboundRequest(
+                channel="whatsapp",
+                to_address=p.buyer_address,
+                kind=OutboundKind.ORDER_UPDATE,
+                template_name=self.settings.alerts.order_update_template,
+                template_params=(p.order_number, p.status.replace("_", " ")),
+                deal_ref=p.deal_ref,
+                contact_ref=p.contact_ref,
+                buyer_timezone=p.buyer_timezone,
+                language=p.language,
+                requested_by="system:order_update",
+                idempotency_key=f"order:{p.order_ref}:{p.status}",
+            ),
+        )
+
+    async def _message_received(self, s: AsyncSession, event: Event) -> None:
+        """§17 "Buyer opts out -> Confirmation": one confirmation on the thread the buyer wrote on."""
+        p = parse_payload(event, MessageReceived)
+        if not p.opted_out:
+            return
+        thread = await s.get(Thread, p.thread_ref)
+        if thread is None:
+            return
+        await _send_or_skip(
+            self.sender,
+            OutboundRequest(
+                channel="whatsapp",
+                to_address=thread.external_key,
+                kind=OutboundKind.NOTIFICATION,
+                template_name=self.settings.alerts.opt_out_confirmation_template,
+                deal_ref=p.deal_ref,
+                contact_ref=p.contact_ref,
+                requested_by="system:opt_out",
+                idempotency_key=f"opt-out:{p.from_address_hash}",
+            ),
         )
 
     async def _contact_anonymised(self, s: AsyncSession, event: Event) -> None:

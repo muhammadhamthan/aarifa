@@ -338,7 +338,17 @@ class PauseAlerts:
         self._sender = sender
 
     async def alert(self, paused: NegotiationPaused) -> None:
+        """§17 "Buyer pushes below the minimum": the salesperson is alerted at once (WhatsApp + call), the
+        manager is notified (WhatsApp)."""
         respond_by = paused.respond_by.astimezone(ZoneInfo(self._settings.alerts.timezone)).strftime("%H:%M")
+        await notify_staff(
+            self._sender,
+            paused.notify,
+            self._settings.alerts.negotiation_paused_template,
+            (respond_by,),
+            key=f"paused:{paused.deal_ref}:{_stamp(paused.respond_by)}:notify",
+            deal_ref=paused.deal_ref,
+        )
         for contact in paused.alert:
             await _notify(
                 self._sender,
