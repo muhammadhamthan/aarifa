@@ -40,7 +40,7 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 ## 3. Hard rules (business safety): 5 Nov flow, see docs/BUSINESS_FLOW_V1.md
 
-**Status:** the code still implements the 4 Nov rules (MD approvals, cost-based pricing). `docs/V1_CHANGE_PLAN.md` lists the changes needed to reach these rules.
+**Status (6 Nov):** the code implements these rules (`docs/V1_CHANGE_PLAN.md` WP1–WP12 done). The 4 Nov cost-based pricing remains as v2 behind `pricing.mode='cost'`.
 
 - **Nothing reaching the AI may contain cost, markup, the minimum price, the ladder steps or other customers' data.** `kx.core.contracts` DTOs are the only shapes agents see.
 - **Priced messages** (`PRICED_KINDS`) leave only via `MessageSender.send`, which must call `GrantConsumer.consume_grant(...)` first; `False` means do not send. The recipient comes from the contact record, never from the AI.

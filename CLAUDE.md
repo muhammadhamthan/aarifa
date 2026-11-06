@@ -4,7 +4,7 @@ Kairox platform: a reusable B2B sales system (CRM + automation + AI agents). The
 
 ## Read first (in this order, only what the task needs)
 
-1. `docs/V1_CHANGE_PLAN.md`: **the current work list.** The code still follows the 4 Nov rules; update it to the 5 Nov flow.
+1. `docs/V1_CHANGE_PLAN.md`: the 5 Nov work list (WP1–WP12, **done** 6 Nov; log in `docs/V1_PROGRESS.md`, open decisions in `docs/OPEN_QUESTIONS.md`).
 2. `docs/BUSINESS_FLOW_V1.md`: the business rules (SRS source). Quote its § numbers in commits.
 3. `CONTRACTS.md`: package boundaries, shared helpers, hard safety rules.
 4. `docs/REUSE_CATALOGUE.md`: where each capability lives. Import, never rewrite.

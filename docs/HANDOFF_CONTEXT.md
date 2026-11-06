@@ -64,7 +64,7 @@ Two client projects on ONE shared, Kairox-owned platform (client gets a licence;
   - backend starts 16 Nov on the shared packages.
 - **Deployment model:** single-tenant, a separate AWS account per company, with Pack and Auto data fully separate. A new client = a copy of the app folder plus config; no platform changes.
 
-## 2. Status on 5 Nov 2026 (platform v1 code delivered)
+## 2. Status on 6 Nov 2026 (platform v1 code follows the 5 Nov flow)
 The platform code is built, connected and tested. It is in `kairox-platform-v1.zip`, a uv workspace on Python 3.14 that includes the git history.
 
 | Part | Package | Tests |
@@ -77,7 +77,7 @@ The platform code is built, connected and tested. It is in `kairox-platform-v1.z
 | Infra: 13 Terraform modules, 3 envs, region-lock SCP, bootstrap, DB bootstrap script, Dockerfile, compose, CI/deploy workflows | infra/, .github/ | linters only |
 | DB design: DDL for 3 DBs + 21 SQL rule tests | db/ | T1–T21 pass |
 
-- **Results:** 309 tests pass, 0 skipped. All DB tests ran on real Postgres 16 + pgvector.
+- **Results (6 Nov, 5 Nov flow):** 502 tests pass, 0 skipped (309 on 4 Nov). All DB tests ran on real Postgres 18 + pgvector. WP1–WP12 of `docs/V1_CHANGE_PLAN.md` are done; see `docs/V1_PROGRESS.md` and `docs/OPEN_QUESTIONS.md`.
 - **Quality gates, all clean:** ruff, ruff format, mypy --strict (113 files), import-linter (3/3 contracts).
 - **Size:** about 16k lines of Python excluding tests, 288 tracked files.
 - **Docs in the repo:**

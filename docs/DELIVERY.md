@@ -1,17 +1,28 @@
 # Delivery — Kairox platform v1 (Arifaa Pack)
 
-> **Update 5 Nov 2026.** Everything below describes the code as delivered on 4 Nov (309 tests). The business flow changed on 5 Nov:
-> - the salesperson approves quotes;
-> - pricing comes from a manual price list;
-> - change requests go to the salesperson;
-> - delivery calculation and scraping move to v2.
+> **Update 6 Nov 2026: the code now follows the 5 Nov business flow** (`docs/BUSINESS_FLOW_V1.md`). All twelve work
+> packages of `docs/V1_CHANGE_PLAN.md` are done (one commit each, `WP1` ... `WP12`), plus end-to-end tests of the ten
+> §23 scenarios. **502 tests pass, 0 skipped** (309 before), `make lint` clean. Decisions and gaps for the client or
+> the lead: `docs/OPEN_QUESTIONS.md`. Work log with tests per WP and benchmarks: `docs/V1_PROGRESS.md`.
 >
-> The code changes are planned in `docs/V1_CHANGE_PLAN.md` (WP1–WP12), and the rules are in `docs/BUSINESS_FLOW_V1.md`. The DDL v1.1 items below are now part of WP1. The client questions are in the *v1 Questions for the Client* Claude Doc (https://claude.ai/artifact/K4UAEoFYiNdcVCDGzTkJdj). The ★ items block development:
-> - the salesperson list;
-> - the product Excel with tier prices and minimums;
-> - a sample quote and payment terms;
-> - website content and media;
-> - the WhatsApp number(s) per region and the email domain.
+> | WP | What changed |
+> |---|---|
+> | 1 | Alembic `*_0002` per DB (+ `crm_0003`-`0008` later): salesperson/special-price approvals, price-list tiers (no-overlap constraint), change requests, assignment fields, takeover, handover, quote delivery/terms/FX, re-order date, indexed contact hashes, regional WhatsApp accounts, v1 settings. Test DBs are built through the migrations. |
+> | 2 | Price-list pricing (`kx.crm.pricing.price_list`, `ladder_between`, `evaluate_ladder_counter`): list price per tier, minimum (tier or category %), FX at the printed rate, VAT 5 % / 0 %, 3-step ladder, §12.2 rules 1-5; cost pricing kept for v2 (`pricing.mode='cost'`). |
+> | 3 | The deal's salesperson approves every version; the manager any deal; the MD only on takeover (owner read-only); manager-only special price below the minimum; escalation to the manager at 120 alert-hour minutes. |
+> | 4 | Change requests end to end (CRM card + inbox API, AI tool and deal-graph path, fixed "within 4 working hours" reply, §16 reminder ladder for approvals and cards). |
+> | 5 | Round-robin assignment with language/country/category rules, away + backup, returning customer, reassign, MD takeover / hand-back; pending items follow the person responsible. |
+> | 6 | Regional WhatsApp number by thread / country / default; message signed by the salesperson with the AI's "open to discuss" line (message only); PDF shows delivery time, Incoterm + place, payment terms, FX line, salesperson (EN/AR RTL). |
+> | 7 | Final approval: final quote sent, salesperson alerted, manager notified, AI off (`handover`); after-hours buyer messages get only the fixed acknowledgement. |
+> | 8 | Advance → PAYMENT; WON needs the advance and the expected re-order date; §15 LOST reasons; daily LOST proposal task after silence (never automatic). |
+> | 9 | v2 off by flags, code kept: scraper not scheduled, no staleness block in price-list mode, delivery answer = product default, repeat-sales agent disabled. |
+> | 10 | Prompts/policy per §12.2/§13/§18, fixed phrases, agreement confirms the terms, router sends change and payment topics to the deal graph; evals = §23 scenarios 1-10 + trick prompts. |
+> | 11 | Screens API: inbox, price-list CRUD (audited), Excel import (validated, all-or-nothing) / export, stock table, settings for the manager; unpriceable quotes → Pricing-needed task; manual quote for custom items. |
+> | 12 | §17 matrix: every row mapped to an event and a handler, table-driven test. |
+>
+> **Not verified live (needs real accounts / the client):** Meta WhatsApp templates (all §17 names in `AutomationSettings.alerts` must be approved, EN/AR), SES sending, Twilio alert calls, Bedrock/Anthropic models with the new prompts (evals ran on the scripted model only), the WeasyPrint PDF layout with the client's letterhead, the Excel template with the client's real price list, the regional numbers list, staff alert-channel preferences, Terraform/ECS deploy of the new revisions. The buyer's Requirement Summary PDF (§6.5, §17 row 1) is **not built**.
+>
+> The 4 Nov description below is kept for history (counts and rules there are the 4 Nov ones).
 
 Date: 4 Nov 2026. Repo: `kairox-platform` (uv workspace, Python 3.14). Git history included.
 

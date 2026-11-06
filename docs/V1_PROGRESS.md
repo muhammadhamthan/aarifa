@@ -228,3 +228,40 @@ alert split, the opt-out confirmation (automation), the opt-out bypass on the re
 tests (WON event recipients + order-update flag; opt-out pauses the deal). The 4 Nov assertion "manager + MD
 alerted on a pause" now reads "salesperson alerted, manager notified". New revision `crm_0007`
 (`notifications.order_status_to_buyer`). Totals: 461 passed.
+
+
+## Extra testing (after WP12)
+
+* **§23 scenarios 1–10, end to end** (`tests/scenarios/test_scenarios_v1.py`): real CRM and automation on Postgres,
+  the real router and graphs with the scripted fake model, the CRM outbox relayed to the real automation handlers and
+  §16 ladder, and a sender that consumes each quote's single-use grant like `OutboundService`. Each test checks the
+  stage history, who was alerted or notified, which versions were approved and sent, and runs `check_prices` on
+  every AI reply against the deal's `allowed_prices`.
+* **§17 matrix**, table-driven: `packages/kx-core-automation/tests/test_notifications_matrix_db.py` (11 rows + pause
+  split + opt-out confirmation).
+* **Safety** (`tests/scenarios/test_safety_v1.py`): the minimum, cost and un-offered steps never in the AI context
+  and blocked if said (plus a hypothesis property); payment topics routed to a person in every open stage (24
+  cases) and turned into a payment change request; no approving another salesperson's deal; owner read-only during
+  an MD takeover; each grant single-use (and automation's send refused once used).
+* **Whole-app smoke test** (`tests/integration`): migrate twice, boot the API, fan out an event; now also asserts
+  the scraper is not scheduled and repeat sales is off.
+
+Bugs these tests found and fixed: `QuoteSubmitted.remind_at` was never filled (approvals skipped the 30/60-minute
+steps); follow-ups ignored the buyer country's weekend (`crm_0008`); no way to price a custom item by hand
+(`quotes.manual_quote`); "OK, confirmed" and post-quote change requests did not reach the deal graph (WP10).
+
+## Benchmarks (`make bench`, Linux container, 6 Nov)
+
+| Benchmark | Mean | Budget |
+|---|---|---|
+| `ladder_between` (lru-cached) | 0.10 µs | µs |
+| `resolve_tier` | 0.72 µs | µs |
+| `evaluate_ladder_counter` (with tier check) | 2.28 µs | µs |
+| `evaluate_counter` (v2) | 1.42 µs | µs |
+| `price_line` (v2) | 2.55 µs | µs |
+| price guard, 1000 messages | 5.95 ms | < 10 ms |
+
+## Totals
+
+502 passed, 0 skipped (309 before the work): CRM 110, automation 128, agents 64, root spec 131, scenarios + safety
+41, unit 14, DB 12, integration 2. `make lint`: ruff, ruff format, mypy --strict (133 files), import-linter 3/3.

@@ -3,8 +3,8 @@
 A reusable B2B sales platform (CRM + channel automation + AI agents) by Kairox AI Tech. First client: **Arifa Packing & Packaging LLC (Arifaa Pack)**, Ajman, UAE (food packaging: aluminium and plastic containers, cutlery, custom-branded packaging).
 
 **Status (5 Nov 2026):**
-- The platform code is built and tested: 309 tests, lint/type clean.
-- It implements the 4 Nov rules. The 5 Nov business flow changes approvals (salesperson), pricing (manual price list) and change requests.
+- The platform code is built and tested: 502 tests, lint/type clean (6 Nov 2026).
+- It implements the 5 Nov business flow (`docs/BUSINESS_FLOW_V1.md`): salesperson approvals, manual price list with a 3-step ladder, change requests, assignment, handover, §17 notifications. Open decisions: `docs/OPEN_QUESTIONS.md`.
 - The code update is planned in `docs/V1_CHANGE_PLAN.md` and has not started yet.
 
 | Read | For |
