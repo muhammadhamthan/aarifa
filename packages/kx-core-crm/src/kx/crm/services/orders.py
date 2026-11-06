@@ -16,6 +16,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Final
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kx.core import events as ev
@@ -258,4 +259,38 @@ async def move_stock(
         item.id,
         after={"delta": delta, "quantity": item.quantity, "reserved": item.reserved_quantity},
     )
+    return item
+
+
+async def set_stock(
+    session: AsyncSession,
+    *,
+    product_id: uuid.UUID | None = None,
+    material_code: str | None = None,
+    quantity: Decimal,
+    unit: str,
+    actor: Actor,
+) -> StockItem:
+    """§15.5 manual stock table: finished goods per product code or raw material, set by the manager;
+    salespersons see it when they set delivery times; the AI does not use it in v1."""
+    if (product_id is None) == (material_code is None):
+        raise RuleViolation("set stock for one product or one material")
+    if quantity < 0:
+        raise RuleViolation("stock cannot be negative")
+    cond = StockItem.product_id == product_id if product_id else StockItem.material_code == material_code
+    item = (await session.execute(select(StockItem).where(cond).with_for_update())).scalar_one_or_none()
+    if item is None:
+        item = StockItem(
+            item_type="finished" if product_id else "raw",
+            product_id=product_id,
+            material_code=material_code,
+            quantity=Decimal(0),
+            unit=unit,
+            updated_by=actor.user_id,
+        )
+        session.add(item)
+        await session.flush()
+    delta = quantity - item.quantity
+    if delta:
+        await move_stock(session, item.id, delta, "adjust", actor, note="stock table update")
     return item

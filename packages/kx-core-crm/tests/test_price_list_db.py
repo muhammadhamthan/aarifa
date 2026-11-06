@@ -129,10 +129,29 @@ async def test_no_staleness_block_in_price_list_mode(databases: Databases, deps:
 async def test_quotes_the_ai_may_not_price(
     databases: Databases, deps: CrmDeps, qty: int, spec: dict[str, object] | None, error: type[Exception]
 ) -> None:
+    """The pricing service refuses; the gateway turns it into work for the salesperson (§10, D8, D12)."""
+    from kx.crm.services.journal import Actor
+
     gw = CrmGatewayImpl(databases, deps)
     deal_id = await list_deal(gw, qty=qty, spec=spec)
     with pytest.raises(error):
-        await gw.request_quote(deal_id, AI)
+        async with databases.transaction(CRM) as s:
+            await quotes.request_quote(s, deps, deal_id, Actor.ai(AI))
+    await gw.request_quote(deal_id, AI)  # the AI is not told a price and gets no error
+    async with databases.transaction(CRM) as s:
+        assert await quotes.latest_version(s, deal_id) is None  # nothing priced by the system
+        if error is PricingNeeded:
+            (task,) = (
+                await s.execute(
+                    select(m.Task).where(m.Task.deal_id == deal_id, m.Task.kind == "pricing_needed")
+                )
+            ).scalars()
+            assert task.status == "open" and "printed" in task.payload["reason"]
+        else:
+            (cr,) = (
+                await s.execute(select(m.ChangeRequest).where(m.ChangeRequest.deal_id == deal_id))
+            ).scalars()
+            assert (cr.type, cr.fields[0]["requested"]) == ("quantity", "3,000 pcs")
 
 
 # ---------------------------------------------------------------- §12 negotiation on the ladder

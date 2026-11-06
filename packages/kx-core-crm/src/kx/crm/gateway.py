@@ -57,7 +57,14 @@ from kx.crm.services import approvals, assignment, change_requests, grants, nego
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.issuing import lines_of
 from kx.crm.services.journal import Actor
-from kx.crm.services.pricing import best_lane, build_delivery_estimate, current_costing, lead_time_text
+from kx.crm.services.pricing import (
+    PricingNeeded,
+    QuantityOutsideTiers,
+    best_lane,
+    build_delivery_estimate,
+    current_costing,
+    lead_time_text,
+)
 
 
 # ---------------------------------------------------------------- buyer-safe views (pure)
@@ -192,8 +199,27 @@ class CrmGatewayImpl:
             return result
 
     async def request_quote(self, deal_id: uuid.UUID, actor: AiRole) -> None:
-        async with self._tx() as s:
-            await quotes.request_quote(s, self._deps, deal_id, Actor.ai(actor))
+        """Draft the quote. A product the AI may not price (custom, printed, unpriced: D8) becomes a
+        "Pricing needed" task; a quantity below the MOQ or outside the tiers becomes a change request (D12).
+        Either way the buyer is told the sales team prepares the quotation; the AI never guesses a price."""
+        try:
+            async with self._tx() as s:
+                await quotes.request_quote(s, self._deps, deal_id, Actor.ai(actor))
+        except PricingNeeded as exc:
+            async with self._tx() as s:
+                await quotes.pricing_needed(s, self._deps, deal_id, str(exc), Actor.ai(actor))
+        except QuantityOutsideTiers as exc:
+            async with self._tx() as s:
+                qty = (await deal_svc.requirements_of(s, deal_id))[0].quantity
+                await change_requests.raise_change_request(
+                    s,
+                    self._deps,
+                    deal_id,
+                    type="quantity",
+                    buyer_text=str(exc),
+                    fields=(ChangeField(field="quantity", requested=f"{qty:,.0f} pcs" if qty else "?"),),
+                    actor=Actor.ai(actor),
+                )
 
     async def evaluate_counter(
         self, deal_id: uuid.UUID, ask_unit_price: Decimal, ask_quantity: Decimal | None, channel: Channel

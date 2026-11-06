@@ -190,3 +190,19 @@ treats "OK, confirmed / go ahead / PO" as agreement (§14.1), sends post-quote c
 topic to the deal graph (deterministic change request). The eval YAML scenarios were replaced by §23 scenarios
 1–10 (s01–s10) and 7 trick/edge prompts (t01–t07); the harness now checks change requests and the after-hours
 acknowledgement. Totals: 437 passed.
+
+## WP11. CRM API for the screens (§20)
+
+**Done.** New `api/screens.py` (thin) over `services/inbox.py`, `services/price_lists.py` and `orders.set_stock`:
+`GET /inbox` (approvals, special prices, change requests, below-minimum / pricing-needed / LOST-proposal tasks,
+buyer messages on handed-over deals; due time + overdue; a salesperson sees their own and what they cover, the
+manager/MD everything); price-list tier CRUD (manager/admin with MFA, every change audited old/new, a tier used
+by quotes cannot be deleted); Excel import (raw .xlsx body, all rows validated first: min ≤ list, no overlaps,
+codes exist, AED; any error saves nothing and returns row errors; a valid file is the next price-list version)
+and export; stock table (`GET/PUT /stock`, manager sets, salespersons read). Settings are now readable/writable
+by the manager too (§20.11); the new keys validate. Change-request card actions, reassign/takeover/hand-back were
+built in WP4/WP5. The gateway now turns "the AI may not price this" into a Pricing-needed task (D8, scenario 5)
+and a quantity outside the tiers into a change request (D12); the two WP2 tests that expected an error now check
+both layers.
+Tests added: 2 unit (Excel row validation), 6 HTTP/DB (inbox per person, handed-over buyer messages, tier CRUD +
+MFA + audit, Excel export/import, stock, settings). Totals: 445 passed.

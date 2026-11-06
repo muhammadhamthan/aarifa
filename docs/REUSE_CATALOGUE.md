@@ -25,7 +25,6 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 
 | Capability | Will live in |
 |---|---|
-| Price-list Excel import/export | `kx.crm.api` + `openpyxl` (WP11) |
 
 ## kx.crm — sales CRM (any manufacturer)
 | Capability | Import |
@@ -47,7 +46,11 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Deal assignment (round-robin, rules, away/backup, returning customer), reassign, takeover, hand-back, availability | `kx.crm.services.assignment` (pure: `choose`, `rule_pool`, `available`, `next_in_turn`); HTTP `kx.crm.api.assignment`, `PUT /users/{id}/availability` |
 | Services | `kx.crm.services.*`: settings, deals, pricing, price_proposals, quotes, approvals, issuing, grants, negotiation, orders, retention |
 | Gateways for other packages | `kx.crm.gateway`: `CrmGatewayImpl`, `GrantConsumerImpl`, `ApprovalStatusReaderImpl` |
-| HTTP API | `kx.crm.api.build_router(databases, deps)` |
+| HTTP API | `kx.crm.api.build_router(databases, deps)`: deals, assignment (reassign/takeover/hand-back), quotes + approvals, change requests, screens (inbox, price list, Excel, stock), admin (settings, availability) |
+| Price list maintenance (CRUD with audit, Excel validate-then-import as a new version, export) | `kx.crm.services.price_lists` (pure `parse_rows`, `overlap_errors`; `add_tier`, `update_tier`, `delete_tier`, `import_xlsx`, `export_xlsx`) |
+| My inbox (§20.2) | `kx.crm.services.inbox.inbox_for` |
+| Stock table (§15.5) | `kx.crm.services.orders.set_stock`, `move_stock` |
+| Pricing needed (D8) | `kx.crm.services.quotes.pricing_needed` (the gateway calls it when the AI may not price) |
 | Jobs + handlers | `kx.crm.jobs`: `CrmRuntime`, `build_blueprint`, `HANDLERS`, `dispatch` |
 | Quote PDF (EN/AR, RTL; delivery time, Incoterm + place, payment terms, FX line, salesperson) and the §11.4 message (signed by the salesperson, "open to discuss" line in the message only) | `kx.crm.pdf`: `QuoteRenderer`, `QuoteDocument`, `SalesContact`, `quote_message`, `open_to_discuss`, `Letterhead`, `S3PdfUploader` |
 | AI cover line for the quote message (D9) | `CrmGateway.set_cover_note` → `kx.crm.services.quotes.set_cover_note`; written in `kx.agents.graphs.quotation` (`COVER_NOTE`) |

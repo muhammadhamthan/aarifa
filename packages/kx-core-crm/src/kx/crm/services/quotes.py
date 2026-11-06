@@ -33,12 +33,13 @@ from kx.crm.models import (
     QuoteLineCost,
     QuoteLineTier,
     QuoteVersion,
+    Task,
 )
 from kx.crm.pricing.engine import price_line, quote_totals
 from kx.crm.pricing.price_list import TierPrice, convert_tier, min_price_for, resolve_tier
 from kx.crm.pricing.types import PricedLine
 from kx.crm.rules import QUOTABLE_STAGES
-from kx.crm.services import approvals, grants
+from kx.crm.services import approvals, grants, staff
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.issuing import lines_of, local_today
 from kx.crm.services.journal import Actor, Timeline, record
@@ -620,6 +621,39 @@ class QuoteEdits:
     note: str | None = None  # internal (approval card, timeline)
     buyer_note: str | None = None  # §13.3: what changed, sent to the buyer with the new version
     cover_note: str | None = None  # D9: the "open to discuss" line, message only
+
+
+async def pricing_needed(
+    session: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID, why: str, actor: Actor
+) -> Task:
+    """§10 / D8 / §23 scenario 5: a "Pricing needed" task for the salesperson, who prices it by hand."""
+    deal = await deal_svc.get_deal(session, deal_id, lock=True)
+    owner = await staff.approver_for(session, deal)
+    s = await deps.settings.get(session)
+    task = Task(
+        deal_id=deal.id,
+        kind="pricing_needed",
+        assigned_user_id=owner.id,
+        due_at=s.alert_window().add_open_minutes(deps.now(), s.change_request_sla_working_hours * 60),
+        payload={"reason": why[:500]},
+    )
+    session.add(task)
+    await session.flush()
+    await record(
+        session,
+        actor,
+        "quote.pricing_needed",
+        "deal",
+        deal.id,
+        after={"reason": why[:500], "task_id": task.id},
+        timeline=Timeline(
+            "pricing_needed",
+            f"Pricing needed for {owner.full_name}: {why[:300]}",
+            deal.id,
+            deal.primary_contact_id,
+        ),
+    )
+    return task
 
 
 async def set_cover_note(session: AsyncSession, deal_id: uuid.UUID, note: str, actor: Actor) -> None:

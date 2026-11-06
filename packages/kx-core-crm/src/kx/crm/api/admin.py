@@ -34,8 +34,9 @@ from kx.crm.services.journal import Actor
 Manager = Annotated[Principal, Depends(require_role(*MANAGERS))]
 Staff = Annotated[Principal, Depends(require_role(*STAFF))]
 HumanManager = Annotated[Principal, Depends(require_human_mfa(Role.MANAGER))]
-SettingsReader = Annotated[Principal, Depends(require_role(Role.ADMIN, Role.MD))]
-SettingsWriter = Annotated[Principal, Depends(require_human_mfa(Role.ADMIN, Role.MD))]
+# §20.11: settings are for the manager, the MD and admin (MD passes wherever MANAGER is listed)
+SettingsReader = Annotated[Principal, Depends(require_role(Role.ADMIN, Role.MANAGER))]
+SettingsWriter = Annotated[Principal, Depends(require_human_mfa(Role.ADMIN, Role.MANAGER))]
 
 
 def router(ctx: ApiContext) -> APIRouter:
