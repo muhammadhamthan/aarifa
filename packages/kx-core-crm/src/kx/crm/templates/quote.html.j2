@@ -20,7 +20,7 @@
       <tr><th>#</th><td dir="ltr">{{ doc.number }} · {{ t.version }} {{ doc.version_no }}</td></tr>
       <tr><th>{{ t.date }}</th><td dir="ltr">{{ doc.issued_on.isoformat() }}</td></tr>
       <tr><th>{{ t.valid }}</th><td dir="ltr">{{ doc.valid_until.isoformat() }}</td></tr>
-      <tr><th>{{ t.incoterm }}</th><td dir="ltr">{{ doc.incoterm }}</td></tr>
+      <tr><th>{{ t.incoterm }}</th><td dir="ltr">{{ doc.incoterm }}{% if doc.delivery_place %} {{ doc.delivery_place }}{% endif %}</td></tr>
     </table>
   </div>
 </header>
@@ -55,6 +55,17 @@
   </tfoot>
 </table>
 
+{% if doc.fx_rate %}
+<p class="fx">{{ t.fx }}: <span dir="ltr">1 {{ doc.currency }} = {{ doc.fx_rate | rate }} AED{% if doc.fx_rate_date %} ({{ doc.fx_rate_date.isoformat() }}){% endif %}</span></p>
+{% endif %}
+
+<table class="kv delivery-terms">
+  {% if doc.delivery_time_text %}<tr><th>{{ t.delivery_time }}</th><td>{{ doc.delivery_time_text }}</td></tr>{% endif %}
+  <tr><th>{{ t.incoterm }}</th><td dir="ltr">{{ doc.incoterm }}</td></tr>
+  {% if doc.delivery_place %}<tr><th>{{ t.place }}</th><td>{{ doc.delivery_place }}</td></tr>{% endif %}
+  {% if doc.payment_terms_text %}<tr><th>{{ t.payment }}</th><td>{{ doc.payment_terms_text }}</td></tr>{% endif %}
+</table>
+
 {% if doc.estimated_delivery %}
 <p class="delivery">{{ t.delivery }}: <span dir="ltr">{{ doc.estimated_delivery.isoformat() }}</span> ({{ t.delivery_note }})</p>
 {% endif %}
@@ -63,6 +74,15 @@
 <section class="terms">
   <h2>{{ t.terms }}</h2>
   <ol>{% for c in doc.clauses %}<li>{{ c }}</li>{% endfor %}</ol>
+</section>
+{% endif %}
+
+{% if doc.salesperson %}
+<section class="contact">
+  <span class="label">{{ t.contact }}</span>
+  <strong>{{ doc.salesperson.name }}</strong>
+  {% if doc.salesperson.phone %} · <span dir="ltr">{{ doc.salesperson.phone }}</span>{% endif %}
+  {% if doc.salesperson.email %} · <span dir="ltr">{{ doc.salesperson.email }}</span>{% endif %}
 </section>
 {% endif %}
 </body>

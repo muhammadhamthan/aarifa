@@ -22,6 +22,12 @@ from kx.agents.models import ModelSet
 from kx.core.errors import Conflict
 
 Outcome = Literal["approved", "rejected", "correction"]
+COVER_NOTE = (
+    "Write ONE short, warm sentence for the message that will carry the buyer's quotation, in the buyer's "
+    "language, inviting them to reply and discuss: better pricing may be possible for larger quantities or "
+    "repeat orders. Sound natural and personal, never like a template. No numbers, prices or percentages. "
+    "Do not promise any discount, delivery date or payment term."
+)
 
 
 class QuotationState(TypedDict, total=False):
@@ -49,6 +55,11 @@ def build_quotation_graph(
         ctx = runtime.context
         with suppress(Conflict):  # already requested (redelivered message): wait for the same approval
             await ctx.gateway.request_quote(ctx.deal_id, ctx.spec.role)
+        # D9 / §11.4: the natural "open to discuss" line for the quote message (never the PDF). Written per
+        # buyer so it varies; the guard allows no amount at all; the salesperson sees it before approving.
+        cover = await compose(models, ctx, "", COVER_NOTE, ())
+        if not ctx.log.blocked:
+            await ctx.gateway.set_cover_note(ctx.deal_id, cover, ctx.spec.role)
         how = (
             "Tell the buyer in one or two sentences the quotation is being prepared and reviewed by our team."
         )

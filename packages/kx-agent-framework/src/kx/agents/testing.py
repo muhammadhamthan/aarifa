@@ -247,6 +247,9 @@ class FakeCrmGateway:
         self.calls.append(("raise_change_request", (type, buyer_text, fields)))
         return uuid.uuid7()
 
+    async def set_cover_note(self, deal_id: uuid.UUID, note: str, actor: AiRole) -> None:
+        self.calls.append(("set_cover_note", note))
+
 
 class RecordingSender:
     def __init__(self) -> None:

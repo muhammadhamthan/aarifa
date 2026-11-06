@@ -158,12 +158,22 @@ async def test_quotation_interrupts_then_resumes_on_approval_outcome() -> None:
     deal = make_deal(DealStage.QUALIFIED)
     gw = FakeCrmGateway(deal)
     ctx = ctx_for(deal, AiRole.QUOTATION, gw)
-    model = ScriptedChatModel(script=["Your quotation is being prepared.", "Our team will contact you."])
+    model = ScriptedChatModel(
+        script=[
+            "Happy to look at better pricing for bigger or repeat orders, just reply here.",
+            "Your quotation is being prepared.",
+            "Our team will contact you.",
+        ]
+    )
     graph = build_quotation_graph(ModelSet(model), InMemorySaver())
     cfg = {"configurable": {"thread_id": str(deal.deal_id)}}
     first = await graph.ainvoke({"text": "price please"}, cfg, context=ctx, version="v2")
     assert first.interrupts and first.value["reply"] == "Your quotation is being prepared."
     assert ("request_quote", None) in gw.calls
+    assert (
+        "set_cover_note",
+        "Happy to look at better pricing for bigger or repeat orders, just reply here.",
+    ) in gw.calls  # D9: the cover line goes to the CRM
     again = await graph.ainvoke(
         Command(resume={"kind": "correction", "note": "fix qty"}), cfg, context=ctx, version="v2"
     )

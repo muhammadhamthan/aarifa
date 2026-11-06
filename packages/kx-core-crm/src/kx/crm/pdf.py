@@ -41,6 +41,11 @@ LABELS: Final[dict[str, dict[str, str]]] = {
         "delivery": "Estimated delivery",
         "delivery_note": "estimated, confirmed by our team",
         "version": "Version",
+        "delivery_time": "Delivery time",
+        "place": "Delivery place",
+        "payment": "Payment terms",
+        "fx": "Exchange rate",
+        "contact": "Your contact",
     },
     "ar": {
         "title": "عرض سعر",
@@ -60,20 +65,44 @@ LABELS: Final[dict[str, dict[str, str]]] = {
         "delivery": "موعد التسليم التقديري",
         "delivery_note": "تقديري، يؤكده فريقنا",
         "version": "الإصدار",
+        "delivery_time": "مدة التسليم",
+        "place": "مكان التسليم",
+        "payment": "شروط الدفع",
+        "fx": "سعر الصرف",
+        "contact": "جهة الاتصال",
     },
 }
 
+# §11.4: short and natural, the PDF attached, inviting a reply, signed with the salesperson's name (D11).
 MESSAGES: Final[dict[str, tuple[str, str]]] = {
     "en": (
         "Quotation {number} from {seller}",
-        "Dear {name},\n\nPlease find attached our quotation {number} for {currency} {total}, "
-        "valid until {valid_until}. Advance payment is required to start production.\n\n"
-        "Best regards,\n{seller}",
+        "Hi {name},\n\nHere is your {what} {number} for {summary}: {currency} {total}, valid until "
+        "{valid_until}. Advance payment is required to start production.{extra}\n\n— {signer}",
     ),
     "ar": (
         "عرض السعر {number} من {seller}",
-        "عزيزي {name}،\n\nمرفق عرض السعر {number} بقيمة {currency} {total}، صالح حتى {valid_until}. "
-        "يلزم دفع مقدم لبدء الإنتاج.\n\nمع أطيب التحيات،\n{seller}",
+        "مرحباً {name}،\n\nإليك {what} رقم {number} لـ {summary}: {currency} {total}، صالح حتى {valid_until}. "
+        "يلزم دفع مقدم لبدء الإنتاج.{extra}\n\n— {signer}",
+    ),
+}
+WHAT: Final[dict[str, dict[str, str]]] = {
+    "en": {"final": "final quotation", "revision": "updated quotation", "other": "quotation"},
+    "ar": {"final": "عرض السعر النهائي", "revision": "عرض السعر المحدّث", "other": "عرض السعر"},
+}
+# D9 fallback when the AI wrote no cover line before approval: approved, natural, varied per quote.
+OPEN_TO_DISCUSS: Final[dict[str, tuple[str, ...]]] = {
+    "en": (
+        "Better pricing is possible for larger quantities or repeat orders — just reply and we'll work it "
+        "out together.",
+        "If you're planning a bigger volume or regular orders, reply here and we can look at the price "
+        "together.",
+        "Happy to talk it through: if the quantity grows or you order regularly, let me know and I'll see "
+        "what I can do.",
+    ),
+    "ar": (
+        "يمكن تقديم سعر أفضل للكميات الأكبر أو الطلبات المتكررة — فقط رد على هذه الرسالة وسنتفق معاً.",
+        "إذا كنت تخطط لكمية أكبر أو طلبات منتظمة، رد هنا وسننظر في السعر معاً.",
     ),
 }
 
@@ -87,6 +116,15 @@ class Letterhead:
     trn: str = ""
     phone: str = ""
     email: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class SalesContact:
+    """§11.2 "Contact: assigned salesperson's name, WhatsApp, email"."""
+
+    name: str
+    phone: str | None = None
+    email: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +158,17 @@ class QuoteDocument:
     clauses: tuple[str, ...]
     estimated_delivery: date | None
     letterhead: Letterhead = field(default_factory=Letterhead)
+    kind: str = "initial"
+    # §11.2 delivery and terms (D10: product default, salesperson sets or confirms)
+    delivery_time_text: str | None = None
+    delivery_place: str | None = None
+    payment_terms_text: str | None = None
+    fx_rate: Decimal | None = None  # AED per 1 unit of `currency`, printed when converted (§10)
+    fx_rate_date: date | None = None
+    salesperson: SalesContact | None = None
+    # message only, never printed on the PDF (D9, §13.3)
+    cover_note: str | None = None
+    change_summary: str | None = None
 
     @property
     def lang(self) -> str:
@@ -141,20 +190,56 @@ def fmt_unit_price(amount: Decimal) -> str:
     return f"{int(whole):,}.{frac.ljust(2, '0')[:6]}"
 
 
+def fmt_rate(rate: Decimal) -> str:
+    """FX rate as printed: 3.6725 (no trailing zeros, at least 2 places)."""
+    text = f"{rate.normalize():f}"
+    whole, _, frac = text.partition(".")
+    return f"{whole}.{frac.ljust(2, '0')}"
+
+
 def fmt_qty(quantity: Decimal) -> str:
     return f"{quantity:,.0f}" if quantity == quantity.to_integral_value() else f"{quantity:,}"
 
 
+def _summary(doc: QuoteDocument) -> str:
+    if len(doc.lines) != 1:
+        return f"{len(doc.lines)} items"
+    line = doc.lines[0]
+    return f"{fmt_qty(line.quantity)} {line.unit} {line.description.split(' — ')[0]}"
+
+
+def open_to_discuss(doc: QuoteDocument) -> str:
+    """D9: the AI's cover line, else one of the approved variants, picked per quote so it varies."""
+    if doc.cover_note:
+        return doc.cover_note
+    variants = OPEN_TO_DISCUSS.get(doc.lang, OPEN_TO_DISCUSS["en"])
+    return variants[sum(map(ord, f"{doc.number}/{doc.version_no}")) % len(variants)]
+
+
 def quote_message(doc: QuoteDocument) -> tuple[str, str]:
-    """(subject, body) of the message that carries the PDF, in the buyer's language."""
+    """(subject, body) of the message that carries the PDF, in the buyer's language (§11.4).
+
+    The "open to discuss" line is in the message only, not in the PDF (D9); a revised quote says what
+    changed (§13.3); the final quote has no discuss line (the price is agreed, §14)."""
     subject, body = MESSAGES.get(doc.lang, MESSAGES["en"])
+    what = WHAT.get(doc.lang, WHAT["en"])
+    extra = ""
+    if doc.change_summary:
+        extra += f"\n\n{doc.change_summary}"
+    if doc.kind != "final":
+        extra += f"\n\n{open_to_discuss(doc)}"
+    seller = doc.letterhead.name
     values = {
         "number": doc.number,
-        "seller": doc.letterhead.name,
+        "seller": seller,
         "name": doc.buyer_name or "Customer",
+        "what": what.get(doc.kind, what["other"]),
+        "summary": _summary(doc),
         "currency": doc.currency,
         "total": fmt_money(doc.total, doc.currency),
         "valid_until": doc.valid_until.isoformat(),
+        "extra": extra,
+        "signer": f"{doc.salesperson.name}, {seller}" if doc.salesperson else seller,
     }
     return subject.format(**values), body.format(**values)
 
@@ -171,7 +256,7 @@ class QuoteRenderer:
             trim_blocks=True,
             lstrip_blocks=True,
         )
-        env.filters.update(money=fmt_money, unit_price=fmt_unit_price, qty=fmt_qty)
+        env.filters.update(money=fmt_money, unit_price=fmt_unit_price, qty=fmt_qty, rate=fmt_rate)
         return env
 
     @cached_property

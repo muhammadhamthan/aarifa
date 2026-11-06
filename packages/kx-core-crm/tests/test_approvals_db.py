@@ -275,3 +275,20 @@ async def test_md_value_limit_routes_to_the_md_only_when_set(databases: Database
         await _decide(databases, deps, a.id, MD)
     finally:
         await set_setting(databases, "approval.md_value_limit_aed", None)
+
+
+# ---------------------------------------------------------------- WP6: the message that carries the quote
+async def test_sent_quote_message_carries_the_ai_cover_line_signature_and_region(
+    databases: Databases, deps: CrmDeps
+) -> None:
+    from kx.core.price_guard import check_prices
+
+    gw = CrmGatewayImpl(databases, deps)
+    deal_id = await sara_deal(databases, deps)
+    cover = "If 50,000 grows into a bigger or repeat order, just reply and we can look at it together."
+    await gw.set_cover_note(deal_id, "  " + cover + "  ", AiRole.QUOTATION)
+    sent = await approve_and_send(databases, deps, deal_id, SARA)
+    assert cover in sent["body"] and sent["body"].rstrip().endswith("— Sara, Arifaa Pack (test)")
+    assert (sent["buyer_country"], sent["language"]) == ("AE", "en")
+    ctx = await gw.deal_context(deal_id)
+    assert check_prices(sent["body"], ctx.allowed_prices, default_currency="AED").ok

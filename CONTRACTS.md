@@ -75,6 +75,8 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 **Assignment (WP5):** event `deal.assigned.v1` (`DealAssigned`: `assigned_to`, `previous`, `notify`, `reason` round_robin | rule | returning_customer | backup | manager | reassigned | takeover | hand_back). `ChangeRequested.alert_ref` identifies the current reminder ladder; a reassignment issues a new one.
 
+**Sending (WP6):** `OutboundRequest.buyer_country` and `QuoteApproved.buyer_country` / `language` pick the regional WhatsApp number; `CrmGateway.set_cover_note(deal_id, note, actor)` stores the AI's "open to discuss" line on the quote waiting for approval (message only, hashed into the grant with the rest of the body).
+
 ## 4. Code standards
 
 - Python 3.14, `from __future__ import annotations`, full type hints, `mypy --strict` clean, `ruff` clean (config in root `pyproject.toml`).

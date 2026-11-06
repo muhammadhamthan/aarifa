@@ -143,6 +143,8 @@ def router(ctx: ApiContext) -> APIRouter:
             delivery_place=body.delivery_place,
             incoterm=body.incoterm,
             payment_terms_text=body.payment_terms_text,
+            buyer_note=body.buyer_note,
+            cover_note=body.cover_note,
             note=body.note,
         )
         return QuoteVersionOut.model_validate(

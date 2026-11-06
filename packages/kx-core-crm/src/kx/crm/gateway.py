@@ -261,6 +261,11 @@ class CrmGatewayImpl:
             )
             return cr.id
 
+    async def set_cover_note(self, deal_id: uuid.UUID, note: str, actor: AiRole) -> None:
+        """D9: the AI's "open to discuss" line for the message of the quote waiting for approval."""
+        async with self._tx() as s:
+            await quotes.set_cover_note(s, deal_id, note, Actor.ai(actor))
+
 
 async def build_context(s: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID) -> DealContext:
     deal = await deal_svc.get_deal(s, deal_id)

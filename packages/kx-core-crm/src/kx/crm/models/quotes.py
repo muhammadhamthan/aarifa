@@ -90,6 +90,8 @@ class QuoteVersion(Base):
     fx_rate: Mapped[Decimal | None] = mapped_column(Numeric(18, 8))  # AED per 1 unit, as printed
     fx_rate_date: Mapped[date | None] = mapped_column(Date)
     signed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))  # D11
+    cover_note: Mapped[str | None] = mapped_column(Text)  # D9: "open to discuss" line, message only
+    change_summary: Mapped[str | None] = mapped_column(Text)  # §13.3: what changed, for the buyer
 
 
 class QuoteLine(Base):

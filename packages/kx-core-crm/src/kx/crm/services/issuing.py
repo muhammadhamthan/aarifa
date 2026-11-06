@@ -26,13 +26,15 @@ from kx.crm.models import (
     Company,
     Contact,
     Deal,
+    DealRequirement,
     DeliveryEstimateRow,
     Quote,
     QuoteLine,
     QuoteSendGrant,
     QuoteVersion,
+    User,
 )
-from kx.crm.pdf import DocLine, QuoteDocument, pdf_key, quote_message
+from kx.crm.pdf import DocLine, QuoteDocument, SalesContact, pdf_key, quote_message
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.grants import GrantPolicy, issue_grant
 from kx.crm.services.journal import Actor, Emit, Timeline, record
@@ -66,6 +68,7 @@ async def build_document(
         else None
     )
     assert version.valid_until is not None
+    signer = await session.get(User, version.signed_by_user_id) if version.signed_by_user_id else None
     return QuoteDocument(
         number=quote.number,
         version_no=version.version_no,
@@ -87,6 +90,27 @@ async def build_document(
         clauses=tuple(version.clauses),
         estimated_delivery=(estimate.confirmed_date or estimate.estimated_delivery) if estimate else None,
         letterhead=deps.letterhead,
+        kind=version.kind,
+        delivery_time_text=version.delivery_time_text,
+        delivery_place=version.delivery_place,
+        payment_terms_text=version.payment_terms_text,
+        fx_rate=version.fx_rate,
+        fx_rate_date=version.fx_rate_date,
+        salesperson=None
+        if signer is None
+        else SalesContact(name=signer.full_name, phone=signer.phone_e164, email=str(signer.email)),
+        cover_note=version.cover_note,
+        change_summary=version.change_summary,
+    )
+
+
+async def _buyer_country(session: AsyncSession, deal: Deal) -> str | None:
+    """§8: the delivery country picks the regional WhatsApp number."""
+    return await session.scalar(
+        select(DealRequirement.delivery_country)
+        .where(DealRequirement.deal_id == deal.id, DealRequirement.delivery_country.is_not(None))
+        .order_by(DealRequirement.created_at)
+        .limit(1)
     )
 
 
@@ -163,6 +187,8 @@ async def issue_to_buyer(
                 subject=subject,
                 content_sha256=sha,
                 buyer_timezone=contact.timezone,
+                buyer_country=await _buyer_country(session, deal),
+                language=contact.language,
             ),
         ),
     )

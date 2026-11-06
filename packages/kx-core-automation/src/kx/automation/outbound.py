@@ -163,7 +163,11 @@ class OutboundService:
         message_id = new_id()
         async with self._db.transaction(LogicalDb.AUTOMATION) as s:
             account = await channel_account(
-                s, request.channel, "internal_alerts" if request.kind in STAFF_KINDS else "customer"
+                s,
+                request.channel,
+                "internal_alerts" if request.kind in STAFF_KINDS else "customer",
+                address=address,
+                country=request.buyer_country,
             )
             thread = await upsert_thread(
                 s, account, address, contact_ref=request.contact_ref, deal_ref=request.deal_ref

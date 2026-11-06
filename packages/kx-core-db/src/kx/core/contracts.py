@@ -232,6 +232,7 @@ class CrmGateway(Protocol):
         fields: tuple[ChangeField, ...],
         actor: AiRole,
     ) -> uuid.UUID: ...
+    async def set_cover_note(self, deal_id: uuid.UUID, note: str, actor: AiRole) -> None: ...
 
 
 @runtime_checkable
@@ -274,6 +275,7 @@ class OutboundRequest(BaseModel):
     deal_ref: uuid.UUID | None = None
     contact_ref: uuid.UUID | None = None
     buyer_timezone: str | None = None
+    buyer_country: str | None = None  # ISO-2; picks the regional WhatsApp number (§11.4, D11)
     language: str | None = None  # BCP-47; picks the WhatsApp template language
     not_before: datetime | None = None  # earliest send time (aware, UTC); automation may push it later
     requested_by: str

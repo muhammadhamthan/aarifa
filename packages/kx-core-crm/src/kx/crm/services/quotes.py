@@ -617,7 +617,27 @@ class QuoteEdits:
     delivery_place: str | None = None
     incoterm: str | None = None
     payment_terms_text: str | None = None
-    note: str | None = None
+    note: str | None = None  # internal (approval card, timeline)
+    buyer_note: str | None = None  # §13.3: what changed, sent to the buyer with the new version
+    cover_note: str | None = None  # D9: the "open to discuss" line, message only
+
+
+async def set_cover_note(session: AsyncSession, deal_id: uuid.UUID, note: str, actor: Actor) -> None:
+    """Store the AI's cover line on the version waiting for approval (the salesperson sees it there; the
+    send grant hashes it with the rest of the message at approval)."""
+    version = await latest_version(session, deal_id, ("pending_approval", "overdue"))
+    if version is None or not note.strip():
+        return
+    version.cover_note = note.strip()[:500]
+    await session.flush()
+    await record(
+        session,
+        actor,
+        "quote.cover_note",
+        "quote_version",
+        version.id,
+        after={"cover_note": version.cover_note},
+    )
 
 
 async def _tier_snapshot(
@@ -721,6 +741,9 @@ async def revise_quote(
             signed_by_user_id=deal.owner_user_id or base.signed_by_user_id,
         ),
     )
+    version.change_summary = edits.buyer_note
+    version.cover_note = edits.cover_note or base.cover_note
+    await session.flush()
     if DealStage(deal.stage) is DealStage.NEGOTIATION and version.kind == "revision":
         await deal_svc.move_stage(session, deal, DealStage.QUOTATION, actor, now=now, reason="quote revised")
     await approvals.open_approval(

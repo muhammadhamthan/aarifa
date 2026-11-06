@@ -114,3 +114,22 @@ Tests added: 8 unit (rule order, several matches, unmatched rule, scenario 7, aw
 property: never picks someone away) and 8 DB (assign on qualify, 10 concurrent assignments = 5/5 with unique
 turns, returning customer, language rule + away backup, approvals follow the backup, scenario 6 reassign over
 HTTP, scenario 8 takeover/hand-back over HTTP, availability route). Totals: 405 passed.
+
+## WP6. Sending the quote
+
+**Plan.** automation `repo.channel_account` (regional number) + `outbound`/handler pass-through; CRM `pdf.py`
+(document fields, labels, message), `quote.html.j2`, `issuing.py` (signer, country, language),
+`quotes.set_cover_note`, revision `crm_0005` (`cover_note`, `change_summary`); contracts
+(`OutboundRequest.buyer_country`, `CrmGateway.set_cover_note`); agents quotation graph writes the cover line.
+Tests: `test_auto_regional_db.py`, `test_quote_document.py`, one DB test in `test_approvals_db.py`.
+
+**Done.** WhatsApp goes from the number the buyer already writes to, else the regional number whose
+`countries` list the delivery country, else the default number; email always from the company address. The
+message is signed "— Sara, Arifa Pack" (the deal's salesperson, D11), carries the AI-written "open to discuss"
+line (or an approved variant picked per quote when the AI wrote none), says what changed on a revised quote,
+and has no discuss line on the final quote. The PDF prints delivery time, Incoterm and place, payment terms,
+the FX rate and its date, and the salesperson's contact; Arabic is right-to-left; the cover line is never in
+the PDF. The guard passes on the generated message against the deal's allowed prices.
+Tests added: 3 automation (country routing + default, existing thread wins, email/alerts identity), 6 CRM unit
+(PDF fields, no cover line in the PDF, Arabic RTL, PDF bytes, signed message + guard, varied fallback, final /
+revision wording), 1 CRM DB (sent message: AI cover line, signature, region, guard). Totals: 415 passed.

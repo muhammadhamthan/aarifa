@@ -102,6 +102,8 @@ class QuoteApproved(EventPayload):
     subject: str | None
     content_sha256: str | None  # kx.core.identity.priced_content_sha256(body, pdf_sha)
     buyer_timezone: str | None = None
+    buyer_country: str | None = None  # ISO-2: the regional WhatsApp number (§11.4)
+    language: str | None = None
 
 
 class QuoteRejected(EventPayload):

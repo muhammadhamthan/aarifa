@@ -168,6 +168,8 @@ class EventHandlers:
                 deal_ref=p.deal_ref,
                 contact_ref=p.contact_ref,
                 buyer_timezone=p.buyer_timezone,
+                buyer_country=p.buyer_country,
+                language=p.language,
                 requested_by="system:quote_approved",
                 idempotency_key=f"quote-approved:{p.approval_ref}",
             ),

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Final, Literal
 
-from sqlalchemy import func, select, text
+from sqlalchemy import any_, func, literal, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,13 +26,55 @@ class ThreadRef:
     last_inbound_at: datetime | None
 
 
-async def channel_account(session: AsyncSession, channel: str, prefer: Purpose) -> uuid.UUID:
-    """Active sending identity for `channel`; staff alerts prefer the internal-alerts number if one exists."""
+async def channel_account(
+    session: AsyncSession,
+    channel: str,
+    prefer: Purpose,
+    *,
+    address: str | None = None,
+    country: str | None = None,
+) -> uuid.UUID:
+    """Active sending identity for `channel`; staff alerts prefer the internal-alerts number if one exists.
+
+    Buyer WhatsApp (§11.4, §19, D11: one number per region):
+    1. the number this buyer already writes to (the conversation and its 24-hour window live there);
+    2. the regional number whose `countries` include the buyer's country;
+    3. the default number (`is_default`), else the oldest active one.
+    Email always goes from the one company address (the customer email identity)."""
+    active = (ChannelAccount.channel == channel, ChannelAccount.status == "active")
+    if channel == "whatsapp" and prefer == "customer":
+        if address is not None:
+            known = await session.scalar(
+                select(Thread.channel_account_id)
+                .join(ChannelAccount, ChannelAccount.id == Thread.channel_account_id)
+                .where(*active, ChannelAccount.purpose == "customer", Thread.external_key == address)
+                .order_by(Thread.last_inbound_at.desc().nulls_last())
+                .limit(1)
+            )
+            if known is not None:
+                return known
+        if country:
+            regional = await session.scalar(
+                select(ChannelAccount.id)
+                .where(
+                    *active,
+                    ChannelAccount.purpose == "customer",
+                    literal(country.upper()) == any_(ChannelAccount.countries),
+                )
+                .order_by(ChannelAccount.created_at)
+                .limit(1)
+            )
+            if regional is not None:
+                return regional
     row = (
         await session.execute(
             select(ChannelAccount.id)
-            .where(ChannelAccount.channel == channel, ChannelAccount.status == "active")
-            .order_by((ChannelAccount.purpose == prefer).desc(), ChannelAccount.created_at)
+            .where(*active)
+            .order_by(
+                (ChannelAccount.purpose == prefer).desc(),
+                ChannelAccount.is_default.desc(),
+                ChannelAccount.created_at,
+            )
             .limit(1)
         )
     ).scalar_one_or_none()

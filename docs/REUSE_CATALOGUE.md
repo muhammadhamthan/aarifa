@@ -25,7 +25,6 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 
 | Capability | Will live in |
 |---|---|
-| Regional WhatsApp routing | `kx.automation.outbound` + `channel_accounts.countries` (WP6) |
 | Price-list Excel import/export | `kx.crm.api` + `openpyxl` (WP11) |
 
 ## kx.crm — sales CRM (any manufacturer)
@@ -47,12 +46,14 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Gateways for other packages | `kx.crm.gateway`: `CrmGatewayImpl`, `GrantConsumerImpl`, `ApprovalStatusReaderImpl` |
 | HTTP API | `kx.crm.api.build_router(databases, deps)` |
 | Jobs + handlers | `kx.crm.jobs`: `CrmRuntime`, `build_blueprint`, `HANDLERS`, `dispatch` |
-| Quote PDF (EN/AR, RTL) | `kx.crm.pdf`: `QuoteRenderer`, `Letterhead`, `S3PdfUploader` |
+| Quote PDF (EN/AR, RTL; delivery time, Incoterm + place, payment terms, FX line, salesperson) and the §11.4 message (signed by the salesperson, "open to discuss" line in the message only) | `kx.crm.pdf`: `QuoteRenderer`, `QuoteDocument`, `SalesContact`, `quote_message`, `open_to_discuss`, `Letterhead`, `S3PdfUploader` |
+| AI cover line for the quote message (D9) | `CrmGateway.set_cover_note` → `kx.crm.services.quotes.set_cover_note`; written in `kx.agents.graphs.quotation` (`COVER_NOTE`) |
 
 ## kx.automation — channels and jobs
 | Capability | Import |
 |---|---|
 | The only way out | `kx.automation.outbound.OutboundService` (grant, kill switch, suppression, rate limit, 2/week cap, buyer hours) |
+| Which number sends (buyer's thread → regional `countries` → default; email = company address) | `kx.automation.repo.channel_account(..., address=, country=)` |
 | WhatsApp Cloud API | `kx.automation.channels.whatsapp.WhatsAppClient` (+ signature verify, webhook parsing, media download) |
 | Email (SES v2) + inbound MIME | `kx.automation.channels.email.EmailSender`, parsing helpers |
 | SNS verification | `kx.automation.channels.sns.SnsVerifier` |

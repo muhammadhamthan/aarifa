@@ -146,7 +146,11 @@ async def test_quotation_waits_durably_and_resumes(databases: Any, pg_databases:
     deal = make_deal(DealStage.QUALIFIED)
     gw = FakeCrmGateway(deal)
     model = ScriptedChatModel(
-        script=["Your quotation is being prepared.", "Our team will contact you shortly."]
+        script=[
+            "Happy to look at better pricing for bigger or repeat orders, just reply here.",
+            "Your quotation is being prepared.",
+            "Our team will contact you shortly.",
+        ]
     )
     sent: list[str] = []
 

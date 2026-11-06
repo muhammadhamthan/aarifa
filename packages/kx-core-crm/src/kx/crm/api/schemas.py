@@ -146,6 +146,8 @@ class QuoteVersionOut(_Out):
     payment_terms_text: str | None = None
     fx_rate: Decimal | None = None
     fx_rate_date: date | None = None
+    cover_note: str | None = None
+    change_summary: str | None = None
     pdf_s3_key: str | None
     created_at: datetime
     lines: list[QuoteLineOut] = []
@@ -197,6 +199,8 @@ class QuoteEditsIn(BaseModel):
     incoterm: Literal["EXW", "FCA", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DDP"] | None = None
     payment_terms_text: str | None = Field(default=None, max_length=1000)
     note: str | None = Field(default=None, max_length=2000)
+    buyer_note: str | None = Field(default=None, max_length=500)  # e.g. "Updated: delivery in 5 working days"
+    cover_note: str | None = Field(default=None, max_length=500)
 
 
 class ChangeRequestOut(_Out):
