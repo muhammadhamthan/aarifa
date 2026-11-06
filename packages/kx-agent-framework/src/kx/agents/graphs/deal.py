@@ -12,9 +12,8 @@ never a promise. Payment is never discussed by the AI (§13 "Payment", D13).
 
 from __future__ import annotations
 
-import re
 from decimal import Decimal
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
@@ -25,8 +24,10 @@ from pydantic import BaseModel, Field
 from kx.agents.context import AgentContext
 from kx.agents.graphs.compose import compose
 from kx.agents.models import ModelSet
+from kx.agents.orchestrator import PAYMENT_TOPIC
 from kx.agents.registry import Phrase, team_member
 from kx.core.contracts import AllowedPrice, ChangeField, ChangeType, CounterVerdict, CounterVerdictKind
+from kx.core.money import MONEY_PLACES, display, q
 from kx.core.price_guard import extract_prices
 
 _RULES = (
@@ -34,11 +35,6 @@ _RULES = (
     "Never discuss payment terms. Do not mention any other price."
 )
 # §13 "Payment: any payment topic ... always go to the salesperson". Deterministic, before the LLM.
-PAYMENT_TOPIC: Final = re.compile(
-    r"\b(payments?|advance|deposit|credit|letter of credit|l/?c|bank|transfer|instal+ments?|net ?\d+|cash|"
-    r"cheque|invoice due)\b|الدفع|دفعة|مقدم|تحويل|ائتمان",
-    re.IGNORECASE,
-)
 
 
 class BuyerAsk(BaseModel):
@@ -100,6 +96,35 @@ async def _change_request(
         name=team_member(ctx.deal.salesperson_name, ctx.language), hours=ctx.deal.change_request_hours
     )
     return {"reply": reply, "status": "ok"}
+
+
+def _confirm_terms(
+    ctx: AgentContext, v: CounterVerdict, ask: BuyerAsk
+) -> tuple[str, tuple[AllowedPrice, ...]]:
+    """§14.2: confirm back product, quantity, unit price, total, delivery time and Incoterm. The agreed total
+    is the CRM's price x the agreed quantity (exact Decimal), the only new amount allowed."""
+    assert v.offer_unit_price is not None
+    quote = ctx.deal.latest_quote
+    line = quote.lines[0] if quote and quote.lines else None
+    qty = ask.ask_quantity or (line.quantity if line else None)
+    parts = [f"unit price {v.currency} {v.offer_unit_price}"]
+    agreed: tuple[AllowedPrice, ...] = ()
+    if qty is not None:
+        total = q(v.offer_unit_price * qty, MONEY_PLACES)
+        agreed = (AllowedPrice(amount=total, currency=v.currency, label="agreed total"),)
+        parts.insert(
+            0, f"{qty:,.0f} {line.unit if line else 'pcs'}" + (f" of {line.description}" if line else "")
+        )
+        parts.append(f"total {v.currency} {display(total, v.currency):,}")
+    if quote and quote.delivery_time_text:
+        parts.append(f"delivery {quote.delivery_time_text}")
+    if quote and quote.incoterm:
+        parts.append(f"Incoterm {quote.incoterm}")
+    how = (
+        "Confirm back exactly these agreed terms: " + "; ".join(parts) + ". Say the final quotation will be "
+        "confirmed by our sales team and sent shortly. Do not mention payment."
+    )
+    return how, agreed
 
 
 def build_deal_graph(
@@ -175,11 +200,8 @@ def build_deal_graph(
         offer = AllowedPrice(amount=v.offer_unit_price, currency=v.currency, label="offer per piece")
         if v.kind is CounterVerdictKind.ACCEPT:
             await ctx.gateway.mark_agreed(ctx.deal_id, ctx.spec.role)
-            how = (
-                f"Confirm the agreed unit price {v.currency} {v.offer_unit_price}. Say the final quotation "
-                "will be confirmed by our sales team and sent shortly."
-            )
-            allowed: tuple[AllowedPrice, ...] = (offer, *ctx.deal.allowed_prices)
+            how, agreed = _confirm_terms(ctx, v, ask)
+            allowed: tuple[AllowedPrice, ...] = (offer, *agreed, *ctx.deal.allowed_prices)
         else:
             trade = " for the larger quantity" if v.traded_for == "quantity_increase" else ""
             ask_more = (

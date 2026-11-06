@@ -1,0 +1,11 @@
+id: s05_custom_item_never_negotiated
+description: "§23 scenario 5: price talk on a custom printed item -> the AI does not negotiate; the salesperson gets it."
+stage: NEGOTIATION
+allowed: [["0.31", "line 1 unit price"]]
+unit_price: "0.31"
+salesperson: Sara
+buyer: Can you do 0.27 for the printed containers?
+ask: {intent: counter, ask_unit_price: "0.27"}
+verdict: {kind: change_request, offer_unit_price: null, currency: AED, concessions_left: 0, reason: custom_item}
+script: []
+expect: {graph: deal, no_price_leak: true, contains_any: ["Sara"], change_request: other}

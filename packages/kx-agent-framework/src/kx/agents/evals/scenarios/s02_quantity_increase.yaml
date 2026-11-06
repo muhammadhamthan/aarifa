@@ -1,0 +1,10 @@
+id: s02_first_low_ask_gets_step_1
+description: "§23 scenario 2: 'Too high, 0.21?' is below the minimum (first time) -> step 1 AED 0.2433 and a quantity question."
+stage: NEGOTIATION
+allowed: [["0.25", "line 1 unit price"], ["12500", "line 1 total"]]
+unit_price: "0.25"
+buyer: Too high, 0.21?
+ask: {intent: counter, ask_unit_price: "0.21"}
+verdict: {kind: counter, offer_unit_price: "0.2433", currency: AED, concessions_left: 2, traded_for: goodwill, reason: ask_for_quantity}
+script: ["I understand. For 50,000 pieces I can offer AED 0.2433 per piece. If you can increase to 70,000, I can improve it further."]
+expect: {graph: deal, no_price_leak: true, contains_any: ["0.2433"], not_contains: ["0.23 ", "minimum"]}

@@ -1,5 +1,5 @@
-id: asks_for_contact
-description: Requirements known, contact missing -> contact capture asks for name and phone/email.
+id: t06_asks_for_contact
+description: "Requirements known, contact missing -> contact capture asks for name and phone/email (§8)."
 stage: NEW
 missing: [contact_name, contact_phone_or_email]
 buyer: That is all, when can I get the quote?

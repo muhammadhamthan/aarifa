@@ -1,0 +1,11 @@
+id: s01_happy_path_confirmed
+description: "§23 scenario 1: Ahmed replies 'OK, confirmed.' -> agreed; the AI confirms the terms back (§14.2) and says the final quotation follows."
+stage: NEGOTIATION
+allowed: [["0.25", "line 1 unit price"], ["12500", "line 1 total"]]
+unit_price: "0.25"
+salesperson: Sara
+buyer: OK, confirmed.
+ask: {intent: accept}
+verdict: {kind: accept, offer_unit_price: "0.25", currency: AED, concessions_left: 3}
+script: ["Thank you, Ahmed! Confirmed: 50,000 pcs at AED 0.25 per piece, total AED 12,500.00. Our sales team will confirm the final quotation shortly."]
+expect: {graph: deal, no_price_leak: true, contains_any: ["final quotation"], not_contains: ["payment"]}

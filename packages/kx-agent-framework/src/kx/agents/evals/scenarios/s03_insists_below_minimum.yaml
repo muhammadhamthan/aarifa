@@ -1,0 +1,10 @@
+id: s03_insists_below_minimum
+description: "§23 scenario 3: all steps used, '0.20 or I go elsewhere' -> the AI pauses with the fixed 60-minute sentence."
+stage: NEGOTIATION
+allowed: [["0.23", "offer round 3"]]
+unit_price: "0.25"
+buyer: 0.20 or I go elsewhere.
+ask: {intent: counter, ask_unit_price: "0.20"}
+verdict: {kind: needs_manager, offer_unit_price: null, currency: AED, concessions_left: 0, reason: concessions_exhausted}
+script: []
+expect: {graph: deal, no_price_leak: true, contains_any: ["within 60 minutes during working hours"], status: handoff}

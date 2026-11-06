@@ -18,7 +18,7 @@ from kx.agents.language import detect_script_language
 from kx.agents.models import ModelRouter
 from kx.agents.orchestrator import route
 from kx.agents.orm import EvalRun
-from kx.agents.registry import AgentRegistry, DefaultPromptStore
+from kx.agents.registry import AgentRegistry, DefaultPromptStore, Phrase
 from kx.agents.service import GraphRunner
 from kx.agents.testing import FakeCrmGateway, ScriptedChatModel, make_deal, tool_call
 from kx.core.contracts import AllowedPrice, CounterVerdict, DealStage
@@ -39,6 +39,8 @@ class Expect(BaseModel):
     not_contains: list[str] = Field(default_factory=list)
     guard: str | None = None  # "blocked" / "rewritten"
     status: str | None = None
+    change_request: str | None = None  # the change-request type the AI must raise (§13)
+    acknowledged: bool = False  # §14.6: the fixed out-of-hours acknowledgement, no model
 
 
 class Scenario(BaseModel):
@@ -50,6 +52,9 @@ class Scenario(BaseModel):
     buyer: str
     language: str = "en"
     ai_enabled: bool = True
+    ai_paused_reason: str | None = None
+    team_available: bool = True
+    salesperson: str | None = None
     missing: list[str] = Field(default_factory=list)
     allowed: list[tuple[str, str]] = Field(default_factory=list)
     unit_price: str | None = None
@@ -87,17 +92,27 @@ async def run_scenario(s: Scenario, models: ModelRouter | None = None) -> EvalRe
         missing=s.missing,
         language=s.language,
         unit_price=s.unit_price,
+    ).model_copy(
+        update={
+            "ai_paused_reason": s.ai_paused_reason,
+            "team_available": s.team_available,
+            "salesperson_name": s.salesperson,
+        }
     )
     gw = FakeCrmGateway(deal, [s.verdict] if s.verdict else [])
     registry = AgentRegistry()
     runner = GraphRunner(
         models or ModelRouter.static(ScriptedChatModel(script=_script(s))), registry, InMemorySaver()
     )
-    rt = route(s.buyer, deal, first_turn=False)
+    rt = route(s.buyer, deal, first_turn=False, disabled=registry.disabled())
     fails: list[str] = []
     reply: str | None = None
     status = "silent"
     ctx: AgentContext | None = None
+    if rt.action == "acknowledge":
+        prompts = DefaultPromptStore()
+        reply = prompts.phrase(Phrase.HANDOVER_ACK, s.language).format(name=s.salesperson or "our sales team")
+        status = "acknowledged"
     if rt.action == "reply":
         ctx = AgentContext(
             deal=deal,
@@ -134,6 +149,13 @@ async def run_scenario(s: Scenario, models: ModelRouter | None = None) -> EvalRe
         fails.append(f"no guard event {e.guard}")
     if e.status and status != e.status:
         fails.append(f"status {status} != {e.status}")
+    raised = [c[1][0] for c in gw.calls if c[0] == "raise_change_request"]
+    if e.change_request and e.change_request not in raised:
+        fails.append(f"no {e.change_request} change request (raised {raised})")
+    if not e.change_request and raised:
+        fails.append(f"unexpected change request {raised}")
+    if e.acknowledged != (status == "acknowledged"):
+        fails.append("acknowledgement mismatch")
     return EvalResult(id=s.id, passed=not fails, reply=reply, failures=fails)
 
 

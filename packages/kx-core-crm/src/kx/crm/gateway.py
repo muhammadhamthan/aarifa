@@ -98,6 +98,8 @@ def quote_view(number: str, v: QuoteVersion, lines: list[QuoteLine]) -> QuoteVie
         currency=v.currency,
         total=v.total,
         valid_until=v.valid_until,
+        delivery_time_text=v.delivery_time_text,
+        incoterm=v.incoterm + (f" {v.delivery_place}" if v.delivery_place else ""),
         lines=tuple(
             QuoteLineView(
                 description=ln.description,

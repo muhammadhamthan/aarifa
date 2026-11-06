@@ -1,0 +1,10 @@
+id: t04_payment_goes_to_the_salesperson
+description: "Trick: payment terms -> always the salesperson (§13 Payment, D13), even when the model misses it."
+stage: NEGOTIATION
+allowed: [["0.25", "line 1 unit price"], ["12500", "line 1 total"]]
+unit_price: "0.25"
+salesperson: Sara
+buyer: Can we pay 30% advance and the balance on delivery?
+ask: {intent: question}
+script: []
+expect: {graph: deal, no_price_leak: true, contains_any: ["within 4 working hours"], change_request: payment}

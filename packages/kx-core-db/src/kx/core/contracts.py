@@ -115,6 +115,8 @@ class QuoteView(_Frozen):
     total: Decimal
     valid_until: date | None
     lines: tuple[QuoteLineView, ...]
+    delivery_time_text: str | None = None  # §14.2: confirmed back to the buyer on agreement
+    incoterm: str | None = None
 
 
 class DealContext(_Frozen):

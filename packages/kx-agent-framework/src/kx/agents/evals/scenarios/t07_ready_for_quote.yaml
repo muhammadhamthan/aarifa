@@ -1,5 +1,5 @@
-id: ready_for_quote
-description: Qualified buyer asks for price -> quotation graph requests quote, no price stated.
+id: t07_ready_for_quote
+description: "Qualified buyer asks for the price -> the quote is requested (with the AI cover line, D9), no price stated."
 stage: QUALIFIED
 buyer: Great, please send me the price.
 script: ["Happy to look at better pricing for bigger or repeat orders, just reply here.", "Thank you! Your quotation is being prepared and reviewed by our team."]

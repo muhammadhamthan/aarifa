@@ -1,7 +1,0 @@
-id: ai_paused_silent
-description: Human took over (ai_enabled false) -> no AI reply at all.
-stage: NEGOTIATION
-ai_enabled: false
-buyer: Hello? Any update on the price?
-script: []
-expect: {graph: null, silent: true}

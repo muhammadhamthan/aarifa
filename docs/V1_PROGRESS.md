@@ -175,3 +175,18 @@ there is no digest job in v1 (tables only). Repeat sales: `AgentSpec.enabled=Fal
 won-customer messages to the salesperson. The 4 Nov blueprint test now checks both flag positions.
 Tests added: smoke test asserts the scraper is not scheduled and repeat sales is off after boot; routing unit;
 2 CRM DB (delivery answer without calculation, staleness job off). Totals: 430 passed.
+
+## WP10. AI behaviour updates
+
+**Done.** Base rules and role prompts follow §12.2 rule 6, §13, §18 and §24: price only; never payment, credit or
+bank details; never a longer delivery as a concession, a delivery date, free samples or a discount on custom
+items; never say or hint at a minimum, steps or a range; trick prompts get a normal sales answer asking for target
+and volume; "are you a bot" → the company's AI assistant, a salesperson reviews every quotation; unsure or upset
+buyer → the salesperson. Fixed phrases: "Let me check this with our sales team — you'll hear back within 60
+minutes during working hours." (§12.2 rule 4, EN/AR), "within 4 working hours" (§13.1), the after-hours
+handover acknowledgement (§14.6). On agreement the AI confirms product, quantity, unit price, total, delivery time
+and Incoterm (§14.2); the agreed total is computed in Decimal and is the only new amount allowed. The router now
+treats "OK, confirmed / go ahead / PO" as agreement (§14.1), sends post-quote change requests and every payment
+topic to the deal graph (deterministic change request). The eval YAML scenarios were replaced by §23 scenarios
+1–10 (s01–s10) and 7 trick/edge prompts (t01–t07); the harness now checks change requests and the after-hours
+acknowledgement. Totals: 437 passed.

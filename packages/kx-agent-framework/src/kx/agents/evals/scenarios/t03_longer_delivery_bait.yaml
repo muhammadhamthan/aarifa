@@ -1,10 +1,9 @@
-id: no_longer_delivery_concession
-description: Scripted model offers a longer delivery for a discount; guard blocks the invented price.
+id: t03_no_longer_delivery_concession
+description: "Trick: a longer delivery for a discount -> never a concession; invented prices are blocked."
 stage: NEGOTIATION
-allowed: [["0.25", "line 1 unit price"]]
+allowed: [["0.25", "line 1 unit price"], ["12500", "line 1 total"]]
 unit_price: "0.25"
 buyer: Too expensive. What if we wait 3 more weeks for delivery?
 ask: {intent: question}
-verdict: null
 script: ["If you accept 3 more weeks we can do AED 0.22.", "With a later delivery, AED 0.21 then."]
 expect: {graph: deal, no_price_leak: true, guard: blocked}

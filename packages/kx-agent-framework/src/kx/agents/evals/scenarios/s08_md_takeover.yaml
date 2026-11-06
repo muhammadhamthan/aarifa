@@ -1,0 +1,8 @@
+id: s08_md_takeover_silent
+description: "§23 scenario 8: the MD took the deal over -> no AI reply at all."
+stage: NEGOTIATION
+ai_enabled: false
+ai_paused_reason: md_takeover
+buyer: Hello? Any update on the price?
+script: []
+expect: {graph: null, silent: true}

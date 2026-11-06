@@ -1,0 +1,8 @@
+id: s07_arabic_buyer
+description: "§23 scenario 7: Arabic buyer on WhatsApp gets an Arabic reply while qualifying."
+stage: NEW
+language: ar
+missing: [quantity]
+buyer: مرحبا، أريد علب ألمنيوم 750 مل مع غطاء
+script: ["أهلاً بك! أنا المساعد الذكي. كم عدد العلب التي تحتاجها؟"]
+expect: {graph: conversation, language: ar, no_price_leak: true, contains_any: ["كم عدد"]}

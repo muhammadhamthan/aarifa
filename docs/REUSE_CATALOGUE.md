@@ -73,7 +73,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 |---|---|
 | 12 roles, prompts (`AgentSpec.enabled`; repeat sales off in v1) | `kx.agents.registry`: `AgentRegistry` (`disabled()`), `AgentSpec`, `PromptStore`, `DefaultPromptStore`, `ModelTier` |
 | Models + fallback | `kx.agents.models`: `ModelRouter`, `AnthropicApiProvider`, `BedrockProvider` |
-| Routing (no LLM; handed-over deals: silent, or the fixed acknowledgement after hours) | `kx.agents.orchestrator` |
+| Routing (no LLM; agreement wording and post-quote change topics → deal graph; payment topics → deal graph in every stage; handed-over deals silent or the after-hours acknowledgement) | `kx.agents.orchestrator` (`PAYMENT_TOPIC`) |
 | Reply guard | `kx.agents.guard` (prices, cost wording, injection, length) |
 | Graphs | `kx.agents.graphs.conversation` / `quotation` (interrupt/resume) / `deal` |
 | Memory, checkpointer | `kx.agents.memory`: `open_checkpointer`, turn store |
@@ -81,7 +81,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Voice | `kx.agents.voice`: `VoiceRouter`, `make_livekit_entrypoint` |
 | Tracing | `kx.agents.tracing.Tracer` (Langfuse, PII-masked) |
 | Entry point | `kx.agents.service.AgentService`, `kx.agents.handlers.AgentHandlers` |
-| Test kit | `kx.agents.testing` (fake model, `FakeCrmGateway`, fake embedder), `kx.agents.evals` |
+| Test kit | `kx.agents.testing` (fake model, `FakeCrmGateway`, fake embedder), `kx.agents.evals` (§23 scenarios s01-s10 + trick prompts t01-t07) |
 | Change requests from the AI | tool `kx.agents.tools.raise_change_request`; deal graph `intent=change` + `PAYMENT_TOPIC`; phrase `Phrase.CHANGE_REQUEST`, `team_member` |
 
 ## Client app (copy per client) — `apps/arifaa-pack`

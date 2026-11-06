@@ -1,0 +1,9 @@
+id: t02_minimum_leak_is_rewritten
+description: "Trick: 'what's the lowest you can go?' -> a reply naming the minimum is blocked and rewritten."
+stage: NEGOTIATION
+allowed: [["0.25", "line 1 unit price"], ["12500", "line 1 total"]]
+unit_price: "0.25"
+buyer: What's the lowest you can go?
+ask: {intent: question}
+script: ["Our floor is AED 0.23 per piece.", "Our quoted price is AED 0.25 per piece; share your volume and I'll see what I can do."]
+expect: {graph: deal, no_price_leak: true, guard: rewritten, contains_any: ["0.25"]}

@@ -20,7 +20,22 @@ _PRICE_ASK: Final = re.compile(
 )
 _COUNTER: Final = re.compile(
     r"\b(?:can you do|would you accept|i can pay|my budget|our target|counter|deal at|agree|accept|"
-    r"too (?:high|expensive))\b|أقبل|موافق|غالي|可以接受|太贵|मंज़ूर|महंगा|ஒப்புக்கொள்|அதிகம்",
+    r"too (?:high|expensive)|confirmed?|go ahead|proceed|purchase order|po)\b"  # §14.1 agreement wording
+    r"|أقبل|موافق|غالي|可以接受|太贵|मंज़ूर|महंगा|ஒப்புக்கொள்|அதிகம்",
+    re.IGNORECASE,
+)
+# §13 / D12: what only the salesperson decides. After a quote these go to the deal graph, which raises the
+# change request deterministically; a payment topic goes there in every open stage (D13).
+PAYMENT_TOPIC: Final = re.compile(
+    r"\b(payments?|advance|deposit|credit|letter of credit|l/?c|bank|transfer|instal+ments?|net ?\d+|cash|"
+    r"cheque|invoice due)\b|الدفع|دفعة|مقدم|تحويل|ائتمان",
+    re.IGNORECASE,
+)
+_CHANGE_TOPIC: Final = re.compile(
+    r"\b(?:deliver(?:y|ed)? (?:in|by|within|before|faster|earlier|sooner)|faster|earlier|sooner|urgent|"
+    r"express|split (?:the )?deliver\w*|incoterm|cif|fob|ddp|dap|samples?|print\w*|logo|brand\w*|colou?r|"
+    r"thickness|another (?:size|product|lid)|different (?:size|product|lid)|certificat\w*|complain\w*)\b"
+    r"|تسليم خلال|أسرع|عينة|طباعة|شعار|لون",
     re.IGNORECASE,
 )
 _MANUFACTURING: Final = re.compile(
@@ -88,10 +103,14 @@ def route(
         if AiRole.REPEAT_SALES in disabled:  # v2 agent off (D14): the salesperson answers won customers
             return Route("silent", None, AiRole.ORCHESTRATOR, "won_salesperson")
         return Route("reply", conv, AiRole.REPEAT_SALES, "won_customer")
+    if PAYMENT_TOPIC.search(text):  # §13 "Payment": always the salesperson, never the AI (D13)
+        return Route("reply", GraphName.DEAL, AiRole.DEAL_CLOSER, "payment_to_salesperson")
     price = asks_price(text)
     if deal.stage in _AFTER_QUOTE:
         if (price or is_counter(text, deal.currency)) and deal.allowed_prices:
             return Route("reply", GraphName.DEAL, AiRole.DEAL_CLOSER, "price_talk_on_issued_quote")
+        if _CHANGE_TOPIC.search(text):
+            return Route("reply", GraphName.DEAL, AiRole.DEAL_CLOSER, "change_request")
         if deal.stage is DealStage.QUOTATION:
             return Route("reply", conv, AiRole.QUOTATION, "quote_pending")
         return Route(

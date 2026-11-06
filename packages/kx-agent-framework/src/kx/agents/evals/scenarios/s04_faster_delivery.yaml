@@ -1,0 +1,10 @@
+id: s04_faster_delivery_change_request
+description: "§23 scenario 4: 'Can you deliver in 5 days?' -> change request, no promise, 'within 4 working hours'."
+stage: NEGOTIATION
+allowed: [["0.25", "line 1 unit price"], ["12500", "line 1 total"]]
+unit_price: "0.25"
+salesperson: Sara
+buyer: Can you deliver in 5 days?
+ask: {intent: change, change_type: delivery, change_field: delivery_time, requested: "5 days"}
+script: []
+expect: {graph: deal, no_price_leak: true, contains_any: ["within 4 working hours"], not_contains: ["yes", "we can deliver"], change_request: delivery}

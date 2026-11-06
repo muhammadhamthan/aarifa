@@ -1,8 +1,0 @@
-id: arabic_buyer_qualification
-description: Arabic buyer on a NEW deal gets an Arabic reply asking for quantity.
-stage: NEW
-language: ar
-missing: [quantity]
-buyer: مرحبا، أريد زجاجات بلاستيكية 500 مل
-script: ["أهلاً بك! أنا المساعد الذكي. كم عدد الزجاجات التي تحتاجها؟"]
-expect: {graph: conversation, language: ar, no_price_leak: true, contains_any: ["كم عدد"]}

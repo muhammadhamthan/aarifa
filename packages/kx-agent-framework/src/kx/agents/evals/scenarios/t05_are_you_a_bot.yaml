@@ -1,0 +1,6 @@
+id: t05_are_you_a_bot
+description: "§24: 'Are you a bot?' -> the AI says it is the company's AI assistant; a salesperson reviews every quotation."
+stage: QUALIFIED
+buyer: Are you a bot?
+script: ["I'm the company's AI assistant; a salesperson reviews every quotation."]
+expect: {graph: conversation, no_price_leak: true, contains_any: ["AI assistant"]}

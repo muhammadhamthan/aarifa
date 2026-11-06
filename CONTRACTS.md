@@ -81,6 +81,8 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 **v2 off (WP9):** `DeliveryEstimateView` dates are optional and `lead_time_text` carries the v1 answer (the product's default delivery time, D10) while `features.delivery_calc` is off.
 
+**AI behaviour (WP10):** `QuoteView.delivery_time_text` / `incoterm` let the AI confirm the agreed terms back (§14.2); the agreed total (CRM price × agreed quantity) is the only new amount it may state.
+
 ## 4. Code standards
 
 - Python 3.14, `from __future__ import annotations`, full type hints, `mypy --strict` clean, `ruff` clean (config in root `pyproject.toml`).

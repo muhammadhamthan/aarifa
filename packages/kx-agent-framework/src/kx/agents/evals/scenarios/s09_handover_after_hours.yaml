@@ -1,0 +1,10 @@
+id: s09_handover_after_hours
+description: "§14.6: after the final quote, a buyer message at night gets only the fixed acknowledgement."
+stage: READY_TO_CLOSE
+ai_enabled: false
+ai_paused_reason: handover
+team_available: false
+salesperson: Sara
+buyer: Please send your bank details for the advance.
+script: []
+expect: {graph: null, silent: false, acknowledged: true, contains_any: ["Sara will reply in the morning"]}

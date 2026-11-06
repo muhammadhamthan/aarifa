@@ -1,0 +1,6 @@
+id: s06_quote_waiting_for_approval
+description: "§23 scenario 6: the quote waits for Sara; the buyer asks for an update -> no price, being reviewed."
+stage: QUOTATION
+buyer: Any update on my quotation?
+script: ["Your quotation is being reviewed by our sales team and will be with you shortly."]
+expect: {graph: conversation, role: quotation, no_price_leak: true, contains_any: ["reviewed"]}
