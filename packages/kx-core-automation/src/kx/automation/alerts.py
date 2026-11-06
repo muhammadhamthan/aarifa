@@ -184,7 +184,7 @@ class LadderTicket(BaseModel):
     @classmethod
     def for_change(cls, p: ChangeRequested) -> LadderTicket:
         return cls(
-            ref=p.change_request_ref,
+            ref=p.alert_ref or p.change_request_ref,
             kind="change_request",
             deal_ref=p.deal_ref,
             approver=p.assigned_to,
@@ -358,6 +358,29 @@ class PauseAlerts:
                 )
 
 
+async def notify_staff(
+    sender: MessageSender,
+    contacts: tuple[StaffContact, ...],
+    template: str,
+    params: tuple[str, ...],
+    *,
+    key: str,
+    deal_ref: uuid.UUID,
+    not_before: datetime | None = None,
+) -> None:
+    """One WhatsApp notice to each staff contact (§17 "notified"), inside alert hours via `not_before`."""
+    for contact in contacts:
+        await _notify(
+            sender,
+            contact,
+            template,
+            params,
+            key=f"{key}:{contact.user_ref}",
+            deal_ref=deal_ref,
+            not_before=not_before,
+        )
+
+
 async def _notify(
     sender: MessageSender,
     contact: StaffContact,
@@ -366,8 +389,10 @@ async def _notify(
     *,
     key: str,
     deal_ref: uuid.UUID,
+    not_before: datetime | None = None,
 ) -> None:
-    to = contact.whatsapp or contact.phone
+    """WhatsApp to a staff member who chose WhatsApp (D4: `StaffContact.whatsapp` is set only then)."""
+    to = contact.whatsapp
     if to is None:
         return
     try:
@@ -379,6 +404,7 @@ async def _notify(
                 template_name=template,
                 template_params=params,
                 deal_ref=deal_ref,
+                not_before=not_before,
                 requested_by=_REQUESTED_BY,
                 idempotency_key=key,
             )

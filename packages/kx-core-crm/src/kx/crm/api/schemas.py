@@ -219,6 +219,30 @@ class ChangeRequestOut(_Out):
     created_at: datetime
 
 
+class ReassignIn(BaseModel):
+    user_id: uuid.UUID
+
+
+class AvailabilityIn(BaseModel):
+    """§9.3 away / holiday and the backup who covers."""
+
+    is_away: bool
+    backup_user_id: uuid.UUID | None = None
+
+
+class UserOut(_Out):
+    id: uuid.UUID
+    full_name: str
+    role: str
+    is_active: bool
+    is_away: bool
+    backup_user_id: uuid.UUID | None
+    languages: list[str]
+    countries: list[str]
+    category_codes: list[str]
+    alert_channels: list[str]
+
+
 class ResolveIn(BaseModel):
     version_id: uuid.UUID
 

@@ -53,7 +53,7 @@ from kx.crm.models import (
     QuoteVersion,
 )
 from kx.crm.rules import pause_reason
-from kx.crm.services import approvals, change_requests, grants, negotiation, quotes, staff
+from kx.crm.services import approvals, assignment, change_requests, grants, negotiation, quotes, staff
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.issuing import lines_of
 from kx.crm.services.journal import Actor
@@ -184,7 +184,10 @@ class CrmGatewayImpl:
     async def try_qualify(self, deal_id: uuid.UUID, actor: AiRole) -> QualifyResult:
         async with self._tx() as s:
             deal = await deal_svc.get_deal(s, deal_id, lock=True)
-            return await deal_svc.try_qualify(s, deal, Actor.ai(actor), self._deps.now())
+            result = await deal_svc.try_qualify(s, deal, Actor.ai(actor), self._deps.now())
+            if result.qualified and deal.owner_user_id is None:  # §5 step 4: assign and alert
+                await assignment.assign(s, self._deps, deal, Actor.system("assignment"))
+            return result
 
     async def request_quote(self, deal_id: uuid.UUID, actor: AiRole) -> None:
         async with self._tx() as s:
@@ -384,5 +387,5 @@ class ApprovalStatusReaderImpl:
             status = await s.scalar(select(Approval.status).where(Approval.id == approval_ref))
             if status is not None:
                 return status in approvals.OPEN
-            card = await s.scalar(select(ChangeRequest.status).where(ChangeRequest.id == approval_ref))
+            card = await s.scalar(select(ChangeRequest.status).where(ChangeRequest.alert_ref == approval_ref))
         return card in change_requests.OPEN

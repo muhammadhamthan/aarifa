@@ -94,3 +94,23 @@ Tests added: 6 agents (scenario 4 delivery with no promise, payment ×3, quantit
 no salesperson, tool), 6 CRM DB (card + alerts, SLA over night, scenario 4 lifecycle over HTTP, decline,
 resolve rules, 120-minute sweep), 3 automation (§16 schedule, press 2, change-request ladder).
 Totals: 389 passed.
+
+## WP5. Assignment, away/backup, reassign, takeover
+
+**Plan.** `services/assignment.py` (pure selection + DB), `services/staff.py` (backup covers), `services/access.py`
+(the covering backup may act), approvals/change-request rerouting, `api/assignment.py` (reassign, takeover,
+hand-back), `PUT /users/{id}/availability`, event `DealAssigned` + automation notice handler, revision `crm_0004`
+(`change_requests.alert_ref`). Tests: `test_assignment_rules.py` (unit + hypothesis), `test_assignment_db.py`.
+
+**Done.** A deal is assigned when it becomes QUALIFIED (AI or staff): returning customer → last active owner;
+otherwise round-robin over active salespersons, narrowed by `assignment.rules` in order (language, country,
+category; an unmatched rule is skipped); away salespersons are replaced by their backup, or the manager.
+Round-robin is serialised by an advisory lock and `crm.assignment_seq`. Reassign (manager/MD), takeover and
+hand-back (MD) move pending approvals (cancel + re-open) and open change-request cards (new alert ref) to the
+person now responsible; the takeover pauses the AI (`md_takeover`); `DEAL_ASSIGNED` notifies the new person,
+the previous one and the manager (automation, alert hours). While a salesperson is away, the backup covers
+their deals (approvals move, the backup may approve and edit).
+Tests added: 8 unit (rule order, several matches, unmatched rule, scenario 7, away/backup, all away → manager,
+property: never picks someone away) and 8 DB (assign on qualify, 10 concurrent assignments = 5/5 with unique
+turns, returning customer, language rule + away backup, approvals follow the backup, scenario 6 reassign over
+HTTP, scenario 8 takeover/hand-back over HTTP, availability route). Totals: 405 passed.

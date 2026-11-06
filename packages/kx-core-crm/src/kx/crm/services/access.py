@@ -9,33 +9,55 @@
 
 from __future__ import annotations
 
+import uuid
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from kx.core.auth import Principal, Role
 from kx.core.errors import Forbidden
 from kx.crm.models import Approval, Deal
+from kx.crm.services import staff
 
 TAKEN_OVER = "the MD has taken over this deal: you can view it until it is handed back"
 
 
-def ensure_can_edit(p: Principal, deal: Deal) -> None:
+def _mine(p: Principal, deal: Deal, covering: uuid.UUID | None) -> bool:
+    """The salesperson's own deal, or one they cover for an away colleague (§9.3)."""
+    return p.user_id is not None and p.user_id in (deal.owner_user_id, covering)
+
+
+def ensure_can_edit(p: Principal, deal: Deal, *, covering: uuid.UUID | None = None) -> None:
     """Edits by staff (quotes, requirement, stage, change requests). 403 for the owner during a takeover."""
     if p.role is Role.SALES:
         if deal.taken_over_by is not None:
             raise Forbidden(TAKEN_OVER)
-        if deal.owner_user_id != p.user_id:
+        if not _mine(p, deal, covering):
             raise Forbidden("this deal is assigned to another salesperson")
 
 
-def ensure_can_view(p: Principal, deal: Deal) -> None:
+def ensure_can_view(p: Principal, deal: Deal, *, covering: uuid.UUID | None = None) -> None:
     """§3: the salesperson sees their own deals (also while the MD has taken one over); others see all."""
-    if p.role is Role.SALES and deal.owner_user_id != p.user_id:
+    if p.role is Role.SALES and not _mine(p, deal, covering):
         raise Forbidden("this deal is assigned to another salesperson")
+
+
+async def check_edit(session: AsyncSession, p: Principal, deal: Deal) -> None:
+    covering = await staff.covering_user(session, deal) if p.role is Role.SALES else None
+    ensure_can_edit(p, deal, covering=covering)
+
+
+async def check_view(session: AsyncSession, p: Principal, deal: Deal) -> None:
+    covering = await staff.covering_user(session, deal) if p.role is Role.SALES else None
+    ensure_can_view(p, deal, covering=covering)
 
 
 def _md_on_takeover(p: Principal, deal: Deal) -> bool:
     return p.role is Role.MD and deal.taken_over_by is not None and deal.taken_over_by == p.user_id
 
 
-def ensure_can_approve(p: Principal, deal: Deal, approval: Approval) -> None:
+def ensure_can_approve(
+    p: Principal, deal: Deal, approval: Approval, *, covering: uuid.UUID | None = None
+) -> None:
     """D1 / §3 "Approve and send quotes", D3 special price, plus the optional MD value limit."""
     if not p.is_human or not p.mfa:
         raise Forbidden("approvals need a person signed in with MFA")
@@ -56,7 +78,7 @@ def ensure_can_approve(p: Principal, deal: Deal, approval: Approval) -> None:
         case Role.MD:
             raise Forbidden("the MD approves only deals it has taken over")
         case Role.SALES:
-            ensure_can_edit(p, deal)
+            ensure_can_edit(p, deal, covering=covering)
             return
         case _:
             raise Forbidden("approvals are for the deal's salesperson, the manager or the MD on takeover")

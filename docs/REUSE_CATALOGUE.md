@@ -14,7 +14,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Priced-content hash | `kx.core.identity.priced_content_sha256(body, pdf_sha)` | CRM issues, automation verifies — one function |
 | Business hours / paused timers | `kx.core.timewindow.Window`: `contains`, `next_open`, `add_open_minutes` | 2 h approval timer pauses overnight |
 | Events | `kx.core.events`: `Event`, `Outbox.add`, `relay_once`, `inbox_once`, `InMemoryBus`, event names | outbox in same transaction |
-| Typed event payloads | `kx.core.event_payloads`: `make_event`, `parse_payload`, 21 payload models (incl. `ChangeRequested`, `ChangeRequestClosed`) | |
+| Typed event payloads | `kx.core.event_payloads`: `make_event`, `parse_payload`, 22 payload models (incl. `ChangeRequested`, `ChangeRequestClosed`, `DealAssigned`) | |
 | HTTP errors | `kx.core.errors`: `NotFound`, `Conflict`, `Forbidden`, `Unauthorized`, `RuleViolation`, `install_problem_handlers` | RFC 9457 |
 | Auth | `kx.core.auth`: `current_principal`, `require_role`, `require_human_mfa`, `Role` | approvals need MFA |
 | Logging | `kx.core.logging`: `get_logger`, `configure_logging`, `mask_pii` | PII masked automatically |
@@ -25,7 +25,6 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 
 | Capability | Will live in |
 |---|---|
-| Deal assignment (round-robin + rules + away/backup) | `kx.crm.services.assignment` (WP5) |
 | Regional WhatsApp routing | `kx.automation.outbound` + `channel_accounts.countries` (WP6) |
 | Price-list Excel import/export | `kx.crm.api` + `openpyxl` (WP11) |
 
@@ -42,7 +41,8 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Approvals (salesperson, manager any deal, MD on takeover; special price; 120-min escalation) | `kx.crm.services.approvals`: `open_approval`, `decide`, `sweep_overdue`, `initial_role` |
 | Edit then approve / revise a quote (special price below the minimum) | `kx.crm.services.quotes.revise_quote` (`QuoteEdits`, `LineEdit`) |
 | Change requests (raise, start, revise link, resolve, decline, 120-min sweep) | `kx.crm.services.change_requests`; HTTP `kx.crm.api.change_requests`; contract `CrmGateway.raise_change_request`, `ChangeField`, `ChangeType` |
-| Who is alerted | `kx.crm.services.staff`: `approver_for`, `manager_user`, `owner_of`, `staff_contact` |
+| Who is alerted | `kx.crm.services.staff`: `approver_for` (owner, MD on takeover, backup when away, else manager), `covering_user`, `backup_of`, `manager_user`, `owner_of`, `staff_contact` |
+| Deal assignment (round-robin, rules, away/backup, returning customer), reassign, takeover, hand-back, availability | `kx.crm.services.assignment` (pure: `choose`, `rule_pool`, `available`, `next_in_turn`); HTTP `kx.crm.api.assignment`, `PUT /users/{id}/availability` |
 | Services | `kx.crm.services.*`: settings, deals, pricing, price_proposals, quotes, approvals, issuing, grants, negotiation, orders, retention |
 | Gateways for other packages | `kx.crm.gateway`: `CrmGatewayImpl`, `GrantConsumerImpl`, `ApprovalStatusReaderImpl` |
 | HTTP API | `kx.crm.api.build_router(databases, deps)` |
@@ -58,6 +58,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | SNS verification | `kx.automation.channels.sns.SnsVerifier` |
 | Staff alert calls (Twilio) | `kx.automation.channels.voice_ivr.TwilioCaller`, `kx.automation.alerts.VoiceAlerts`, `PauseAlerts` |
 | §16 reminder ladder (approvals and change requests) | `kx.automation.alerts.ApprovalLadder` over `LadderTicket.for_approval` / `.for_change` |
+| Staff notices (§17 "notified", alert hours) | `kx.automation.alerts.notify_staff` |
 | Webhooks router | `kx.automation.webhooks.build_router(WebhookDeps)` |
 | Jobs | `kx.automation.jobs.build_jobs`, `AutomationRuntime`, `ProcrastinateScheduler` |
 | Kill switch / rate limits | `kx.automation.killswitch.KillSwitch`, `kx.automation.ratelimit.TokenBucketLimiter` |

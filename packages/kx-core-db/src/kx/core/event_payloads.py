@@ -139,6 +139,28 @@ class ChangeRequested(EventPayload):
     sla_due_at: datetime
     remind_at: tuple[datetime, ...] = ()
     escalate_at: datetime | None = None
+    alert_ref: uuid.UUID | None = None  # the reminder ladder's ref; a new one after a reassignment
+
+
+class DealAssigned(EventPayload):
+    """§9 / §17: a deal got (or changed) its salesperson, or the MD took it over / handed it back. Automation
+    alerts `assigned_to` (WhatsApp + CRM) and notifies everyone in `notify`."""
+
+    deal_ref: uuid.UUID
+    deal_number: str = ""
+    assigned_to: StaffContact
+    previous: StaffContact | None = None
+    notify: tuple[StaffContact, ...] = ()
+    reason: Literal[
+        "round_robin",
+        "rule",
+        "returning_customer",
+        "backup",
+        "manager",
+        "reassigned",
+        "takeover",
+        "hand_back",
+    ]
 
 
 class ChangeRequestClosed(EventPayload):
@@ -254,6 +276,7 @@ PAYLOADS: dict[str, type[EventPayload]] = {
     ev.AGENT_RUN_COMPLETED: AgentRunCompleted,
     ev.CHANGE_REQUESTED: ChangeRequested,
     ev.CHANGE_REQUEST_CLOSED: ChangeRequestClosed,
+    ev.DEAL_ASSIGNED: DealAssigned,
 }
 
 

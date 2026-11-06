@@ -160,7 +160,7 @@ async def decide(
     if approval is None:
         raise NotFound(f"approval {approval_id} not found")
     version, quote, deal = await _context(session, approval.quote_version_id)
-    access.ensure_can_approve(principal, deal, approval)
+    access.ensure_can_approve(principal, deal, approval, covering=await staff.covering_user(session, deal))
     if approval.status not in OPEN:
         raise Conflict(f"approval is already {approval.status}")
     if decision != "approve" and not (note and note.strip()):
@@ -263,6 +263,43 @@ async def decide(
             )
     await session.flush()
     return approval
+
+
+async def reroute_open(session: AsyncSession, deps: CrmDeps, deal: Deal, actor: Actor) -> int:
+    """§9.4 / §23 scenario 6 ("the manager ... reassigns the deal to Ravi"): after a reassignment, takeover
+    or hand-back, each pending approval is cancelled and re-opened for the person now responsible, so the
+    previous person's reminders stop and the new one is alerted. The manager's special-price step stays."""
+    s = await deps.settings.get(session)
+    now = deps.now()
+    rows = (
+        await session.execute(
+            select(Approval, QuoteVersion, Quote)
+            .join(QuoteVersion, QuoteVersion.id == Approval.quote_version_id)
+            .join(Quote, Quote.id == QuoteVersion.quote_id)
+            .where(Quote.deal_id == deal.id, Approval.status.in_(OPEN), Approval.kind != "special_price")
+        )
+    ).tuples()
+    target = await staff.approver_for(session, deal)
+    moved = 0
+    for a, version, quote in list(rows):
+        if a.assigned_user_id == target.id:
+            continue
+        a.status = "cancelled"
+        await session.flush()
+        await open_approval(
+            session,
+            deps,
+            s,
+            deal=deal,
+            quote=quote,
+            version=version,
+            kind=a.kind,  # type: ignore[arg-type]
+            role=a.required_role,  # type: ignore[arg-type]
+            actor=actor,
+            now=now,
+        )
+        moved += 1
+    return moved
 
 
 async def sweep_overdue(session: AsyncSession, deps: CrmDeps, now: datetime | None = None) -> int:

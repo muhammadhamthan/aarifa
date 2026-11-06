@@ -32,6 +32,7 @@ class ChangeRequest(Base):
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))
     sla_due_at: Mapped[datetime] = mapped_column(TZ)
     escalated_at: Mapped[datetime | None] = mapped_column(TZ)
+    alert_ref: Mapped[uuid.UUID] = mapped_column()  # the current reminder ladder (new on reassignment)
     resolved_version_id: Mapped[uuid.UUID | None] = mapped_column(ref("quote_versions.id"))
     decline_reason: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime | None] = mapped_column(TZ)

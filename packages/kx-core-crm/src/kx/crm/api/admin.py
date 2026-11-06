@@ -13,9 +13,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kx.core.auth import Principal, Role, require_human_mfa, require_role
-from kx.crm.api.context import MANAGERS, ApiContext
+from kx.crm.api.context import MANAGERS, STAFF, ApiContext
 from kx.crm.api.pagination import Page, keyset, page_of
 from kx.crm.api.schemas import (
+    AvailabilityIn,
     DashboardSummary,
     FlagIn,
     FreshnessOut,
@@ -23,13 +24,15 @@ from kx.crm.api.schemas import (
     RateOut,
     SettingIn,
     SettingOut,
+    UserOut,
 )
 from kx.crm.models import Approval, Deal, MaterialRate, Quote, QuoteVersion, Setting, Task
 from kx.crm.rules import OPEN_STAGES
-from kx.crm.services import approvals, price_proposals
+from kx.crm.services import approvals, assignment, price_proposals
 from kx.crm.services.journal import Actor
 
 Manager = Annotated[Principal, Depends(require_role(*MANAGERS))]
+Staff = Annotated[Principal, Depends(require_role(*STAFF))]
 HumanManager = Annotated[Principal, Depends(require_human_mfa(Role.MANAGER))]
 SettingsReader = Annotated[Principal, Depends(require_role(Role.ADMIN, Role.MD))]
 SettingsWriter = Annotated[Principal, Depends(require_human_mfa(Role.ADMIN, Role.MD))]
@@ -104,6 +107,14 @@ def router(ctx: ApiContext) -> APIRouter:
         await deps.settings.set_flag(s, key, body.enabled, Actor.user(p))
 
     # ------------------------------------------------------------ dashboard
+    @r.put("/users/{user_id}/availability", response_model=UserOut, tags=["users"])
+    async def availability(user_id: uuid.UUID, body: AvailabilityIn, s: Session, p: Staff) -> UserOut:
+        """§9.3: away / holiday with a backup (the manager, an admin, or the user themself)."""
+        user = await assignment.set_availability(
+            s, ctx.deps, user_id, is_away=body.is_away, backup_user_id=body.backup_user_id, p=p
+        )
+        return UserOut.model_validate(user)
+
     @r.get("/dashboard/summary", response_model=DashboardSummary, tags=["dashboard"])
     async def summary(s: Session, _: Manager) -> DashboardSummary:
         by_stage = dict(

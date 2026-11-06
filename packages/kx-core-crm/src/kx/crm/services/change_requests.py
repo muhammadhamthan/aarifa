@@ -109,8 +109,10 @@ async def raise_change_request(
     assignee = await staff.approver_for(session, deal)
     manager = await staff.manager_user(session)
     window = s.alert_window()
+    cr_id = new_id()
     cr = ChangeRequest(
-        id=new_id(),
+        id=cr_id,
+        alert_ref=cr_id,
         deal_id=deal.id,
         quote_version_id=version.id if version else None,
         type=type,
@@ -153,10 +155,53 @@ async def raise_change_request(
                 sla_due_at=cr.sla_due_at,
                 remind_at=tuple(window.add_open_minutes(now, m) for m in s.reminder_minutes[:-1]),
                 escalate_at=window.add_open_minutes(now, s.escalate_after_minutes()),
+                alert_ref=cr.alert_ref,
             ),
         ),
     )
     return cr
+
+
+async def reroute(session: AsyncSession, deps: CrmDeps, deal: Deal, actor: Actor) -> int:
+    """§9.4 reassignment / §3 takeover: open cards go to the person now responsible, with a fresh ladder
+    (the previous person's reminders stop because their alert_ref is no longer current)."""
+    s = await deps.settings.get(session)
+    now = deps.now()
+    window = s.alert_window()
+    assignee = await staff.approver_for(session, deal)
+    manager = await staff.manager_user(session)
+    cards = await open_for_deal(session, deal.id)
+    for cr in cards:
+        if cr.assigned_to == assignee.id:
+            continue
+        cr.assigned_to, cr.alert_ref = assignee.id, new_id()
+        await session.flush()
+        await record(
+            session,
+            actor,
+            "change_request.rerouted",
+            "change_request",
+            cr.id,
+            after={"assigned_to": assignee.id},
+            emit=Emit(
+                ev.CHANGE_REQUESTED,
+                "change_request",
+                cr.id,
+                ChangeRequested(
+                    deal_ref=deal.id,
+                    deal_number=deal.number,
+                    change_request_ref=cr.id,
+                    type=cr.type,
+                    assigned_to=staff.staff_contact(assignee),
+                    escalate_to=None if manager.id == assignee.id else staff.staff_contact(manager),
+                    sla_due_at=cr.sla_due_at,
+                    remind_at=tuple(window.add_open_minutes(now, m) for m in s.reminder_minutes[:-1]),
+                    escalate_at=window.add_open_minutes(now, s.escalate_after_minutes()),
+                    alert_ref=cr.alert_ref,
+                ),
+            ),
+        )
+    return len(cards)
 
 
 async def _card(session: AsyncSession, cr_id: uuid.UUID, *, lock: bool = True) -> tuple[ChangeRequest, Deal]:
@@ -174,7 +219,7 @@ def _ensure_open(cr: ChangeRequest) -> None:
 async def start(session: AsyncSession, deps: CrmDeps, cr_id: uuid.UUID, p: Principal) -> ChangeRequest:
     """Open -> In progress (the salesperson picked it up)."""
     cr, deal = await _card(session, cr_id)
-    access.ensure_can_edit(p, deal)
+    await access.check_edit(session, p, deal)
     _ensure_open(cr)
     if cr.status == "open":
         cr.status, cr.started_at = "in_progress", deps.now()
@@ -196,7 +241,7 @@ async def link_revision(
 ) -> ChangeRequest:
     """ "Revise quote" from the card: the new version answers this request once it is approved and sent."""
     cr, deal = await _card(session, cr_id)
-    access.ensure_can_edit(p, deal)
+    await access.check_edit(session, p, deal)
     _ensure_open(cr)
     version = await session.get(QuoteVersion, version_id)
     quote = await session.get(Quote, version.quote_id) if version else None
@@ -272,7 +317,7 @@ async def resolve(
 ) -> ChangeRequest:
     """Mark resolved with the version that answered it (that version must already be issued)."""
     cr, deal = await _card(session, cr_id)
-    access.ensure_can_edit(p, deal)
+    await access.check_edit(session, p, deal)
     _ensure_open(cr)
     version = await session.get(QuoteVersion, version_id)
     quote = await session.get(Quote, version.quote_id) if version else None
@@ -310,7 +355,7 @@ async def decline(
     if not reason.strip():
         raise RuleViolation("declining needs a reason the AI can pass on to the buyer")
     cr, deal = await _card(session, cr_id)
-    access.ensure_can_edit(p, deal)
+    await access.check_edit(session, p, deal)
     _ensure_open(cr)
     cr.decline_reason = reason.strip()[:1000]
     await _close(session, cr, deal, status="declined", actor=Actor.user(p), now=deps.now())

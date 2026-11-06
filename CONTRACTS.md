@@ -73,6 +73,8 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 **Change requests (WP4):** events `change_request.raised.v1` (`ChangeRequested`: deal, card, type, `assigned_to`, `escalate_to`, `sla_due_at`, `remind_at`, `escalate_at`) and `change_request.closed.v1` (`ChangeRequestClosed`); `CrmGateway.raise_change_request(deal_id, type, buyer_text, fields, actor) -> UUID` with `ChangeType` and `ChangeField`; `DealContext.salesperson_name` and `change_request_hours`. `QuoteSubmitted.remind_at` carries the §16 reminder times; automation's `ApprovalStatusReader.is_pending` answers for approvals and change requests.
 
+**Assignment (WP5):** event `deal.assigned.v1` (`DealAssigned`: `assigned_to`, `previous`, `notify`, `reason` round_robin | rule | returning_customer | backup | manager | reassigned | takeover | hand_back). `ChangeRequested.alert_ref` identifies the current reminder ladder; a reassignment issues a new one.
+
 ## 4. Code standards
 
 - Python 3.14, `from __future__ import annotations`, full type hints, `mypy --strict` clean, `ruff` clean (config in root `pyproject.toml`).

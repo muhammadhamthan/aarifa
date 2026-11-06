@@ -52,7 +52,7 @@ def router(ctx: ApiContext) -> APIRouter:
         cr = await s.get(ChangeRequest, cr_id)
         if cr is None:
             raise NotFound(f"change request {cr_id} not found")
-        access.ensure_can_view(p, await deal_svc.get_deal(s, cr.deal_id))
+        await access.check_view(s, p, await deal_svc.get_deal(s, cr.deal_id))
         return ChangeRequestOut.model_validate(cr)
 
     @r.post("/{cr_id}/start", response_model=ChangeRequestOut)
@@ -65,7 +65,7 @@ def router(ctx: ApiContext) -> APIRouter:
         cr = await s.get(ChangeRequest, cr_id)
         if cr is None:
             raise NotFound(f"change request {cr_id} not found")
-        access.ensure_can_edit(p, await deal_svc.get_deal(s, cr.deal_id))
+        await access.check_edit(s, p, await deal_svc.get_deal(s, cr.deal_id))
         edits = quotes.QuoteEdits(
             lines=tuple(quotes.LineEdit(e.line_no, e.unit_price, e.quantity) for e in body.lines),
             delivery_time_text=body.delivery_time_text,

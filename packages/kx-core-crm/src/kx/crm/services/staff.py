@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,9 +54,31 @@ async def owner_of(session: AsyncSession, deal: Deal) -> User | None:
     return owner if owner is not None and owner.is_active else None
 
 
+async def backup_of(session: AsyncSession, user: User) -> User | None:
+    """§9.3: the colleague covering an away salesperson (active and not away themselves)."""
+    if user.backup_user_id is None:
+        return None
+    backup = await session.get(User, user.backup_user_id)
+    return backup if backup is not None and backup.is_active and not backup.is_away else None
+
+
+async def covering_user(session: AsyncSession, deal: Deal) -> uuid.UUID | None:
+    """The backup acting for the deal's away salesperson, if any (§9.3 "their backup covers their deals")."""
+    owner = await owner_of(session, deal)
+    if owner is None or not owner.is_away:
+        return None
+    backup = await backup_of(session, owner)
+    return backup.id if backup is not None else None
+
+
 async def approver_for(session: AsyncSession, deal: Deal) -> User:
-    """D1: the deal's salesperson approves; the MD while it has taken the deal over; the manager when the
-    deal has no active owner (§9: deals go to the manager when nobody is available)."""
+    """D1: the deal's salesperson approves; the MD while it has taken the deal over; the backup while the
+    salesperson is away, else the manager (§9.3, §24 "if none, to the manager")."""
     if deal.taken_over_by is not None and (md := await session.get(User, deal.taken_over_by)) is not None:
         return md
-    return await owner_of(session, deal) or await manager_user(session)
+    owner = await owner_of(session, deal)
+    if owner is not None and not owner.is_away:
+        return owner
+    if owner is not None and (backup := await backup_of(session, owner)) is not None:
+        return backup
+    return await manager_user(session)

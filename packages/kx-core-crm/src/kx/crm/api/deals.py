@@ -31,7 +31,7 @@ from kx.crm.api.schemas import (
     TimelineOut,
 )
 from kx.crm.models import Deal, Quote, QuoteVersion, TimelineEvent
-from kx.crm.services import access, negotiation, orders, quotes
+from kx.crm.services import access, assignment, negotiation, orders, quotes
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.journal import Actor
 
@@ -40,24 +40,27 @@ Manager = Annotated[Principal, Depends(require_role(*MANAGERS))]
 HumanManager = Annotated[Principal, Depends(require_human_mfa(Role.MANAGER))]
 
 
+async def deal_detail(s: AsyncSession, deal: Deal) -> DealDetail:
+    contact = await deal_svc.contact_of(s, deal)
+    reqs = await deal_svc.requirements_of(s, deal.id)
+    return DealDetail.model_validate(
+        {
+            **DealSummary.model_validate(deal).model_dump(),
+            "contact": ContactOut.model_validate(contact),
+            "requirements": [RequirementOut.model_validate(x) for x in reqs],
+            "missing_fields": list(await deal_svc.missing_for(s, deal)),
+            "lost_reason": deal.lost_reason,
+            "lost_note": deal.lost_note,
+        }
+    )
+
+
 def router(ctx: ApiContext) -> APIRouter:
     r = APIRouter(prefix="/deals", tags=["deals"])
     Session = Annotated[AsyncSession, Depends(ctx.session)]  # noqa: N806
     deps = ctx.deps
 
-    async def detail(s: AsyncSession, deal: Deal) -> DealDetail:
-        contact = await deal_svc.contact_of(s, deal)
-        reqs = await deal_svc.requirements_of(s, deal.id)
-        return DealDetail.model_validate(
-            {
-                **DealSummary.model_validate(deal).model_dump(),
-                "contact": ContactOut.model_validate(contact),
-                "requirements": [RequirementOut.model_validate(x) for x in reqs],
-                "missing_fields": list(await deal_svc.missing_for(s, deal)),
-                "lost_reason": deal.lost_reason,
-                "lost_note": deal.lost_note,
-            }
-        )
+    detail = deal_detail
 
     @r.get("", response_model=Page[DealSummary])
     async def list_deals(
@@ -79,7 +82,7 @@ def router(ctx: ApiContext) -> APIRouter:
     @r.get("/{deal_id}", response_model=DealDetail)
     async def get_deal(deal_id: uuid.UUID, s: Session, p: Staff) -> DealDetail:
         deal = await deal_svc.get_deal(s, deal_id)
-        access.ensure_can_view(p, deal)
+        await access.check_view(s, p, deal)
         return await detail(s, deal)
 
     @r.get("/{deal_id}/timeline", response_model=Page[TimelineOut])
@@ -109,7 +112,7 @@ def router(ctx: ApiContext) -> APIRouter:
     @r.post("/{deal_id}/stage", response_model=DealDetail)
     async def move(deal_id: uuid.UUID, body: StageMoveIn, s: Session, p: Staff) -> DealDetail:
         deal = await deal_svc.get_deal(s, deal_id, lock=True)
-        access.ensure_can_edit(p, deal)
+        await access.check_edit(s, p, deal)
         await deal_svc.move_stage(
             s,
             deal,
@@ -121,17 +124,19 @@ def router(ctx: ApiContext) -> APIRouter:
             lost_note=body.lost_note,
             expected_version=body.expected_version,
         )
+        if body.to is DealStage.QUALIFIED and deal.owner_user_id is None:  # §5 step 4
+            await assignment.assign(s, deps, deal, Actor.user(p))
         return await detail(s, deal)
 
     @r.post("/{deal_id}/quotes", response_model=QuoteVersionOut, status_code=201)
     async def request_quote(deal_id: uuid.UUID, s: Session, p: Staff) -> QuoteVersionOut:
-        access.ensure_can_edit(p, await deal_svc.get_deal(s, deal_id))
+        await access.check_edit(s, p, await deal_svc.get_deal(s, deal_id))
         return QuoteVersionOut.model_validate(await quotes.request_quote(s, deps, deal_id, Actor.user(p)))
 
     @r.post("/{deal_id}/quotes/revise", response_model=QuoteVersionOut, status_code=201)
     async def revise_quote(deal_id: uuid.UUID, body: QuoteEditsIn, s: Session, p: Staff) -> QuoteVersionOut:
         """§11.3 Edit then approve: a new version; below the minimum goes to the manager first (D3)."""
-        access.ensure_can_edit(p, await deal_svc.get_deal(s, deal_id))
+        await access.check_edit(s, p, await deal_svc.get_deal(s, deal_id))
         edits = quotes.QuoteEdits(
             lines=tuple(quotes.LineEdit(e.line_no, e.unit_price, e.quantity) for e in body.lines),
             delivery_time_text=body.delivery_time_text,

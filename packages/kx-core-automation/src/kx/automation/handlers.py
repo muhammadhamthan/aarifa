@@ -13,7 +13,7 @@ from typing import Final
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kx.automation.alerts import ApprovalLadder, LadderTicket
+from kx.automation.alerts import ApprovalLadder, LadderTicket, notify_staff
 from kx.automation.models import SCHEMA, ChannelAccount, Thread
 from kx.automation.outbound import TRANSIENT_REASONS
 from kx.automation.ports import Clock, TaskScheduler, utc_now
@@ -26,6 +26,7 @@ from kx.core.errors import RuleViolation
 from kx.core.event_payloads import (
     ChangeRequested,
     ContactAnonymised,
+    DealAssigned,
     DealNextActionSet,
     NegotiationPaused,
     QuoteApproved,
@@ -124,6 +125,7 @@ class EventHandlers:
             ev.DEAL_NEXT_ACTION_SET: ("automation.schedule_followup", self._next_action_set),
             ev.NEGOTIATION_PAUSED: ("automation.negotiation_paused", self._negotiation_paused),
             ev.CONTACT_ANONYMISED: ("automation.anonymise_contact", self._contact_anonymised),
+            ev.DEAL_ASSIGNED: ("automation.deal_assigned", self._deal_assigned),
         }
 
     async def dispatch(self, event: Event) -> bool:
@@ -178,6 +180,25 @@ class EventHandlers:
     async def _negotiation_paused(self, _: AsyncSession, event: Event) -> None:
         paused = parse_payload(event, NegotiationPaused)
         await self.scheduler.schedule_pause_alert(paused, self.settings.alert_window.next_open(self.clock()))
+
+    async def _deal_assigned(self, _: AsyncSession, event: Event) -> None:
+        """§17 "New qualified deal assigned" (the salesperson: WhatsApp + CRM) and "MD takes over or deal
+        reassigned" (salesperson and manager), in alert hours."""
+        p = parse_payload(event, DealAssigned)
+        text = {
+            "takeover": f"The MD took over deal {p.deal_number}",
+            "hand_back": f"Deal {p.deal_number} was handed back to {p.assigned_to.name}",
+            "reassigned": f"Deal {p.deal_number} was reassigned to {p.assigned_to.name}",
+        }.get(p.reason, f"New deal {p.deal_number} assigned to you")
+        await notify_staff(
+            self.sender,
+            (p.assigned_to, *p.notify),
+            self.settings.alerts.notice_template,
+            (text,),
+            key=f"assigned:{event.event_id}",
+            deal_ref=p.deal_ref,
+            not_before=self.settings.alert_window.next_open(self.clock()),
+        )
 
     async def _contact_anonymised(self, s: AsyncSession, event: Event) -> None:
         await anonymise(s, parse_payload(event, ContactAnonymised), self.clock())
