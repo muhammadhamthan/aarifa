@@ -363,7 +363,14 @@ async def test_agreement_payment_won(databases: Databases, seed: Seed, deps: Crm
         assert g is not None and g.policy == "sales" and g.consumed_at is not None
     assert (await gw.deal_context(deal_id)).stage is DealStage.READY_TO_CLOSE
     async with databases.transaction(CRM) as s:
-        order = await orders.record_payment(s, deps, deal_id, Actor.user(MGR), amount=D(5000), currency="AED")
+        await orders.record_payment(
+            s, deps, deal_id, Actor.user(SARA), amount=D(5000), currency="AED", method="bank"
+        )
+    async with databases.transaction(CRM) as s:  # §15: the advance moves the deal to PAYMENT; WON is a step
+        assert (await deals.get_deal(s, deal_id)).stage == "PAYMENT"
+        order = await orders.mark_won(
+            s, deps, deal_id, Actor.user(SARA), expected_reorder_date=deps.now().date() + timedelta(days=30)
+        )
     async with databases.transaction(CRM) as s:
         assert (await deals.get_deal(s, deal_id)).stage == "WON"
         await orders.update_order_status(s, deps, order.id, "ready", Actor.user(MGR))

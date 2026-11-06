@@ -30,7 +30,7 @@ from kx.crm.deps import CrmDeps
 from kx.crm.models import Deal
 from kx.crm.models.base import SCHEMA
 from kx.crm.rules import OPEN_STAGES
-from kx.crm.services import approvals, change_requests, price_proposals, quotes, retention
+from kx.crm.services import approvals, change_requests, lost_proposals, price_proposals, quotes, retention
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.journal import Actor, Timeline, record
 
@@ -50,6 +50,11 @@ class CrmRuntime:
 async def run_approval_sweep(rt: CrmRuntime) -> int:
     async with rt.databases.transaction(LogicalDb.CRM) as s:
         return await approvals.sweep_overdue(s, rt.deps) + await change_requests.sweep_escalations(s, rt.deps)
+
+
+async def run_lost_proposals(rt: CrmRuntime) -> int:
+    async with rt.databases.transaction(LogicalDb.CRM) as s:
+        return await lost_proposals.propose_lost(s, rt.deps)
 
 
 async def run_price_staleness(rt: CrmRuntime) -> int:
@@ -173,6 +178,11 @@ def build_blueprint(rt: CrmRuntime) -> Blueprint:
     @bp.task(name="price_staleness", queueing_lock="crm.price_staleness", retry=retry)
     async def price_staleness(timestamp: int) -> None:
         await run_price_staleness(rt)
+
+    @bp.periodic(cron="7 4 * * *", periodic_id="lost_proposals")  # 08:07 Dubai, start of staff hours
+    @bp.task(name="lost_proposals", queueing_lock="crm.lost_proposals", retry=retry)
+    async def lost_proposals_job(timestamp: int) -> None:
+        await run_lost_proposals(rt)
 
     @bp.periodic(cron="41 23 * * *", periodic_id="retention")  # 03:41 Dubai
     @bp.task(name="retention", queueing_lock="crm.retention", retry=retry)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Final, Literal, get_args
 
 from kx.core.contracts import CounterVerdict, CounterVerdictKind, DealStage
@@ -32,12 +32,17 @@ TRANSITIONS: Final[Mapping[DealStage, frozenset[DealStage]]] = {
 OPEN_STAGES: Final = frozenset(s for s, nxt in TRANSITIONS.items() if nxt)
 QUOTABLE_STAGES: Final = frozenset({S.QUALIFIED, S.QUOTATION, S.NEGOTIATION})
 
+# §15.4: price, delivery time, specification not available, chose a competitor, no response, budget,
+# duplicate, other (the first five keep their 4 Nov codes)
 LostReason = Literal[
     "price_too_high",
     "delivery_not_suitable",
     "bought_competitor",
     "product_unavailable",
     "no_response_postponed",
+    "budget",
+    "duplicate",
+    "other",
 ]
 LOST_REASONS: Final[frozenset[str]] = frozenset(get_args(LostReason))
 
@@ -76,6 +81,12 @@ QUALIFICATION_FIELDS: Final = (
 def missing_fields(facts: QualificationFacts) -> tuple[str, ...]:
     """What the AI still has to ask for before the deal is QUALIFIED (in asking order)."""
     return tuple(name for name, attr in QUALIFICATION_FIELDS if not getattr(facts, attr))
+
+
+def lost_proposal_due(sent_at: datetime, cadence_days: tuple[int, ...], lost_after_days: int) -> datetime:
+    """§16: "No reply 14 days after day 10: the system proposes LOST (no response)" (D15). The last
+    follow-up is the last cadence day after the quote was sent; the proposal is a task, never a move."""
+    return sent_at + timedelta(days=max(cadence_days, default=0) + lost_after_days)
 
 
 # ---------------------------------------------------------------- price staleness (T12)

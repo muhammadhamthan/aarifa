@@ -34,7 +34,9 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Negotiation ladder (pure, v1) | `kx.crm.pricing.engine`: `ladder_between`, `evaluate_ladder_counter` (§12.2 rules 1-5) over `kx.crm.pricing.types.LadderState` |
 | Price-list I/O | `kx.crm.services.pricing`: `list_pricing_inputs`, `current_tiers`, `tiers_of_version`, `lead_time_text`, `fx_with_date`, `PricingNeeded`, `QuantityOutsideTiers` |
 | Pricing maths (pure; cost-based = **v2**) | `kx.crm.pricing.engine`: `unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, `price_line`, `quote_totals`, `concession_ladder`, `evaluate_counter`, `estimate_delivery` |
-| Business rules (pure) | `kx.crm.rules` (stage machine, LOST reasons, staleness 3/7 days, qualification fields) |
+| Business rules (pure) | `kx.crm.rules` (stage machine, §15 LOST reasons, `lost_proposal_due`, staleness 3/7 days = v2, qualification fields) |
+| Advance → PAYMENT, WON with the re-order date + order, order statuses | `kx.crm.services.orders`: `record_payment`, `mark_won`, `update_order_status` |
+| LOST proposal after silence (task, never automatic) | `kx.crm.services.lost_proposals.propose_lost` (daily job `lost_proposals`) |
 | Audit + timeline + outbox in one call | `kx.crm.services.journal.record()` |
 | Handover after the final quote (AI off, reason `handover`) | `kx.crm.services.deals.hand_over` |
 | Who may act on a deal (approve, edit, view; MD takeover read-only) | `kx.crm.services.access`: `ensure_can_approve`, `ensure_can_edit`, `ensure_can_view` |

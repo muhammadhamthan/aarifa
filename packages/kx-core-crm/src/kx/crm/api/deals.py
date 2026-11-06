@@ -24,11 +24,13 @@ from kx.crm.api.schemas import (
     OrderOut,
     OrderStatusIn,
     PaymentIn,
+    PaymentOut,
     QuoteEditsIn,
     QuoteVersionOut,
     RequirementOut,
     StageMoveIn,
     TimelineOut,
+    WonIn,
 )
 from kx.crm.models import Deal, Quote, QuoteVersion, TimelineEvent
 from kx.crm.services import access, assignment, negotiation, orders, quotes
@@ -38,6 +40,7 @@ from kx.crm.services.journal import Actor
 Staff = Annotated[Principal, Depends(require_role(*STAFF))]
 Manager = Annotated[Principal, Depends(require_role(*MANAGERS))]
 HumanManager = Annotated[Principal, Depends(require_human_mfa(Role.MANAGER))]
+HumanStaff = Annotated[Principal, Depends(require_human_mfa(Role.SALES, Role.MANAGER))]
 
 
 async def deal_detail(s: AsyncSession, deal: Deal) -> DealDetail:
@@ -170,9 +173,20 @@ def router(ctx: ApiContext) -> APIRouter:
             s, deps, deal_id, body.unit_price, actor=Actor.user(p), resume=body.resume_ai
         )
 
-    @r.post("/{deal_id}/payments", response_model=OrderOut, status_code=201)
-    async def payment(deal_id: uuid.UUID, body: PaymentIn, s: Session, p: HumanManager) -> OrderOut:
-        order = await orders.record_payment(s, deps, deal_id, Actor.user(p), **body.model_dump())
+    @r.post("/{deal_id}/payments", response_model=PaymentOut, status_code=201)
+    async def payment(deal_id: uuid.UUID, body: PaymentIn, s: Session, p: HumanStaff) -> PaymentOut:
+        """§15.1: the salesperson (human, MFA) records the advance; the deal moves to PAYMENT."""
+        await access.check_edit(s, p, await deal_svc.get_deal(s, deal_id))
+        payment = await orders.record_payment(s, deps, deal_id, Actor.user(p), **body.model_dump())
+        return PaymentOut.model_validate(payment)
+
+    @r.post("/{deal_id}/won", response_model=OrderOut, status_code=201)
+    async def won(deal_id: uuid.UUID, body: WonIn, s: Session, p: HumanStaff) -> OrderOut:
+        """§15.2: WON with the expected re-order date; the order record is created."""
+        await access.check_edit(s, p, await deal_svc.get_deal(s, deal_id))
+        order = await orders.mark_won(
+            s, deps, deal_id, Actor.user(p), expected_reorder_date=body.expected_reorder_date
+        )
         return OrderOut.model_validate(order)
 
     @r.patch("/orders/{order_id}", response_model=OrderOut)

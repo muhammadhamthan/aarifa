@@ -27,6 +27,7 @@ class Payment(Base):
     reference: Mapped[str | None] = mapped_column(Text)
     paid_on: Mapped[date | None] = mapped_column(Date)
     note: Mapped[str | None] = mapped_column(Text)
+    proof_s3_key: Mapped[str | None] = mapped_column(Text)  # §15.1 proof file
 
 
 class Order(Base):

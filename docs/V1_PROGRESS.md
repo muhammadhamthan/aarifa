@@ -148,3 +148,19 @@ salesperson's timeline/inbox; outside staff hours the buyer gets only "Thanks �
 Tests added: 2 agents DB (no AI reply in hours; acknowledgement only after hours), 1 routing unit, 1 automation
 (quote sent, salesperson alert, manager notice), 1 CRM DB (final approval hands over; only the final quote alerts).
 Totals: 420 passed.
+
+## WP8. Payment, WON, LOST, order
+
+**Plan.** `services/orders.py` (`record_payment` → PAYMENT, new `mark_won`), `rules.py` (§15 LOST reasons,
+`lost_proposal_due`), new `services/lost_proposals.py` + daily job, API (`/payments` for the salesperson with
+MFA, `/won`), revision `crm_0006` (`payments.proof_s3_key`). Tests: `test_won_lost_db.py`.
+
+**Done.** Recording the advance needs amount, currency and method (reference, date and proof file are stored)
+and moves the deal to PAYMENT; WON is a separate salesperson step that needs the advance and the expected
+re-order date and creates the order with that date. LOST reasons are the §15 list. A daily job raises one
+`lost_proposal` task for the salesperson when the buyer has not replied 14 days (setting) after the last
+follow-up; the deal never moves by itself. The 4 Nov test that went payment → WON in one step now does the two
+steps.
+Tests added: 7 (scenario 1 advance → PAYMENT → WON with the re-order date → order statuses; WON needs the advance;
+§15 reasons; LOST with a new reason; scenario 9 date; silent buyer → one task, never LOST; a reply stops it).
+Totals: 427 passed.

@@ -82,12 +82,29 @@ class ManagerOfferIn(BaseModel):
 
 
 class PaymentIn(BaseModel):
-    amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=4)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    method: str | None = None
+    """§15.1: the advance the salesperson recorded (amount, currency, method, reference, date, proof)."""
+
+    amount: Decimal = Field(gt=0, max_digits=14, decimal_places=4)
+    currency: str = Field(min_length=3, max_length=3)
+    method: str = Field(min_length=1, max_length=100)
     reference: str | None = None
     paid_on: date | None = None
     note: str | None = None
+    proof_s3_key: str | None = None
+
+
+class PaymentOut(_Out):
+    id: uuid.UUID
+    deal_id: uuid.UUID
+    amount: Decimal | None
+    currency: str | None
+    method: str | None
+    reference: str | None
+    paid_on: date | None
+
+
+class WonIn(BaseModel):
+    expected_reorder_date: date  # D15: stored at WON for the v2 re-order follow-ups
 
 
 class OrderStatusIn(BaseModel):
@@ -102,6 +119,7 @@ class OrderOut(_Out):
     deal_id: uuid.UUID
     status: str
     final_quote_version_id: uuid.UUID
+    expected_reorder_date: date | None = None
 
 
 class TimelineOut(_Out):
