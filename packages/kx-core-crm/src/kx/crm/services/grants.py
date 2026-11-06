@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from kx.core.errors import RuleViolation
 from kx.core.identity import new_id, recipient_hash
 from kx.crm.models import Contact, Deal, Quote, QuoteSendGrant, QuoteVersion
+from kx.crm.rules import next_working_day
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.journal import Actor, Timeline, record
 from kx.crm.services.settings import BusinessSettings
@@ -164,6 +165,9 @@ async def schedule_followups(
     action is the first one; automation gets all three and enforces the 2-per-week cap."""
     contact = await deal_svc.contact_of(session, deal)
     window = s.buyer_window(contact.timezone)
+    reqs = await deal_svc.requirements_of(session, deal.id)
+    country = (reqs[0].delivery_country or "") if reqs else ""
+    weekend = frozenset(s.weekend_days_by_country.get(country.upper(), ()))
     for n, days in enumerate(s.followup_cadence_days):
-        due = window.next_open(sent_at + timedelta(days=days))
+        due = window.next_open(next_working_day(sent_at + timedelta(days=days), weekend, contact.timezone))
         await deal_svc.set_next_action(session, deal, due, f"followup_d{days}", actor, primary=n == 0)

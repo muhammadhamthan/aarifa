@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Final, Literal, get_args
+from zoneinfo import ZoneInfo
 
 from kx.core.contracts import CounterVerdict, CounterVerdictKind, DealStage
 from kx.core.errors import RuleViolation
@@ -87,6 +88,18 @@ def lost_proposal_due(sent_at: datetime, cadence_days: tuple[int, ...], lost_aft
     """§16: "No reply 14 days after day 10: the system proposes LOST (no response)" (D15). The last
     follow-up is the last cadence day after the quote was sent; the proposal is a task, never a move."""
     return sent_at + timedelta(days=max(cadence_days, default=0) + lost_after_days)
+
+
+def next_working_day(at: datetime, weekend: frozenset[int], tz: str) -> datetime:
+    """§16: a follow-up that falls on the buyer country's weekend moves to the next working day, same time
+    (scenario 9: day 5 is a Saturday in Riyadh -> Sunday)."""
+    if not weekend or len(weekend) >= 7:
+        return at
+    zone = ZoneInfo(tz)
+    local = at.astimezone(zone)
+    while local.isoweekday() in weekend:
+        local = (local + timedelta(days=1)).replace(tzinfo=zone)
+    return local.astimezone(at.tzinfo)
 
 
 # ---------------------------------------------------------------- price staleness (T12)

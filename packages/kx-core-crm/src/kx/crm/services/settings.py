@@ -96,6 +96,10 @@ class BusinessSettings(BaseModel):
     feature_delivery_calc: bool = _alias("features.delivery_calc", False)  # D14 (v2)
     feature_news_digest: bool = _alias("features.news_digest", False)  # D14 (v2)
     order_status_to_buyer: bool = _alias("notifications.order_status_to_buyer", False)  # §15.3 client choice
+    # §16 / §23 scenario 9: ISO weekdays off per buyer country (only the Saudi weekend is in the documents)
+    weekend_days_by_country: dict[str, tuple[int, ...]] = _alias(
+        "followup.weekend_days_by_country", {"SA": (5, 6)}
+    )
     flags: dict[str, bool] = Field(default_factory=dict)
 
     @model_validator(mode="after")

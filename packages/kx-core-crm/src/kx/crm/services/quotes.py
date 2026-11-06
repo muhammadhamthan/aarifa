@@ -623,6 +623,90 @@ class QuoteEdits:
     cover_note: str | None = None  # D9: the "open to discuss" line, message only
 
 
+@dataclass(frozen=True, slots=True)
+class ManualLine:
+    """A line the salesperson prices by hand (custom, printed or unpriced product, D8)."""
+
+    description: str
+    quantity: Decimal
+    unit_price: Decimal
+    unit: str = "pcs"
+    product_id: uuid.UUID | None = None
+
+
+async def manual_quote(
+    session: AsyncSession,
+    deps: CrmDeps,
+    deal_id: uuid.UUID,
+    lines: Sequence[ManualLine],
+    *,
+    delivery_time_text: str | None,
+    actor: Actor,
+    buyer_note: str | None = None,
+) -> QuoteVersion:
+    """§10 / D8 / §23 scenario 5: the salesperson builds the quote by hand (unit price and delivery time),
+    then approves it like any other. The lines carry no price-list snapshot, so the AI never negotiates them.
+    Closes the open "Pricing needed" tasks of the deal."""
+    if not lines:
+        raise RuleViolation("a quote needs at least one line")
+    now = deps.now()
+    deal = await deal_svc.get_deal(session, deal_id, lock=True)
+    stage = DealStage(deal.stage)
+    if stage not in QUOTABLE_STAGES:
+        raise RuleViolation(f"a quote can be built only for a qualified deal (stage is {stage})")
+    s = await deps.settings.get(session)
+    reqs = await deal_svc.requirements_of(session, deal.id)
+    country = reqs[0].delivery_country if reqs else None
+    currency = s.quote_currency(country, deal.currency)
+    deal.currency = currency
+    fx, fx_date = await fx_with_date(session, currency, now.date())
+    drafts = []
+    for ln in lines:
+        if ln.quantity <= 0 or ln.unit_price <= 0:
+            raise RuleViolation("quantity and unit price must be positive")
+        total = q(ln.unit_price * ln.quantity, MONEY_PLACES)
+        drafts.append(
+            DraftLine(LineValues(ln.description, ln.quantity, ln.unit, ln.unit_price, total, ln.product_id))
+        )
+    contact = await deal_svc.contact_of(session, deal)
+    quote = await quote_for(session, deal)
+    await _supersede_live(session, quote, now)
+    has_versions = bool(await session.scalar(select(func.count()).where(QuoteVersion.quote_id == quote.id)))
+    version = await _insert_version(
+        session,
+        quote=quote,
+        deal=deal,
+        kind="revision" if has_versions else "initial",
+        currency=currency,
+        fx=fx,
+        drafts=drafts,
+        vat=s.vat_for(country),
+        incoterm=s.default_incoterm,
+        lane_id=None,
+        s=s,
+        language=contact.language,
+        summary="Priced by hand by the salesperson (custom / unpriced item)",
+        estimate_id=None,
+        actor=actor,
+        correction_note=None,
+        terms=VersionTerms(
+            delivery_time_text=delivery_time_text,
+            payment_terms_text=s.payment_terms_text,
+            fx_rate=None if fx == 1 else fx,
+            fx_rate_date=fx_date,
+            signed_by_user_id=deal.owner_user_id,
+        ),
+    )
+    version.change_summary = buyer_note
+    await session.execute(
+        update(Task)
+        .where(Task.deal_id == deal.id, Task.kind == "pricing_needed", Task.status == "open")
+        .values(status="done", done_at=now, done_by=actor.user_id)
+    )
+    await session.flush()
+    return await _after_draft(session, deps, s, deal=deal, version=version, stage=stage, actor=actor, now=now)
+
+
 async def pricing_needed(
     session: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID, why: str, actor: Actor
 ) -> Task:

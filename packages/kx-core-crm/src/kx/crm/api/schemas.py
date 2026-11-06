@@ -241,6 +241,22 @@ class ChangeRequestOut(_Out):
     created_at: datetime
 
 
+class ManualLineIn(BaseModel):
+    description: str = Field(min_length=1, max_length=500)
+    quantity: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+    unit_price: Decimal = Field(gt=0, max_digits=14, decimal_places=6)
+    unit: str = "pcs"
+    product_id: uuid.UUID | None = None
+
+
+class ManualQuoteIn(BaseModel):
+    """D8: the salesperson prices a custom, printed or unpriced item by hand."""
+
+    lines: list[ManualLineIn] = Field(min_length=1)
+    delivery_time_text: str | None = Field(default=None, max_length=300)
+    buyer_note: str | None = Field(default=None, max_length=500)
+
+
 class ReassignIn(BaseModel):
     user_id: uuid.UUID
 

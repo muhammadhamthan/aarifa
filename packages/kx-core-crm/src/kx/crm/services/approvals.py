@@ -142,6 +142,8 @@ async def open_approval(
                 due_at=due,
                 quote_number=quote.number,
                 total_display=total_display,
+                # §16: WhatsApp reminder at 30, alert call at 60 alert-hour minutes; escalation at `due_at`
+                remind_at=tuple(s.alert_window().add_open_minutes(now, m) for m in s.reminder_minutes[:-1]),
             ),
         ),
     )
