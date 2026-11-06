@@ -71,7 +71,7 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 **Approval events (WP3):** `QuoteSubmitted.required_role` adds `sales`; `kind` adds `special_price`; `approver` is the deal's salesperson (the MD on a takeover, the manager for a special price) and `escalate_to` is the manager; `due_at` is the 120-minute escalation counted in alert hours. `ApprovalOverdue.escalate_to` is the manager. Grant `policy` adds `sales`.
 
-**Planned contract additions (WP4):** event `change_request.raised.v1` with an `event_payloads.ChangeRequested` payload, and `CrmGateway.raise_change_request(...)`.
+**Change requests (WP4):** events `change_request.raised.v1` (`ChangeRequested`: deal, card, type, `assigned_to`, `escalate_to`, `sla_due_at`, `remind_at`, `escalate_at`) and `change_request.closed.v1` (`ChangeRequestClosed`); `CrmGateway.raise_change_request(deal_id, type, buyer_text, fields, actor) -> UUID` with `ChangeType` and `ChangeField`; `DealContext.salesperson_name` and `change_request_hours`. `QuoteSubmitted.remind_at` carries the §16 reminder times; automation's `ApprovalStatusReader.is_pending` answers for approvals and change requests.
 
 ## 4. Code standards
 

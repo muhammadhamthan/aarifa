@@ -167,7 +167,7 @@ async def test_twilio_gather_press_2_pulls_ladder_forward(hook: Hook) -> None:
     unsigned = await hook.http.post(path, data=form)
     assert unsigned.status_code == 401
     response = await hook.http.post(path, data=form, headers=twilio_headers(path, form))
-    assert response.status_code == 200 and "MD is being alerted" in response.text
+    assert response.status_code == 200 and "manager is being alerted" in response.text
     assert hook.scheduler.named("pull") == [{"approval_ref": approval}]
     assert await hook.sql("SELECT digits_pressed, status FROM call_attempts") == [("2", "answered")]
 

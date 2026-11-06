@@ -40,6 +40,8 @@ SETTINGS_CHANGED: Final = "settings.changed.v1"
 LANE_RISK_ASSESSED: Final = "lane.risk_assessed.v1"
 KB_CONTENT_PUBLISHED: Final = "kb.content_published.v1"
 AGENT_RUN_COMPLETED: Final = "agent.run_completed.v1"
+CHANGE_REQUESTED: Final = "change_request.raised.v1"  # §13 / D12: a buyer change for the salesperson
+CHANGE_REQUEST_CLOSED: Final = "change_request.closed.v1"  # resolved (new version) or declined
 
 
 class Event(BaseModel):

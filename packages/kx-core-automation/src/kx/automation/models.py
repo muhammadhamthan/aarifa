@@ -47,7 +47,9 @@ _EMPTY_JSON = text("'{}'::jsonb")
 
 OutboundStatus = Literal["queued", "blocked", "sending", "sent", "delivered", "read", "failed", "cancelled"]
 CallStatus = Literal["queued", "ringing", "answered", "no_answer", "busy", "failed", "completed"]
-CallPurpose = Literal["approval_alert", "below_range_alert", "customer_callback", "inbound"]
+CallPurpose = Literal[
+    "approval_alert", "below_range_alert", "customer_callback", "inbound", "change_request_alert"
+]
 InboundKind = Literal[
     "text", "audio", "image", "document", "button", "interactive", "email", "call", "reaction", "other"
 ]

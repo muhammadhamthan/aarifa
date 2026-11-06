@@ -14,7 +14,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Priced-content hash | `kx.core.identity.priced_content_sha256(body, pdf_sha)` | CRM issues, automation verifies — one function |
 | Business hours / paused timers | `kx.core.timewindow.Window`: `contains`, `next_open`, `add_open_minutes` | 2 h approval timer pauses overnight |
 | Events | `kx.core.events`: `Event`, `Outbox.add`, `relay_once`, `inbox_once`, `InMemoryBus`, event names | outbox in same transaction |
-| Typed event payloads | `kx.core.event_payloads`: `make_event`, `parse_payload`, 19 payload models | |
+| Typed event payloads | `kx.core.event_payloads`: `make_event`, `parse_payload`, 21 payload models (incl. `ChangeRequested`, `ChangeRequestClosed`) | |
 | HTTP errors | `kx.core.errors`: `NotFound`, `Conflict`, `Forbidden`, `Unauthorized`, `RuleViolation`, `install_problem_handlers` | RFC 9457 |
 | Auth | `kx.core.auth`: `current_principal`, `require_role`, `require_human_mfa`, `Role` | approvals need MFA |
 | Logging | `kx.core.logging`: `get_logger`, `configure_logging`, `mask_pii` | PII masked automatically |
@@ -25,7 +25,6 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 
 | Capability | Will live in |
 |---|---|
-| Change requests | `kx.crm.services.change_requests`, `kx.core.event_payloads.ChangeRequested`, `CrmGateway.raise_change_request`, agents tool `raise_change_request` (WP4) |
 | Deal assignment (round-robin + rules + away/backup) | `kx.crm.services.assignment` (WP5) |
 | Regional WhatsApp routing | `kx.automation.outbound` + `channel_accounts.countries` (WP6) |
 | Price-list Excel import/export | `kx.crm.api` + `openpyxl` (WP11) |
@@ -42,6 +41,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Who may act on a deal (approve, edit, view; MD takeover read-only) | `kx.crm.services.access`: `ensure_can_approve`, `ensure_can_edit`, `ensure_can_view` |
 | Approvals (salesperson, manager any deal, MD on takeover; special price; 120-min escalation) | `kx.crm.services.approvals`: `open_approval`, `decide`, `sweep_overdue`, `initial_role` |
 | Edit then approve / revise a quote (special price below the minimum) | `kx.crm.services.quotes.revise_quote` (`QuoteEdits`, `LineEdit`) |
+| Change requests (raise, start, revise link, resolve, decline, 120-min sweep) | `kx.crm.services.change_requests`; HTTP `kx.crm.api.change_requests`; contract `CrmGateway.raise_change_request`, `ChangeField`, `ChangeType` |
 | Who is alerted | `kx.crm.services.staff`: `approver_for`, `manager_user`, `owner_of`, `staff_contact` |
 | Services | `kx.crm.services.*`: settings, deals, pricing, price_proposals, quotes, approvals, issuing, grants, negotiation, orders, retention |
 | Gateways for other packages | `kx.crm.gateway`: `CrmGatewayImpl`, `GrantConsumerImpl`, `ApprovalStatusReaderImpl` |
@@ -56,7 +56,8 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | WhatsApp Cloud API | `kx.automation.channels.whatsapp.WhatsAppClient` (+ signature verify, webhook parsing, media download) |
 | Email (SES v2) + inbound MIME | `kx.automation.channels.email.EmailSender`, parsing helpers |
 | SNS verification | `kx.automation.channels.sns.SnsVerifier` |
-| Manager alert calls (Twilio) | `kx.automation.channels.voice_ivr.TwilioCaller`, `kx.automation.alerts.VoiceAlerts`, `ApprovalLadder`, `PauseAlerts` |
+| Staff alert calls (Twilio) | `kx.automation.channels.voice_ivr.TwilioCaller`, `kx.automation.alerts.VoiceAlerts`, `PauseAlerts` |
+| §16 reminder ladder (approvals and change requests) | `kx.automation.alerts.ApprovalLadder` over `LadderTicket.for_approval` / `.for_change` |
 | Webhooks router | `kx.automation.webhooks.build_router(WebhookDeps)` |
 | Jobs | `kx.automation.jobs.build_jobs`, `AutomationRuntime`, `ProcrastinateScheduler` |
 | Kill switch / rate limits | `kx.automation.killswitch.KillSwitch`, `kx.automation.ratelimit.TokenBucketLimiter` |
@@ -76,6 +77,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Tracing | `kx.agents.tracing.Tracer` (Langfuse, PII-masked) |
 | Entry point | `kx.agents.service.AgentService`, `kx.agents.handlers.AgentHandlers` |
 | Test kit | `kx.agents.testing` (fake model, `FakeCrmGateway`, fake embedder), `kx.agents.evals` |
+| Change requests from the AI | tool `kx.agents.tools.raise_change_request`; deal graph `intent=change` + `PAYMENT_TOPIC`; phrase `Phrase.CHANGE_REQUEST`, `team_member` |
 
 ## Client app (copy per client) — `apps/arifaa-pack`
 `company.yaml` (identity), `config.py` (`KX_APP_*`), `adapters.py` (address book, Titan embedder, Payload CMS

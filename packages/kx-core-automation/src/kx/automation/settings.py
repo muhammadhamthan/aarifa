@@ -52,15 +52,18 @@ class TwilioSettings(_Group):
 
 
 class AlertSettings(_Group):
-    """Manager / MD alerts: only 08:00-22:00 Dubai; approval ladder = N calls `gap_minutes` apart."""
+    """Staff alerts, only 08:00-22:00 Dubai (§16). The reminder times (30 / 60 / 120 alert-hour minutes)
+    come from the CRM setting `approval.reminder_minutes`, inside each QuoteSubmitted / ChangeRequested."""
 
     window_start: str = "08:00"
     window_end: str = "22:00"
     timezone: str = "Asia/Dubai"
-    approval_calls: int = Field(default=3, ge=1, le=10)
-    gap_minutes: int = Field(default=20, ge=1)
-    escalation_template: str = "approval_escalation"
+    approval_request_template: str = "approval_request"  # 0 min: WhatsApp to the approver
+    approval_reminder_template: str = "approval_reminder"  # 30 min: WhatsApp reminder
+    change_request_template: str = "change_request"  # 0 min for a change request
+    escalation_template: str = "approval_escalation"  # 120 min: WhatsApp to the manager (+ call)
     negotiation_paused_template: str = "negotiation_paused"
+    notice_template: str = "staff_notice"  # one-line notices (manager notified, takeover, handover ...)
 
 
 class FollowUpSettings(_Group):

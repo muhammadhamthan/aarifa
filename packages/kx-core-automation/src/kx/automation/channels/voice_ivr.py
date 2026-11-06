@@ -30,7 +30,7 @@ SIGNATURE_HEADER: Final = "X-Twilio-Signature"
 
 class Digit(StrEnum):
     ACKNOWLEDGE = "1"
-    SEND_TO_MD = "2"
+    ESCALATE = "2"  # §16: send it to the manager now
 
 
 # Twilio CallStatus -> call_attempts.status
@@ -56,23 +56,38 @@ class AlertScript:
     prompt: str
 
 
-def approval_alert_script(quote_number: str, total_display: str) -> AlertScript:
+def approval_alert_script(title: str) -> AlertScript:
+    """§16 60-minute alert call (scripted, not AI): "A quotation is waiting for your approval in the CRM".
+    It only reminds: approval always happens in the CRM with two-step login."""
     return AlertScript(
         intro="This is the Arifaa Pack sales system.",
         prompt=(
-            f"Quote {quote_number} for {total_display} is waiting for your approval in the CRM. "
+            f"{title} is waiting for your approval in the CRM. "
             f"Press {Digit.ACKNOWLEDGE.value} to acknowledge. "
-            f"Press {Digit.SEND_TO_MD.value} to send it to the MD."
+            f"Press {Digit.ESCALATE.value} to send it to the manager."
         ),
     )
 
 
-def escalation_script(quote_number: str, total_display: str, approver_name: str) -> AlertScript:
+def change_request_script(title: str) -> AlertScript:
+    """§13.5 / §16: the same reminder call for a buyer change request."""
     return AlertScript(
         intro="This is the Arifaa Pack sales system.",
         prompt=(
-            f"Quote {quote_number} for {total_display} is still waiting for approval. "
-            f"{approver_name} did not respond. Please review it in the CRM. "
+            f"{title} is waiting for you in the CRM. The buyer was promised an updated quotation. "
+            f"Press {Digit.ACKNOWLEDGE.value} to acknowledge. "
+            f"Press {Digit.ESCALATE.value} to send it to the manager."
+        ),
+    )
+
+
+def escalation_script(title: str, approver_name: str) -> AlertScript:
+    """§16 120-minute escalation to the manager, who may approve or reassign."""
+    return AlertScript(
+        intro="This is the Arifaa Pack sales system.",
+        prompt=(
+            f"{title} is still waiting. {approver_name} did not respond. "
+            "Please review it in the CRM: you can approve it or reassign the deal. "
             f"Press {Digit.ACKNOWLEDGE.value} to acknowledge."
         ),
     )
@@ -101,7 +116,7 @@ def alert_twiml(script: AlertScript, action_url: str, settings: TwilioSettings) 
 def gather_reply_twiml(digit: str | None, settings: TwilioSettings) -> str:
     text = {
         Digit.ACKNOWLEDGE.value: "Thank you. Acknowledged. Please approve in the CRM.",
-        Digit.SEND_TO_MD.value: "Thank you. The MD is being alerted now.",
+        Digit.ESCALATE.value: "Thank you. The manager is being alerted now.",
     }.get(digit or "", "That is not a valid option. Please check the CRM. Goodbye.")
     response = VoiceResponse()
     response.say(text, voice=settings.voice, language=settings.language)

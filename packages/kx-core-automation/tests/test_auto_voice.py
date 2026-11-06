@@ -24,11 +24,13 @@ SETTINGS = TwilioSettings(account_sid="AC123", auth_token="tw-token", from_numbe
 
 def test_alert_twiml_is_an_alert_not_an_approval() -> None:
     xml = alert_twiml(
-        approval_alert_script("Q-1045", "AED 11,390.20"), "https://api.x/webhooks/twilio/voice/1", SETTINGS
+        approval_alert_script("Quote Q-1045 for AED 11,390.20"),
+        "https://api.x/webhooks/twilio/voice/1",
+        SETTINGS,
     )
     assert '<Gather action="https://api.x/webhooks/twilio/voice/1" method="POST" numDigits="1"' in xml
     assert "Quote Q-1045 for AED 11,390.20 is waiting for your approval" in xml
-    assert "Press 1 to acknowledge" in xml and "Press 2 to send it to the MD" in xml
+    assert "Press 1 to acknowledge" in xml and "Press 2 to send it to the manager" in xml
     assert "approve" not in gather_reply_twiml("9", SETTINGS).lower().split("check")[0]
     assert "<Hangup />" in gather_reply_twiml("1", SETTINGS)
 

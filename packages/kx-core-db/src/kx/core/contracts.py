@@ -131,6 +131,8 @@ class DealContext(_Frozen):
     concessions_left: int
     estimated_delivery: date | None
     next_action_at: datetime | None
+    salesperson_name: str | None = None  # D11: messages are signed with the assigned salesperson's name
+    change_request_hours: int = 4  # §13.1: "updated quotation within N working hours" (CRM setting)
 
 
 class RequirementPatch(BaseModel):
@@ -181,6 +183,18 @@ class CounterVerdict(_Frozen):
     requires_approval: bool = False  # the answer needs a salesperson-approved quote version first
 
 
+# §13 change request types (D12): the AI never decides these, the salesperson does
+ChangeType = Literal["product", "spec", "printing", "quantity", "delivery", "samples", "payment", "other"]
+
+
+class ChangeField(_Frozen):
+    """One row of the change-request card: the field, its value on the quote, what the buyer asked."""
+
+    field: str
+    current: str | None = None  # the CRM fills it from the quote when the AI leaves it empty
+    requested: str
+
+
 class DeliveryEstimateView(_Frozen):
     estimated_ready: date
     estimated_delivery: date
@@ -210,6 +224,14 @@ class CrmGateway(Protocol):
     async def schedule_follow_up(self, deal_id: uuid.UUID, due_at: datetime, reason: str) -> None: ...
     async def delivery_estimate(self, deal_id: uuid.UUID) -> DeliveryEstimateView | None: ...
     async def add_timeline(self, deal_id: uuid.UUID, kind: str, summary: str, actor: AiRole) -> None: ...
+    async def raise_change_request(
+        self,
+        deal_id: uuid.UUID,
+        type: ChangeType,
+        buyer_text: str,
+        fields: tuple[ChangeField, ...],
+        actor: AiRole,
+    ) -> uuid.UUID: ...
 
 
 @runtime_checkable

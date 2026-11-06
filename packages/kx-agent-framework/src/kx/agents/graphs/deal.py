@@ -2,14 +2,19 @@
 
 The LLM never decides a price. It only (a) reads what the buyer asked for, which we cross-check
 against the amounts actually present in the buyer's text, and (b) phrases a reply around the ONE price
-the CRM's deterministic negotiation policy returned. Below range the reply is the fixed 60-minute
-sentence (T6) and the CRM has already paused the AI and alerted manager + MD.
+the CRM's deterministic negotiation policy returned (docs/BUSINESS_FLOW_V1.md §12.2).
+
+The AI negotiates price only (§12, D12). Anything else the buyer asks for (product, specification,
+printing, a quantity outside the tiers, delivery, samples, payment, other) becomes a change request for
+the salesperson, and the reply is the fixed §13.1 sentence ("updated quotation within 4 working hours"),
+never a promise. Payment is never discussed by the AI (§13 "Payment", D13).
 """
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
-from typing import Any, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
@@ -20,21 +25,35 @@ from pydantic import BaseModel, Field
 from kx.agents.context import AgentContext
 from kx.agents.graphs.compose import compose
 from kx.agents.models import ModelSet
-from kx.agents.registry import Phrase
-from kx.core.contracts import AllowedPrice, CounterVerdict, CounterVerdictKind
+from kx.agents.registry import Phrase, team_member
+from kx.core.contracts import AllowedPrice, ChangeField, ChangeType, CounterVerdict, CounterVerdictKind
 from kx.core.price_guard import extract_prices
 
 _RULES = (
     "Never offer a longer delivery time as a concession. Advance payment is always required. "
-    "Do not mention any other price."
+    "Never discuss payment terms. Do not mention any other price."
+)
+# §13 "Payment: any payment topic ... always go to the salesperson". Deterministic, before the LLM.
+PAYMENT_TOPIC: Final = re.compile(
+    r"\b(payments?|advance|deposit|credit|letter of credit|l/?c|bank|transfer|instal+ments?|net ?\d+|cash|"
+    r"cheque|invoice due)\b|الدفع|دفعة|مقدم|تحويل|ائتمان",
+    re.IGNORECASE,
 )
 
 
 class BuyerAsk(BaseModel):
-    intent: Literal["counter", "accept", "question", "reject"]
+    intent: Literal["counter", "accept", "question", "reject", "change"]
     ask_unit_price: Decimal | None = Field(default=None, description="Per-piece price the buyer proposed")
     ask_quantity: Decimal | None = Field(default=None, description="Quantity in pieces, if stated")
     currency: str | None = None
+    change_type: ChangeType | None = Field(
+        default=None,
+        description="intent=change only: product/spec/printing/quantity/delivery/samples/payment/other",
+    )
+    change_field: str | None = Field(
+        default=None, description="intent=change only: e.g. delivery_time, product, printing, incoterm"
+    )
+    requested: str | None = Field(default=None, description="intent=change only: what the buyer asked for")
 
 
 class DealState(TypedDict, total=False):
@@ -57,6 +76,32 @@ def _grounded(ask: BuyerAsk, text: str, currency: str) -> BuyerAsk:
     )
 
 
+def _payment(ask: BuyerAsk, text: str) -> BuyerAsk:
+    if PAYMENT_TOPIC.search(text) is None:
+        return ask
+    return ask.model_copy(
+        update={
+            "intent": "change",
+            "change_type": "payment",
+            "change_field": "payment_terms",
+            "requested": text,
+        }
+    )
+
+
+async def _change_request(
+    ctx: AgentContext, text: str, type: ChangeType, field: str, requested: str
+) -> DealState:
+    """§13.1: raise the card, then the fixed acknowledgement. No price, no promise."""
+    await ctx.gateway.raise_change_request(
+        ctx.deal_id, type, text, (ChangeField(field=field, requested=requested[:500]),), ctx.spec.role
+    )
+    reply = ctx.prompts.phrase(Phrase.CHANGE_REQUEST, ctx.language).format(
+        name=team_member(ctx.deal.salesperson_name, ctx.language), hours=ctx.deal.change_request_hours
+    )
+    return {"reply": reply, "status": "ok"}
+
+
 def build_deal_graph(
     models: ModelSet, extractor: ModelSet | None = None
 ) -> CompiledStateGraph[DealState, AgentContext, DealState, DealState]:
@@ -68,12 +113,14 @@ def build_deal_graph(
             [
                 SystemMessage(
                     "Classify the buyer's negotiation message. Extract the unit price ONLY if the buyer "
-                    f"wrote one. Deal currency: {ctx.deal.currency}."
+                    f"wrote one. Deal currency: {ctx.deal.currency}. Use intent=change when the buyer asks "
+                    "for anything other than a price: another product or size, a specification, printing, "
+                    "a delivery time, date, place or Incoterm, samples, payment, documents or a complaint."
                 ),
                 HumanMessage(state["text"]),
             ]
         )
-        ask = _grounded(raw, state["text"], ctx.deal.currency)
+        ask = _payment(_grounded(raw, state["text"], ctx.deal.currency), state["text"])
         if (
             ask.intent == "accept"
             and ask.ask_unit_price is None
@@ -96,8 +143,12 @@ def build_deal_graph(
     async def respond(state: DealState, runtime: Runtime[AgentContext]) -> DealState:
         ctx = runtime.context
         text = state["text"]
+        ask = BuyerAsk.model_validate(state["ask"])
         if state.get("verdict") is None:
-            ask = BuyerAsk.model_validate(state["ask"])
+            if ask.intent == "change":
+                return await _change_request(
+                    ctx, text, ask.change_type or "other", ask.change_field or "other", ask.requested or text
+                )
             how = (
                 "The buyer declined; thank them, ask what would work for them."
                 if ask.intent == "reject"
@@ -108,20 +159,36 @@ def build_deal_graph(
                 "status": "ok",
             }
         v = CounterVerdict.model_validate(state["verdict"])
+        if v.kind is CounterVerdictKind.CHANGE_REQUEST:  # quantity outside the tiers, or a custom item (D8)
+            qty = f"{ask.ask_quantity:,.0f} pcs" if ask.ask_quantity is not None else text
+            kind: ChangeType = "quantity" if v.reason == "quantity_outside_tiers" else "other"
+            return await _change_request(ctx, text, kind, "quantity" if kind == "quantity" else "price", qty)
+        if v.kind is CounterVerdictKind.REQUOTE:  # §12.2 rule 5: no new price until the salesperson approves
+            name = team_member(ctx.deal.salesperson_name, ctx.language)
+            return {
+                "reply": ctx.prompts.phrase(Phrase.REVISED_QUOTE, ctx.language).format(name=name),
+                "status": "ok",
+            }
         if v.kind is CounterVerdictKind.NEEDS_MANAGER or v.offer_unit_price is None:
-            ctx.log.handoff = True  # CRM paused the AI and alerted manager + MD when it returned this verdict
+            ctx.log.handoff = True  # the CRM paused the AI and alerted the salesperson when it returned this
             return {"reply": ctx.prompts.phrase(Phrase.MANAGER_60, ctx.language), "status": "handoff"}
         offer = AllowedPrice(amount=v.offer_unit_price, currency=v.currency, label="offer per piece")
         if v.kind is CounterVerdictKind.ACCEPT:
             await ctx.gateway.mark_agreed(ctx.deal_id, ctx.spec.role)
             how = (
                 f"Confirm the agreed unit price {v.currency} {v.offer_unit_price}. Say the final quotation "
-                "will be confirmed by our management and sent shortly."
+                "will be confirmed by our sales team and sent shortly."
             )
             allowed: tuple[AllowedPrice, ...] = (offer, *ctx.deal.allowed_prices)
         else:
             trade = " for the larger quantity" if v.traded_for == "quantity_increase" else ""
-            how = f"Offer exactly {v.currency} {v.offer_unit_price} per piece{trade}. Be warm and brief."
+            ask_more = (
+                " Ask whether they can increase the quantity for a better price."
+                if v.reason == "ask_for_quantity"
+                else ""
+            )
+            offer_text = f"Offer exactly {v.currency} {v.offer_unit_price} per piece{trade}."
+            how = f"{offer_text} Be warm and brief.{ask_more}"
             allowed = (offer,)
         return {"reply": await compose(models, ctx, text, f"{how} {_RULES}", allowed), "status": "ok"}
 

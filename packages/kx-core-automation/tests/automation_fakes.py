@@ -7,10 +7,11 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from kx.automation.alerts import LadderTicket
 from kx.automation.channels.email import Attachment
 from kx.automation.channels.whatsapp import DocumentRef
 from kx.automation.ratelimit import Bucket, Decision
-from kx.core.event_payloads import DealNextActionSet, NegotiationPaused, QuoteSubmitted
+from kx.core.event_payloads import DealNextActionSet, NegotiationPaused
 
 # Tuesday 3 Nov 2026, 10:00 Dubai: inside both the alert and the follow-up windows.
 NOW = datetime(2026, 11, 3, 6, 0, tzinfo=UTC)
@@ -88,11 +89,11 @@ class FakeScheduler:
             )
         )
 
-    async def schedule_ladder_step(self, submitted: QuoteSubmitted, attempt_no: int, at: datetime) -> None:
-        self.calls.append(("ladder", {"submitted": submitted, "attempt_no": attempt_no, "at": at}))
+    async def schedule_ladder_step(self, ticket: LadderTicket, step: int, at: datetime) -> None:
+        self.calls.append(("ladder", {"ticket": ticket, "step": step, "at": at}))
 
-    async def pull_ladder_forward(self, approval_ref: uuid.UUID) -> None:
-        self.calls.append(("pull", {"approval_ref": approval_ref}))
+    async def pull_ladder_forward(self, ref: uuid.UUID) -> None:
+        self.calls.append(("pull", {"approval_ref": ref}))
 
     async def schedule_followup(self, action: DealNextActionSet, at: datetime) -> None:
         self.calls.append(("followup", {"action": action, "at": at}))

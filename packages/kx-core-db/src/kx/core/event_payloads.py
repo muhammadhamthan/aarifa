@@ -79,6 +79,8 @@ class QuoteSubmitted(EventPayload):
     due_at: datetime  # escalation time, counted in 08:00-22:00 alert hours (the timer pauses outside)
     quote_number: str
     total_display: str  # e.g. "AED 11,390.20" for the alert text
+    # §16 reminders before the escalation (WhatsApp at 30 min, alert call at 60 min), in alert hours
+    remind_at: tuple[datetime, ...] = ()
 
 
 class QuoteApproved(EventPayload):
@@ -121,6 +123,33 @@ class ApprovalOverdue(EventPayload):
     deal_ref: uuid.UUID
     overdue_since: datetime
     escalate_to: StaffContact
+
+
+class ChangeRequested(EventPayload):
+    """§13 / D12: the buyer asked for something the AI may not decide. The salesperson is alerted at once
+    and reminded like an approval (§13.5, §16): `remind_at`, then escalation to `escalate_to` at
+    `escalate_at`. `sla_due_at` is the promise made to the buyer ("within 4 working hours")."""
+
+    deal_ref: uuid.UUID
+    deal_number: str = ""
+    change_request_ref: uuid.UUID
+    type: Literal["product", "spec", "printing", "quantity", "delivery", "samples", "payment", "other"]
+    assigned_to: StaffContact
+    escalate_to: StaffContact | None = None
+    sla_due_at: datetime
+    remind_at: tuple[datetime, ...] = ()
+    escalate_at: datetime | None = None
+
+
+class ChangeRequestClosed(EventPayload):
+    """The salesperson resolved the card (a new version was sent) or declined it with a reason the AI
+    passes on politely (§13.4)."""
+
+    deal_ref: uuid.UUID
+    change_request_ref: uuid.UUID
+    status: Literal["resolved", "declined"]
+    decline_reason: str | None = None
+    resolved_version_ref: uuid.UUID | None = None
 
 
 class MessageReceived(EventPayload):
@@ -223,6 +252,8 @@ PAYLOADS: dict[str, type[EventPayload]] = {
     ev.LANE_RISK_ASSESSED: LaneRiskAssessed,
     ev.KB_CONTENT_PUBLISHED: KbContentPublished,
     ev.AGENT_RUN_COMPLETED: AgentRunCompleted,
+    ev.CHANGE_REQUESTED: ChangeRequested,
+    ev.CHANGE_REQUEST_CLOSED: ChangeRequestClosed,
 }
 
 

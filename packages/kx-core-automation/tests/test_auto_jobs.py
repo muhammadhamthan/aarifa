@@ -10,6 +10,7 @@ import pytest
 from procrastinate import App
 from procrastinate.testing import InMemoryConnector
 
+from kx.automation.alerts import LadderTicket
 from kx.automation.jobs import ProcrastinateScheduler, build_jobs
 from kx.core.event_payloads import DealNextActionSet, QuoteSubmitted, StaffContact
 
@@ -87,16 +88,16 @@ async def test_press_2_pulls_waiting_step_forward(
         quote_version_ref=uuid.uuid4(),
         deal_ref=uuid.uuid4(),
         kind="commercial",
-        required_role="manager",
+        required_role="sales",
         approver=staff,
         escalate_to=staff,
         due_at=NOW,
         quote_number="Q-1",
         total_display="AED 1",
     )
-    await scheduler.schedule_ladder_step(sub, 3, NOW + timedelta(minutes=20))
+    await scheduler.schedule_ladder_step(LadderTicket.for_approval(sub), 3, NOW + timedelta(minutes=60))
     await scheduler.pull_ladder_forward(sub.approval_ref)
     (job,) = todo(connector, "run_approval_ladder")
-    assert job["args"]["attempt_no"] == 3 and job["scheduled_at"] is None  # type: ignore[index]
+    assert job["args"]["step"] == 3 and job["scheduled_at"] is None  # type: ignore[index]
     await scheduler.pull_ladder_forward(uuid.uuid4())  # nothing waiting: nothing deferred
     assert len(todo(connector, "run_approval_ladder")) == 1

@@ -30,7 +30,7 @@ from kx.crm.deps import CrmDeps
 from kx.crm.models import Deal
 from kx.crm.models.base import SCHEMA
 from kx.crm.rules import OPEN_STAGES
-from kx.crm.services import approvals, price_proposals, quotes, retention
+from kx.crm.services import approvals, change_requests, price_proposals, quotes, retention
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.journal import Actor, Timeline, record
 
@@ -49,7 +49,7 @@ class CrmRuntime:
 # ---------------------------------------------------------------- job bodies (plain async, testable)
 async def run_approval_sweep(rt: CrmRuntime) -> int:
     async with rt.databases.transaction(LogicalDb.CRM) as s:
-        return await approvals.sweep_overdue(s, rt.deps)
+        return await approvals.sweep_overdue(s, rt.deps) + await change_requests.sweep_escalations(s, rt.deps)
 
 
 async def run_price_staleness(rt: CrmRuntime) -> int:

@@ -13,7 +13,8 @@ from langchain.tools import ToolRuntime, tool
 from langchain_core.tools import BaseTool
 
 from kx.agents.context import AgentContext
-from kx.core.contracts import ContactPatch, DealStage, RequirementPatch
+from kx.agents.registry import Phrase, team_member
+from kx.core.contracts import ChangeField, ChangeType, ContactPatch, DealStage, RequirementPatch
 
 Runtime = ToolRuntime[AgentContext]
 _MAX_FOLLOW_UP: Final = timedelta(days=30)
@@ -111,6 +112,23 @@ async def handoff_to_human(reason: str, runtime: Runtime) -> str:
     return "handed over; tell the buyer a team member will reply shortly"
 
 
+@tool
+async def raise_change_request(
+    type: ChangeType, buyer_words: str, field: str, requested: str, runtime: Runtime
+) -> str:
+    """The buyer asks for something you may not decide: another product or size, a specification, printing,
+    a quantity change, faster or different delivery, samples, payment, or anything else (certificates,
+    credit, complaints). Pass the buyer's exact words and what they asked for. Promise nothing yourself."""
+    ctx = runtime.context
+    await ctx.gateway.raise_change_request(
+        ctx.deal_id, type, buyer_words, (ChangeField(field=field, requested=requested),), ctx.spec.role
+    )
+    reply = ctx.prompts.phrase(Phrase.CHANGE_REQUEST, ctx.language).format(
+        name=team_member(ctx.deal.salesperson_name, ctx.language), hours=ctx.deal.change_request_hours
+    )
+    return f"raised; tell the buyer exactly: {reply}"
+
+
 ALL_TOOLS: Final[tuple[BaseTool, ...]] = (
     get_deal_context,
     update_requirement,
@@ -122,4 +140,5 @@ ALL_TOOLS: Final[tuple[BaseTool, ...]] = (
     schedule_follow_up,
     add_timeline,
     handoff_to_human,
+    raise_change_request,
 )

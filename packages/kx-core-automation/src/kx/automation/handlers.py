@@ -13,7 +13,7 @@ from typing import Final
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kx.automation.alerts import ApprovalLadder
+from kx.automation.alerts import ApprovalLadder, LadderTicket
 from kx.automation.models import SCHEMA, ChannelAccount, Thread
 from kx.automation.outbound import TRANSIENT_REASONS
 from kx.automation.ports import Clock, TaskScheduler, utc_now
@@ -24,6 +24,7 @@ from kx.core.contracts import MessageSender, OutboundKind, OutboundRequest
 from kx.core.db import Databases
 from kx.core.errors import RuleViolation
 from kx.core.event_payloads import (
+    ChangeRequested,
     ContactAnonymised,
     DealNextActionSet,
     NegotiationPaused,
@@ -118,6 +119,7 @@ class EventHandlers:
         """event type -> (stable handler name for the inbox, handler)."""
         return {
             ev.QUOTE_SUBMITTED: ("automation.approval_ladder", self._quote_submitted),
+            ev.CHANGE_REQUESTED: ("automation.change_request_ladder", self._change_requested),
             ev.QUOTE_APPROVED: ("automation.send_approved_quote", self._quote_approved),
             ev.DEAL_NEXT_ACTION_SET: ("automation.schedule_followup", self._next_action_set),
             ev.NEGOTIATION_PAUSED: ("automation.negotiation_paused", self._negotiation_paused),
@@ -137,7 +139,11 @@ class EventHandlers:
         return True
 
     async def _quote_submitted(self, _: AsyncSession, event: Event) -> None:
-        await self.ladder.start(parse_payload(event, QuoteSubmitted))
+        await self.ladder.start(LadderTicket.for_approval(parse_payload(event, QuoteSubmitted)))
+
+    async def _change_requested(self, _: AsyncSession, event: Event) -> None:
+        """§13.2 immediate alert to the salesperson, then the §16 ladder with the change-request script."""
+        await self.ladder.start(LadderTicket.for_change(parse_payload(event, ChangeRequested)))
 
     async def _quote_approved(self, _: AsyncSession, event: Event) -> None:
         """Send the approved quote with its single-use grant. The CRM put the recipient, exact body

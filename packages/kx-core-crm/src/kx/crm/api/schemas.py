@@ -199,6 +199,34 @@ class QuoteEditsIn(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
 
 
+class ChangeRequestOut(_Out):
+    """The §13.2 card: the buyer's words, what changes, the SLA timer."""
+
+    id: uuid.UUID
+    deal_id: uuid.UUID
+    quote_version_id: uuid.UUID | None
+    type: str
+    buyer_text: str
+    buyer_text_en: str | None
+    fields: list[dict[str, Any]]
+    ai_notes: str | None
+    status: str
+    assigned_to: uuid.UUID | None
+    sla_due_at: datetime
+    escalated_at: datetime | None
+    resolved_version_id: uuid.UUID | None
+    decline_reason: str | None
+    created_at: datetime
+
+
+class ResolveIn(BaseModel):
+    version_id: uuid.UUID
+
+
+class DeclineIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=1000)
+
+
 class DecisionIn(BaseModel):
     decision: Literal["approve", "reject", "correct"]
     note: str | None = Field(default=None, max_length=2000)

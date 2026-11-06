@@ -26,6 +26,8 @@ from pydantic import BaseModel, PrivateAttr
 from kx.core.contracts import (
     AiRole,
     AllowedPrice,
+    ChangeField,
+    ChangeType,
     Channel,
     ContactPatch,
     ContactView,
@@ -233,6 +235,17 @@ class FakeCrmGateway:
 
     async def add_timeline(self, deal_id: uuid.UUID, kind: str, summary: str, actor: AiRole) -> None:
         self.calls.append(("add_timeline", kind))
+
+    async def raise_change_request(
+        self,
+        deal_id: uuid.UUID,
+        type: ChangeType,
+        buyer_text: str,
+        fields: tuple[ChangeField, ...],
+        actor: AiRole,
+    ) -> uuid.UUID:
+        self.calls.append(("raise_change_request", (type, buyer_text, fields)))
+        return uuid.uuid7()
 
 
 class RecordingSender:

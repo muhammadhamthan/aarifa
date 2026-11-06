@@ -40,6 +40,8 @@ class Phrase(StrEnum):
     HANDOFF = "handoff"
     QUOTE_IN_PREPARATION = "quote_in_preparation"
     QUOTE_REJECTED = "quote_rejected"
+    CHANGE_REQUEST = "change_request"  # §13.1: "... updated quotation within {hours} working hours"
+    REVISED_QUOTE = "revised_quote"  # §12.2 rule 5: new tier, revised quote after the salesperson approves
 
 
 _ALL_OPEN: Final = frozenset(DealStage) - {DealStage.LOST}
@@ -57,6 +59,7 @@ _CONVERSATION_TOOLS: Final = (
     "delivery_estimate",
     "add_timeline",
     "handoff_to_human",
+    "raise_change_request",  # §13: anything the AI may not decide goes to the salesperson
 )
 
 
@@ -278,7 +281,32 @@ DEFAULT_PHRASES: Final[dict[tuple[Phrase, str], str]] = {
         "Thank you. Your quotation is being prepared and reviewed by our team; we will send it to you soon."
     ),
     (Phrase.QUOTE_REJECTED, "en"): "Our team is reviewing your request and will contact you shortly.",
+    # {name} = the deal's salesperson ("Sara from our sales team"), {hours} = change_request.sla_working_hours
+    (Phrase.CHANGE_REQUEST, "en"): (
+        "Good question — I've passed this to {name}. "
+        "You'll get an updated quotation within {hours} working hours."
+    ),
+    (Phrase.CHANGE_REQUEST, "ar"): (
+        "سؤال جيد — لقد أحلت طلبك إلى {name}. ستصلك عرض أسعار محدّث خلال {hours} ساعات عمل."
+    ),
+    (Phrase.REVISED_QUOTE, "en"): (
+        "Thank you — for that quantity I'm preparing a revised quotation; {name} will send it to you shortly."
+    ),
+    (
+        Phrase.REVISED_QUOTE,
+        "ar",
+    ): "شكراً لك — أقوم بإعداد عرض أسعار محدّث لهذه الكمية، وسيرسله لك {name} قريباً.",
 }
+
+_TEAM: Final[dict[str, str]] = {"en": "our sales team", "ar": "فريق المبيعات"}
+
+
+def team_member(name: str | None, language: str) -> str:
+    """ "Sara from our sales team" (§13.1), or just "our sales team" when the deal has no salesperson yet."""
+    team = _TEAM.get(normalise_language(language), _TEAM[DEFAULT_LANGUAGE])
+    if not name:
+        return team
+    return f"{name} من {team}" if normalise_language(language) == "ar" else f"{name} from {team}"
 
 
 class DefaultPromptStore:

@@ -19,6 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from kx.core.contracts import (
     AiRole,
     AllowedPrice,
+    ChangeField,
+    ChangeType,
     Channel,
     ContactPatch,
     ContactView,
@@ -39,6 +41,7 @@ from kx.core.settings import LogicalDb
 from kx.crm.deps import CrmDeps
 from kx.crm.models import (
     Approval,
+    ChangeRequest,
     Company,
     Contact,
     DealRequirement,
@@ -50,7 +53,7 @@ from kx.crm.models import (
     QuoteVersion,
 )
 from kx.crm.rules import pause_reason
-from kx.crm.services import approvals, grants, negotiation, quotes
+from kx.crm.services import approvals, change_requests, grants, negotiation, quotes, staff
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.issuing import lines_of
 from kx.crm.services.journal import Actor
@@ -240,6 +243,21 @@ class CrmGatewayImpl:
         async with self._tx() as s:
             await deal_svc.add_note(s, await deal_svc.get_deal(s, deal_id), kind, summary, Actor.ai(actor))
 
+    async def raise_change_request(
+        self,
+        deal_id: uuid.UUID,
+        type: ChangeType,
+        buyer_text: str,
+        fields: tuple[ChangeField, ...],
+        actor: AiRole,
+    ) -> uuid.UUID:
+        """§13 / D12: the salesperson gets a card; the AI only acknowledges ("within 4 working hours")."""
+        async with self._tx() as s:
+            cr = await change_requests.raise_change_request(
+                s, self._deps, deal_id, type=type, buyer_text=buyer_text, fields=fields, actor=Actor.ai(actor)
+            )
+            return cr.id
+
 
 async def build_context(s: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID) -> DealContext:
     deal = await deal_svc.get_deal(s, deal_id)
@@ -290,6 +308,8 @@ async def build_context(s: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID) -> D
         concessions_left=left,
         estimated_delivery=(estimate.confirmed_date or estimate.estimated_delivery) if estimate else None,
         next_action_at=deal.next_action_at,
+        salesperson_name=owner.full_name if (owner := await staff.owner_of(s, deal)) else None,
+        change_request_hours=settings.change_request_sla_working_hours,
     )
 
 
@@ -352,9 +372,9 @@ class GrantConsumerImpl:
 
 
 class ApprovalStatusReaderImpl:
-    """Satisfies kx.automation's ApprovalStatusReader (structural Protocol, not imported): the alert
-    ladder asks before every call whether an approval still waits for a human, so a decided approval
-    never rings anyone's phone."""
+    """Satisfies kx.automation's ApprovalStatusReader (structural Protocol, not imported): the reminder
+    ladder asks before every step whether an approval or a change request still waits for a human, so a
+    decided one never rings anyone's phone (§16)."""
 
     def __init__(self, databases: Databases) -> None:
         self._dbs = databases
@@ -362,4 +382,7 @@ class ApprovalStatusReaderImpl:
     async def is_pending(self, approval_ref: uuid.UUID) -> bool:
         async with self._dbs.transaction(LogicalDb.CRM) as s:
             status = await s.scalar(select(Approval.status).where(Approval.id == approval_ref))
-        return status in approvals.OPEN
+            if status is not None:
+                return status in approvals.OPEN
+            card = await s.scalar(select(ChangeRequest.status).where(ChangeRequest.id == approval_ref))
+        return card in change_requests.OPEN

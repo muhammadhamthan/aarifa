@@ -71,3 +71,26 @@ Tests added: 11 (`test_approvals_db.py`: own deal vs another salesperson, manage
 takeover, owner read-only over HTTP, final quote grant single-use, edit within range / above list refused,
 scenario 3 special price, special price declined, scenario 6 timer 14:00 → 16:00 and 21:30 → 09:30, MD value
 limit). Totals: 373 passed.
+
+## WP4. Change requests
+
+**Plan.** kx.core: events `CHANGE_REQUESTED` / `CHANGE_REQUEST_CLOSED`, payloads, `ChangeField`/`ChangeType`,
+`CrmGateway.raise_change_request`. kx.crm: `services/change_requests.py`, `api/change_requests.py`, gateway,
+status reader, sweep. kx.agents: tool `raise_change_request`, deal graph `intent=change`, phrases. kx.automation:
+the ladder generalised (`LadderTicket`) and moved to the §16 schedule; handler for `CHANGE_REQUESTED`. Tests
+first: `kx-agent-framework/tests/test_change_requests.py`, `kx-core-crm/tests/test_change_requests_db.py`,
+automation ladder tests.
+
+**Done.** The AI raises a card for any non-price request (product, spec, printing, quantity outside the tiers,
+delivery, samples, payment, other) and answers with the fixed §13.1 sentence naming the salesperson and the
+`change_request.sla_working_hours` setting; payment wording always becomes a payment card (deterministic check
+before the model). The CRM fills the "current value" column from the quote, sets the SLA in alert hours and
+alerts the salesperson. Lifecycle open → in progress → resolved (when the revised version is approved and sent)
+or declined (reason required). The reminder ladder now follows §16 for approvals and change requests alike:
+WhatsApp at once, WhatsApp at 30 min, alert call at 60 min, manager (WhatsApp + call) at 120 min, in alert hours,
+stopping as soon as the item is decided. The 4 Nov ladder tests (3 calls / 20 min, press 2 → MD) were rewritten
+to the §16 schedule (D4).
+Tests added: 6 agents (scenario 4 delivery with no promise, payment ×3, quantity outside tiers, tier change,
+no salesperson, tool), 6 CRM DB (card + alerts, SLA over night, scenario 4 lifecycle over HTTP, decline,
+resolve rules, 120-minute sweep), 3 automation (§16 schedule, press 2, change-request ladder).
+Totals: 389 passed.

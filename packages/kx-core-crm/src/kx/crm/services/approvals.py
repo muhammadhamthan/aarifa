@@ -30,7 +30,7 @@ from kx.core.identity import new_id
 from kx.core.money import display
 from kx.crm.deps import CrmDeps
 from kx.crm.models import Approval, ApprovalEvent, Deal, Quote, QuoteVersion
-from kx.crm.services import access, staff
+from kx.crm.services import access, change_requests, staff
 from kx.crm.services.grants import GrantPolicy
 from kx.crm.services.issuing import issue_to_buyer
 from kx.crm.services.journal import Actor, Emit, Timeline, record
@@ -226,6 +226,7 @@ async def decide(
                 now=now,
                 policy=_POLICY.get(principal.role, "sales"),
             )
+            await change_requests.resolve_for_version(session, version, actor, now)  # §13.4
         case "reject":
             version.status = "rejected"
             await record(

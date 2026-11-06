@@ -16,7 +16,7 @@ from tenacity import wait_none
 from test_auto_email import RAW_REPLY
 
 from kx.automation import jobs
-from kx.automation.alerts import ApprovalLadder, PauseAlerts, VoiceAlerts
+from kx.automation.alerts import ApprovalLadder, LadderTicket, PauseAlerts, VoiceAlerts
 from kx.automation.channels import HttpRetry
 from kx.automation.handlers import EventHandlers, FollowUps
 from kx.automation.models import Base
@@ -26,6 +26,7 @@ from kx.core import events as ev
 from kx.core.contracts import OutboundRequest
 from kx.core.errors import RuleViolation
 from kx.core.event_payloads import (
+    ChangeRequested,
     ContactAnonymised,
     DealNextActionSet,
     NegotiationPaused,
@@ -102,8 +103,11 @@ class Caller:
         return f"CA{len(self.calls)}"
 
 
-MANAGER = StaffContact(user_ref=uuid.uuid4(), name="Sara", phone="+971501111111", email=None, whatsapp=None)
-MD = StaffContact(
+# §16: the salesperson approves, the manager is the escalation
+SALES = StaffContact(
+    user_ref=uuid.uuid4(), name="Sara", phone="+971501111111", email=None, whatsapp="+971501111111"
+)
+MANAGER = StaffContact(
     user_ref=uuid.uuid4(), name="Faisal", phone="+971502222222", email=None, whatsapp="+971502222222"
 )
 
@@ -115,13 +119,18 @@ def submitted(clock: Clock) -> QuoteSubmitted:
         quote_version_ref=uuid.uuid4(),
         deal_ref=uuid.uuid4(),
         kind="commercial",
-        required_role="manager",
-        approver=MANAGER,
-        escalate_to=MD,
-        due_at=clock.now + timedelta(hours=2),
+        required_role="sales",
+        approver=SALES,
+        escalate_to=MANAGER,
+        due_at=clock.now + timedelta(minutes=120),
         quote_number="Q-1045",
         total_display="AED 11,390.20",
+        remind_at=(clock.now + timedelta(minutes=30), clock.now + timedelta(minutes=60)),
     )
+
+
+def ticket(clock: Clock) -> LadderTicket:
+    return LadderTicket.for_approval(submitted(clock))
 
 
 def build(
@@ -148,7 +157,7 @@ async def test_handler_runs_once_per_event(auto_db: Any, clock: Clock) -> None:
     assert not await handlers.dispatch(event)
     assert not await handlers.dispatch(Event(event_type="unknown.v1", aggregate_type="x", aggregate_id="1"))
     (step,) = scheduler.named("ladder")
-    assert step["attempt_no"] == 1 and step["at"] == clock.now
+    assert step["step"] == 1 and step["at"] == clock.now and step["ticket"].kind == "approval"
 
 
 async def test_transient_refusal_rolls_back_inbox_for_retry(auto_db: Any, clock: Clock) -> None:
@@ -197,7 +206,7 @@ async def test_next_action_and_pause_are_scheduled(auto_db: Any, clock: Clock) -
     paused = NegotiationPaused(
         deal_ref=uuid.uuid4(),
         reason="below_range",
-        alert=(MANAGER, MD),
+        alert=(SALES, MANAGER),
         respond_by=clock.now + timedelta(minutes=60),
     )
     await handlers.dispatch(make_event(ev.NEGOTIATION_PAUSED, "deal", paused.deal_ref, paused))
@@ -263,44 +272,98 @@ async def test_anonymise_blanks_copies_and_suppresses(auto_db: Any, clock: Clock
 
 
 # ---------------------------------------------------------------- approval ladder
-async def test_ladder_calls_then_escalates_to_md(auto_db: Any, clock: Clock) -> None:
+async def test_ladder_follows_section_16(auto_db: Any, clock: Clock) -> None:
+    """0 min WhatsApp to the salesperson, 30 min WhatsApp reminder, 60 min alert call, 120 min the manager."""
     sender = RecordingSender()
     _, ladder, scheduler, caller = build(auto_db, clock, sender)
-    sub = submitted(clock)
-    for attempt in (1, 2, 3):
-        await ladder.step(sub, attempt)
-        await ladder.step(sub, attempt)  # retried job: no second call
-    assert [to for to, _ in caller.calls] == [MANAGER.phone] * 3
-    assert [c["attempt_no"] for c in scheduler.named("ladder")][-1] == 4
-    assert scheduler.named("ladder")[0]["at"] == clock.now + timedelta(minutes=20)
-    await ladder.step(sub, 4)
-    assert caller.calls[-1][0] == MD.phone and "did not respond" in caller.calls[-1][1]
-    (notice,) = sender.requests
-    assert (notice.template_name, notice.to_address, notice.template_params) == (
-        "approval_escalation",
-        MD.whatsapp,
-        ("Q-1045", "AED 11,390.20", "Sara"),
-    )
+    t = ticket(clock)
+    await ladder.step(t, 1)
+    await ladder.step(t, 2)
+    assert caller.calls == []  # no call before the 60-minute step
+    for _ in range(2):
+        await ladder.step(t, 3)  # retried job: no second call
+    assert [to for to, _ in caller.calls] == [SALES.phone]
+    assert "Quote Q-1045 for AED 11,390.20 is waiting for your approval" in caller.calls[0][1]
+    assert [(c["step"], c["at"]) for c in scheduler.named("ladder")] == [
+        (2, clock.now + timedelta(minutes=30)),
+        (3, clock.now + timedelta(minutes=60)),
+        (4, clock.now + timedelta(minutes=120)),
+        (4, clock.now + timedelta(minutes=120)),
+    ]
+    await ladder.step(t, 4)
+    assert caller.calls[-1][0] == MANAGER.phone and "did not respond" in caller.calls[-1][1]
+    assert "reassign" in caller.calls[-1][1]
+    assert [(r.template_name, r.to_address) for r in sender.requests] == [
+        ("approval_request", SALES.whatsapp),
+        ("approval_reminder", SALES.whatsapp),
+        ("approval_escalation", MANAGER.whatsapp),
+    ]
+    assert sender.requests[-1].template_params == ("Quote Q-1045 for AED 11,390.20", "Sara")
 
 
-async def test_ladder_stops_when_decided_or_acknowledged_and_waits_at_night(
-    auto_db: Any, clock: Clock
-) -> None:
+async def test_ladder_stops_when_decided_and_waits_at_night(auto_db: Any, clock: Clock) -> None:
     approvals = Approvals()
-    _, ladder, scheduler, caller = build(auto_db, clock, approvals=approvals)
-    sub = submitted(clock)
-    await ladder.step(sub, 1)
-    await sql(auto_db, "UPDATE call_attempts SET digits_pressed = '1'")
-    await ladder.step(sub, 2)
-    assert len(caller.calls) == 1 and len(scheduler.named("ladder")) == 1
-    other = submitted(clock)
-    approvals.pending = False
-    await ladder.step(other, 1)
+    sender = RecordingSender()
+    _, ladder, scheduler, caller = build(auto_db, clock, sender, approvals=approvals)
+    t = ticket(clock)
+    await ladder.step(t, 3)
+    await sql(auto_db, "UPDATE call_attempts SET digits_pressed = '1'")  # acknowledged on the call
+    await ladder.step(t, 3)
+    assert len(caller.calls) == 1 and scheduler.named("ladder")[-1]["step"] == 4  # escalation still due
+    approvals.pending = False  # decided in the CRM: nothing more, not even the escalation
+    await ladder.step(t, 4)
+    assert len(caller.calls) == 1 and sender.requests == []
     approvals.pending = True
+    other = ticket(clock)
     clock.now = clock.now.replace(hour=19)  # 23:00 Dubai
     await ladder.step(other, 1)
-    assert len(caller.calls) == 1
+    assert sender.requests == []
     assert scheduler.named("ladder")[-1]["at"].isoformat() == "2026-11-04T04:00:00+00:00"
+
+
+async def test_press_2_escalates_to_the_manager_now(auto_db: Any, clock: Clock) -> None:
+    sender = RecordingSender()
+    _, ladder, _, caller = build(auto_db, clock, sender)
+    t = ticket(clock)
+    await ladder.step(t, 3)
+    await sql(auto_db, "UPDATE call_attempts SET digits_pressed = '2'")
+    await ladder.step(t, 3)  # the pulled-forward step
+    assert caller.calls[-1][0] == MANAGER.phone
+    assert sender.requests[-1].template_name == "approval_escalation"
+
+
+async def test_change_request_runs_the_same_ladder_with_its_own_script(auto_db: Any, clock: Clock) -> None:
+    """§13.5: immediate alert, the §16 reminders, then the manager; calls use the change-request script."""
+    sender = RecordingSender()
+    handlers, ladder, scheduler, caller = build(auto_db, clock, sender)
+    cr = ChangeRequested(
+        deal_ref=uuid.uuid4(),
+        deal_number="D-2026-00042",
+        change_request_ref=uuid.uuid4(),
+        type="delivery",
+        assigned_to=SALES,
+        escalate_to=MANAGER,
+        sla_due_at=clock.now + timedelta(hours=4),
+        remind_at=(clock.now + timedelta(minutes=30), clock.now + timedelta(minutes=60)),
+        escalate_at=clock.now + timedelta(minutes=120),
+    )
+    assert await handlers.dispatch(
+        make_event(ev.CHANGE_REQUESTED, "change_request", cr.change_request_ref, cr)
+    )
+    (first,) = scheduler.named("ladder")
+    t = first["ticket"]
+    assert (first["step"], t.kind, t.ref, t.title) == (
+        1,
+        "change_request",
+        cr.change_request_ref,
+        "A buyer delivery change request on deal D-2026-00042",
+    )
+    await ladder.step(t, 1)
+    await ladder.step(t, 3)
+    assert sender.requests[0].template_name == "change_request"
+    assert "waiting for you in the CRM" in caller.calls[0][1]
+    (purpose,) = await sql(auto_db, "SELECT purpose FROM call_attempts")
+    assert purpose == ("change_request_alert",)
 
 
 async def test_pause_alerts_message_and_call_everyone(auto_db: Any, clock: Clock) -> None:
@@ -310,13 +373,13 @@ async def test_pause_alerts_message_and_call_everyone(auto_db: Any, clock: Clock
         NegotiationPaused(
             deal_ref=uuid.uuid4(),
             reason="below_range",
-            alert=(MANAGER, MD),
+            alert=(SALES, MANAGER),
             respond_by=clock.now + timedelta(minutes=60),
         )
     )
-    assert [r.to_address for r in sender.requests] == [MANAGER.phone, MD.whatsapp]
+    assert [r.to_address for r in sender.requests] == [SALES.whatsapp, MANAGER.whatsapp]
     assert sender.requests[0].template_params == ("11:00",)
-    assert [c[0] for c in caller.calls] == [MANAGER.phone, MD.phone]
+    assert [c[0] for c in caller.calls] == [SALES.phone, MANAGER.phone]
 
 
 # ---------------------------------------------------------------- scraper

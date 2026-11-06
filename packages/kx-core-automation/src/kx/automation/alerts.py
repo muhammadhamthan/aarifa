@@ -1,19 +1,16 @@
-"""Staff alerts: the approval call ladder and below-range negotiation alerts.
+"""Staff alerts: the §16 reminder ladder (approvals and change requests) and the below-minimum alert.
 
-Ladder (CONTRACTS §3, brief T1): when a quote is submitted the approver is called up to N times
-(default 3) `gap` minutes apart, only between 08:00 and 22:00 Dubai (outside that the next call
-waits for 08:00). It stops as soon as the approval is decided in the CRM or the approver presses 1.
-After N calls without an acknowledgement, or at once if the approver presses 2, the MD gets a
-WhatsApp template and a call. Calls never approve anything: approval needs MFA in the CRM.
+Everything runs in alert hours 08:00-22:00 Asia/Dubai only; outside them a step waits for 08:00.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
-from typing import Final, Protocol
+from datetime import UTC, datetime
+from typing import Final, Literal, Protocol
 from zoneinfo import ZoneInfo
 
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +23,7 @@ from kx.automation.channels.voice_ivr import (
     Digit,
     alert_twiml,
     approval_alert_script,
+    change_request_script,
     escalation_script,
     negotiation_paused_script,
 )
@@ -36,7 +34,7 @@ from kx.automation.settings import AutomationSettings
 from kx.core.contracts import MessageSender, OutboundKind, OutboundRequest
 from kx.core.db import Databases
 from kx.core.errors import RuleViolation
-from kx.core.event_payloads import NegotiationPaused, QuoteSubmitted, StaffContact
+from kx.core.event_payloads import ChangeRequested, NegotiationPaused, QuoteSubmitted, StaffContact
 from kx.core.identity import normalise_phone
 from kx.core.logging import get_logger
 from kx.core.settings import LogicalDb
@@ -127,7 +125,7 @@ class VoiceAlerts:
                 .returning(CallAttempt.approval_ref)
             )
         ).scalar_one_or_none()
-        return approval_ref if digits == Digit.SEND_TO_MD.value else None
+        return approval_ref if digits == Digit.ESCALATE.value else None
 
     async def record_status(
         self, s: AsyncSession, attempt_id: uuid.UUID, call_sid: str, twilio_status: str
@@ -152,7 +150,68 @@ class VoiceAlerts:
         )
 
 
+class LadderTicket(BaseModel):
+    """One thing waiting for a person (§16 "Staff reminders"): a quote approval or a change request.
+
+    Built from QuoteSubmitted / ChangeRequested; the CRM computed every time in alert hours from
+    `approval.reminder_minutes`, so automation only follows the schedule."""
+
+    model_config = ConfigDict(frozen=True)
+
+    ref: uuid.UUID  # approval_ref or change_request_ref (the CRM status reader knows both)
+    kind: Literal["approval", "change_request"]
+    deal_ref: uuid.UUID
+    approver: StaffContact
+    escalate_to: StaffContact | None
+    remind_at: tuple[datetime, ...]  # [WhatsApp reminder (30 min), alert call (60 min)]
+    escalate_at: datetime  # 120 min: the manager (WhatsApp + call)
+    title: str  # what the message and the call say, e.g. "Quote Q-2026-00012 for AED 13,125.00"
+
+    @classmethod
+    def for_approval(cls, p: QuoteSubmitted) -> LadderTicket:
+        what = "A special price on quote" if p.kind == "special_price" else "Quote"
+        return cls(
+            ref=p.approval_ref,
+            kind="approval",
+            deal_ref=p.deal_ref,
+            approver=p.approver,
+            escalate_to=p.escalate_to,
+            remind_at=p.remind_at,
+            escalate_at=p.due_at,
+            title=f"{what} {p.quote_number} for {p.total_display}",
+        )
+
+    @classmethod
+    def for_change(cls, p: ChangeRequested) -> LadderTicket:
+        return cls(
+            ref=p.change_request_ref,
+            kind="change_request",
+            deal_ref=p.deal_ref,
+            approver=p.assigned_to,
+            escalate_to=p.escalate_to,
+            remind_at=p.remind_at,
+            escalate_at=p.escalate_at or p.sla_due_at,
+            title=f"A buyer {p.type} change request on deal {p.deal_number}".replace("  ", " "),
+        )
+
+    @property
+    def purpose(self) -> CallPurpose:
+        return "approval_alert" if self.kind == "approval" else "change_request_alert"
+
+
+# §16 ladder steps: 1 = at once, 2 = WhatsApp reminder, 3 = alert call, 4 = escalation to the manager
+ALERT, REMIND, CALL, ESCALATE = 1, 2, 3, 4
+
+
 class ApprovalLadder:
+    """§16 staff reminders for approvals and change requests (§13.5), in alert hours only:
+
+    0 min CRM notification + WhatsApp to the approver, 30 min WhatsApp reminder, 60 min alert call
+    (scripted, not AI), 120 min escalation to the manager (WhatsApp + call). Every step first asks the CRM
+    whether the item still waits; a decided one never rings anyone. Pressing 1 on the call stops the
+    calls to the approver; pressing 2 escalates now. The escalation still happens if nothing was decided.
+    Calls never approve anything: approval needs MFA in the CRM."""
+
     def __init__(
         self,
         *,
@@ -172,69 +231,100 @@ class ApprovalLadder:
         self._scheduler = scheduler
         self._now = clock
 
-    async def start(self, submitted: QuoteSubmitted) -> None:
+    async def start(self, ticket: LadderTicket) -> None:
         await self._scheduler.schedule_ladder_step(
-            submitted, 1, self._settings.alert_window.next_open(self._now())
+            ticket, ALERT, self._settings.alert_window.next_open(self._now())
         )
 
-    async def step(self, submitted: QuoteSubmitted, attempt_no: int) -> None:
-        ref = submitted.approval_ref
-        if not await self._approvals.is_pending(ref):
-            return
-        digits = await self._digits(ref)
-        if Digit.ACKNOWLEDGE.value in digits:
+    def _when(self, ticket: LadderTicket, step: int) -> datetime | None:
+        if step in (REMIND, CALL):
+            idx = step - REMIND
+            return ticket.remind_at[idx] if idx < len(ticket.remind_at) else None
+        return ticket.escalate_at if step == ESCALATE else None
+
+    async def _next(self, ticket: LadderTicket, step: int) -> None:
+        for nxt in range(step + 1, ESCALATE + 1):
+            if (at := self._when(ticket, nxt)) is not None:
+                await self._scheduler.schedule_ladder_step(ticket, nxt, max(at, self._now()))
+                return
+
+    async def step(self, ticket: LadderTicket, step: int) -> None:
+        if not await self._approvals.is_pending(ticket.ref):
             return
         window, now = self._settings.alert_window, self._now()
         if not window.contains(now):
-            await self._scheduler.schedule_ladder_step(submitted, attempt_no, window.next_open(now))
+            await self._scheduler.schedule_ladder_step(ticket, step, window.next_open(now))
             return
-        calls = self._settings.alerts.approval_calls
-        if Digit.SEND_TO_MD.value in digits or attempt_no > calls:
-            await self._escalate(submitted, calls + 1)
+        digits = await self._digits(ticket.ref)
+        if Digit.ESCALATE.value in digits or step >= ESCALATE:
+            await self._escalate(ticket)
             return
-        if submitted.approver.phone:
-            await self._voice.call(
-                purpose="approval_alert",
-                to=submitted.approver.phone,
-                attempt_no=attempt_no,
-                script=approval_alert_script(submitted.quote_number, submitted.total_display),
-                approval_ref=ref,
-                deal_ref=submitted.deal_ref,
-            )
-        gap = timedelta(minutes=self._settings.alerts.gap_minutes)
-        await self._scheduler.schedule_ladder_step(submitted, attempt_no + 1, window.next_open(now + gap))
+        acknowledged = Digit.ACKNOWLEDGE.value in digits
+        a = self._settings.alerts
+        match step:
+            case 1:
+                template = (
+                    a.approval_request_template if ticket.kind == "approval" else a.change_request_template
+                )
+                await self._message(ticket, ticket.approver, template, (ticket.title,), "alert")
+            case 2 if not acknowledged:
+                await self._message(
+                    ticket, ticket.approver, a.approval_reminder_template, (ticket.title,), "remind"
+                )
+            case 3 if not acknowledged and ticket.approver.phone:
+                script = (
+                    approval_alert_script(ticket.title)
+                    if ticket.kind == "approval"
+                    else change_request_script(ticket.title)
+                )
+                await self._voice.call(
+                    purpose=ticket.purpose,
+                    to=ticket.approver.phone,
+                    attempt_no=CALL,
+                    script=script,
+                    approval_ref=ticket.ref,
+                    deal_ref=ticket.deal_ref,
+                )
+            case _:
+                pass
+        await self._next(ticket, step)
 
-    async def _digits(self, approval_ref: uuid.UUID) -> set[str]:
+    async def _message(
+        self, ticket: LadderTicket, to: StaffContact, template: str, params: tuple[str, ...], tag: str
+    ) -> None:
+        await _notify(
+            self._sender,
+            to,
+            template,
+            params,
+            key=f"ladder:{ticket.ref}:{tag}:{to.user_ref}",
+            deal_ref=ticket.deal_ref,
+        )
+
+    async def _digits(self, ref: uuid.UUID) -> set[str]:
         async with self._db.transaction(LogicalDb.AUTOMATION) as s:
             rows = await s.execute(
                 select(CallAttempt.digits_pressed).where(
-                    CallAttempt.approval_ref == approval_ref, CallAttempt.digits_pressed.is_not(None)
+                    CallAttempt.approval_ref == ref, CallAttempt.digits_pressed.is_not(None)
                 )
             )
             return {d for d in rows.scalars() if d}
 
-    async def _escalate(self, submitted: QuoteSubmitted, attempt_no: int) -> None:
-        md = submitted.escalate_to
-        if md is None:  # the approver already is the MD
-            log.info("ladder.no_escalation_target", approval_ref=str(submitted.approval_ref))
+    async def _escalate(self, ticket: LadderTicket) -> None:
+        manager = ticket.escalate_to
+        if manager is None:  # the approver already is the top of the chain
+            log.info("ladder.no_escalation_target", ref=str(ticket.ref))
             return
-        params = (submitted.quote_number, submitted.total_display, submitted.approver.name)
-        await _notify(
-            self._sender,
-            md,
-            self._settings.alerts.escalation_template,
-            params,
-            key=f"ladder:{submitted.approval_ref}:md",
-            deal_ref=submitted.deal_ref,
-        )
-        if md.phone:
+        params = (ticket.title, ticket.approver.name)
+        await self._message(ticket, manager, self._settings.alerts.escalation_template, params, "escalate")
+        if manager.phone:
             await self._voice.call(
-                purpose="approval_alert",
-                to=md.phone,
-                attempt_no=attempt_no,
+                purpose=ticket.purpose,
+                to=manager.phone,
+                attempt_no=ESCALATE,
                 script=escalation_script(*params),
-                approval_ref=submitted.approval_ref,
-                deal_ref=submitted.deal_ref,
+                approval_ref=ticket.ref,
+                deal_ref=ticket.deal_ref,
             )
 
 

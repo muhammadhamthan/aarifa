@@ -28,7 +28,7 @@ from procrastinate.tasks import Task
 from sqlalchemy import select
 
 from kx.automation import inbound
-from kx.automation.alerts import ApprovalLadder, PauseAlerts
+from kx.automation.alerts import ApprovalLadder, LadderTicket, PauseAlerts
 from kx.automation.channels.email import parse_inbound
 from kx.automation.handlers import EventHandlers, FollowUps
 from kx.automation.models import SCHEMA, OutboundMessage
@@ -37,7 +37,7 @@ from kx.automation.ports import MediaStore, SweepCallback
 from kx.automation.scraping import PriceScraper
 from kx.automation.settings import AutomationSettings
 from kx.core.db import Databases
-from kx.core.event_payloads import DealNextActionSet, NegotiationPaused, QuoteSubmitted
+from kx.core.event_payloads import DealNextActionSet, NegotiationPaused
 from kx.core.events import Event, Publisher, relay_once
 from kx.core.identity import sha256_hex
 from kx.core.logging import get_logger
@@ -116,8 +116,8 @@ def build_jobs() -> AutomationJobs:
         )
 
     @bp.task(name="run_approval_ladder", pass_context=True, retry=DEFAULT_RETRY, queue="alerts")
-    async def run_approval_ladder(context: JobContext, submitted: dict[str, Any], attempt_no: int) -> None:
-        await runtime_of(context).ladder.step(QuoteSubmitted.model_validate(submitted), attempt_no)
+    async def run_approval_ladder(context: JobContext, ticket: dict[str, Any], step: int) -> None:
+        await runtime_of(context).ladder.step(LadderTicket.model_validate(ticket), step)
 
     @bp.task(name="send_followup", pass_context=True, retry=DEFAULT_RETRY, queue="outbound")
     async def send_followup(context: JobContext, action: dict[str, Any]) -> None:
@@ -261,18 +261,18 @@ class ProcrastinateScheduler:
             template_params=list(template_params),
         )
 
-    async def schedule_ladder_step(self, submitted: QuoteSubmitted, attempt_no: int, at: datetime) -> None:
+    async def schedule_ladder_step(self, ticket: LadderTicket, step: int, at: datetime) -> None:
         await _defer(
             self._jobs.ladder_step,
-            f"ladder:{submitted.approval_ref}",
+            f"ladder:{ticket.ref}",
             at,
-            submitted=submitted.model_dump(mode="json"),
-            attempt_no=attempt_no,
+            ticket=ticket.model_dump(mode="json"),
+            step=step,
         )
 
-    async def pull_ladder_forward(self, approval_ref: uuid.UUID) -> None:
-        """Approver pressed 2: run the waiting ladder step now (it escalates to the MD)."""
-        await self._replace(self._jobs.ladder_step, f"ladder:{approval_ref}", None, keep_kwargs=True)
+    async def pull_ladder_forward(self, ref: uuid.UUID) -> None:
+        """Approver pressed 2: run the waiting ladder step now (it escalates to the manager)."""
+        await self._replace(self._jobs.ladder_step, f"ladder:{ref}", None, keep_kwargs=True)
 
     async def schedule_followup(self, action: DealNextActionSet, at: datetime) -> None:
         """The deal's newest next action replaces a still-pending one (CRM keeps one per deal)."""
