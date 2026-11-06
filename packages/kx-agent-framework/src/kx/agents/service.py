@@ -171,7 +171,7 @@ class AgentService:
                 language=language,
             )
             history = await self.turns.history(s, conv_id)
-            rt = route(turn.text, deal, first_turn=history.turn_count == 0)
+            rt = route(turn.text, deal, first_turn=history.turn_count == 0, disabled=self.registry.disabled())
             if rt.action in ("silent", "acknowledge"):
                 await TurnStore.append(s, conv_id, "buyer", turn.text, language=language)
             else:

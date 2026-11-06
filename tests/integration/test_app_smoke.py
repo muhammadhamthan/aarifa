@@ -11,6 +11,7 @@ from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 
 from kx.core import events as ev
+from kx.core.contracts import AiRole
 from kx.core.event_payloads import PriceProposed, make_event
 
 from ..conftest import ADMIN_DSN
@@ -85,6 +86,11 @@ async def test_api_boots_and_routes_events(migrated: dict[str, str]) -> None:
         }
 
         container = app.state.container
+        # WP9 / D14: v2 features are off by the crm.settings seed; the scraper task exists, unscheduled
+        periodic = {p.task.name for p in container.proc.periodic_registry.periodic_tasks.values()}
+        assert "automation:run_price_scrapes" in container.proc.tasks
+        assert "automation:run_price_scrapes" not in periodic and "automation:relay_outbox" in periodic
+        assert not container.agent_service.registry.get(AiRole.REPEAT_SALES).enabled
         event = make_event(
             ev.PRICE_PROPOSED,
             "price_observation",

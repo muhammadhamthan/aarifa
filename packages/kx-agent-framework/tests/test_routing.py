@@ -113,3 +113,15 @@ def test_handover_routes_to_the_salesperson_and_acknowledges_only_after_hours() 
     )
     other = deal.model_copy(update={"ai_paused_reason": "below_range", "team_available": False})
     assert route_("hello?", other).action == "silent"  # only the handover gets the morning acknowledgement
+
+
+def test_repeat_sales_is_v2_and_off() -> None:
+    """§18 / D14: won customers are answered by the salesperson in v1."""
+    from kx.agents.orchestrator import route as route_
+    from kx.agents.registry import AgentRegistry
+
+    registry = AgentRegistry()
+    assert registry.disabled() == frozenset({AiRole.REPEAT_SALES})
+    won = make_deal(DealStage.WON)
+    assert route_("I want to reorder", won, disabled=registry.disabled()).action == "silent"
+    assert route_("I want to reorder", won).role is AiRole.REPEAT_SALES  # v2: switched back on

@@ -79,6 +79,8 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 **Handover (WP7):** `QuoteApproved.salesperson` / `manager` are set for the final quote only (automation alerts the salesperson and notifies the manager); `DealContext.ai_paused_reason` and `team_available` let the orchestrator answer a handed-over deal with the fixed out-of-hours acknowledgement only (`Route.action = "acknowledge"`).
 
+**v2 off (WP9):** `DeliveryEstimateView` dates are optional and `lead_time_text` carries the v1 answer (the product's default delivery time, D10) while `features.delivery_calc` is off.
+
 ## 4. Code standards
 
 - Python 3.14, `from __future__ import annotations`, full type hints, `mypy --strict` clean, `ruff` clean (config in root `pyproject.toml`).

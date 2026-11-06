@@ -57,7 +57,7 @@ from kx.crm.services import approvals, assignment, change_requests, grants, nego
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.issuing import lines_of
 from kx.crm.services.journal import Actor
-from kx.crm.services.pricing import best_lane, build_delivery_estimate, current_costing
+from kx.crm.services.pricing import best_lane, build_delivery_estimate, current_costing, lead_time_text
 
 
 # ---------------------------------------------------------------- buyer-safe views (pure)
@@ -334,7 +334,18 @@ async def _latest_estimate(s: AsyncSession, deal_id: uuid.UUID) -> DeliveryEstim
 
 
 async def delivery_view(s: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID) -> DeliveryEstimateView | None:
-    """Latest estimate, or a fresh one (persisted as T14 training data) once product + quantity are known."""
+    """v1 (`features.delivery_calc` off, D14): the delivery time on the quote, else the product's default
+    (D10). v2: the latest estimate, or a fresh one (stored as training data) once product + quantity are
+    known."""
+    settings = await deps.settings.get(s)
+    if not settings.feature_delivery_calc:
+        issued = await quotes.latest_version(s, deal_id)
+        text = issued.delivery_time_text if issued is not None else None
+        if text is None:
+            reqs = await deal_svc.requirements_of(s, deal_id)
+            product = await s.get(Product, reqs[0].product_id) if reqs and reqs[0].product_id else None
+            text = lead_time_text(product) if product is not None else None
+        return None if text is None else DeliveryEstimateView(lead_time_text=text)
     est = await _latest_estimate(s, deal_id)
     if est is None:
         deal = await deal_svc.get_deal(s, deal_id)

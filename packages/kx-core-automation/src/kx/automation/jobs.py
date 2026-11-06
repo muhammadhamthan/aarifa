@@ -105,7 +105,8 @@ class AutomationJobs:
     handle_event: Task[Any, Any, Any]
 
 
-def build_jobs() -> AutomationJobs:
+def build_jobs(*, scraping: bool = False) -> AutomationJobs:
+    """The automation task set. `scraping` is the CRM setting `features.scraping` (off in v1, D14)."""
     bp = Blueprint()
 
     @bp.task(name="deliver_outbound", pass_context=True, retry=DELIVERY_RETRY, queue="outbound")
@@ -151,10 +152,12 @@ def build_jobs() -> AutomationJobs:
         if (sweep := runtime_of(context).approval_sweep) is not None:
             await sweep(datetime.fromtimestamp(timestamp, UTC))
 
-    @bp.periodic(cron="0 2 * * *")  # 06:00 Dubai, before the manager's day starts
     @bp.task(name="run_price_scrapes", pass_context=True, queue="scrape")
     async def run_price_scrapes(context: JobContext, timestamp: int) -> None:
         log.info("scrape.done", results=await runtime_of(context).scraper.run_all())
+
+    if scraping:  # v2 (D14): raw-material price scraping; v1 keeps the code but never schedules it
+        bp.periodic(cron="0 2 * * *")(run_price_scrapes)  # 06:00 Dubai, before the manager's day starts
 
     @bp.periodic(cron="*/5 * * * *")
     @bp.task(name="requeue_outbound", pass_context=True, queue="outbound")

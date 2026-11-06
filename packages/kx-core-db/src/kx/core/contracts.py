@@ -198,9 +198,13 @@ class ChangeField(_Frozen):
 
 
 class DeliveryEstimateView(_Frozen):
-    estimated_ready: date
-    estimated_delivery: date
-    confirmed: bool
+    """v2 (`features.delivery_calc`): calculated dates. v1: only `lead_time_text`, the product's default
+    "X-Y working days after advance payment" that the salesperson confirms on the quote (D10)."""
+
+    estimated_ready: date | None = None
+    estimated_delivery: date | None = None
+    confirmed: bool = False
+    lead_time_text: str | None = None
 
 
 # ---------------- protocols implemented by packages, wired by the app -----------------------------

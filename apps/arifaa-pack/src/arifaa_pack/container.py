@@ -47,6 +47,7 @@ from kx.crm import jobs as crm_jobs
 from kx.crm.deps import CrmDeps
 from kx.crm.gateway import ApprovalStatusReaderImpl, CrmGatewayImpl, GrantConsumerImpl
 from kx.crm.pdf import Letterhead, S3PdfUploader
+from kx.crm.services.settings import SettingsService
 
 EventFn = Callable[[Event], Awaitable[Any]]
 
@@ -151,7 +152,9 @@ async def build() -> AsyncIterator[Container]:
 
         # ---- job queue + automation
         proc = App(connector=PsycopgConnector(conninfo=procrastinate_conninfo(core)))
-        jobs = build_jobs()
+        async with dbs.transaction(LogicalDb.CRM) as crm_session:  # D14: v2 features are CRM settings
+            features = await SettingsService(ttl_seconds=0).get(crm_session)
+        jobs = build_jobs(scraping=features.feature_scraping)
         proc.add_tasks_from(jobs.blueprint, namespace="automation")
         scheduler = ProcrastinateScheduler(proc, jobs)
 

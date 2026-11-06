@@ -58,10 +58,14 @@ async def run_lost_proposals(rt: CrmRuntime) -> int:
 
 
 async def run_price_staleness(rt: CrmRuntime) -> int:
-    """Daily: PRICE_STALE at warn/block level, and expire quotes past their validity."""
+    """Daily: expire quotes past their validity (§24); PRICE_STALE at warn/block level in cost mode (v2)."""
     async with rt.databases.transaction(LogicalDb.CRM) as s:
         settings = await rt.deps.settings.get(s)
-        stale = await price_proposals.emit_stale(s, settings, rt.deps.now(), Actor.system("price_staleness"))
+        stale = 0
+        if settings.pricing_mode == "cost":  # D14: no staleness warning or block in price-list mode (v1)
+            stale = await price_proposals.emit_stale(
+                s, settings, rt.deps.now(), Actor.system("price_staleness")
+            )
         expired = await quotes.expire_quotes(s, rt.deps)
     log.info("crm.price_staleness", stale=stale, expired_quotes=expired)
     return stale

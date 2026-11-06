@@ -289,3 +289,25 @@ async def test_deal_context_never_carries_the_minimum(databases: Databases, deps
         assert word not in dumped, word
     for secret in ('"0.23"', '"0.2300"', '"0.2367"', '"0.230000"'):
         assert secret not in dumped, secret
+
+
+# ---------------------------------------------------------------- WP9: v2 switched off (D14)
+async def test_delivery_answer_is_the_product_default_without_calculation(
+    databases: Databases, deps: CrmDeps
+) -> None:
+    gw = CrmGatewayImpl(databases, deps)
+    deal_id = await list_deal(gw)
+    view = await gw.delivery_estimate(deal_id)
+    assert view is not None and view.lead_time_text == "10–14 working days after advance payment"
+    assert view.estimated_delivery is None  # no calculated date in v1
+    async with databases.transaction(CRM) as s:
+        assert await s.scalar(select(func.count()).where(m.DeliveryEstimateRow.deal_id == deal_id)) == 0
+
+
+async def test_staleness_job_is_off_in_price_list_mode(databases: Databases, deps: CrmDeps) -> None:
+    from kx.crm.jobs import CrmRuntime, run_price_staleness
+
+    async def _noop(_: object) -> None:
+        return None
+
+    assert await run_price_staleness(CrmRuntime(databases, deps, publish=_noop)) == 0

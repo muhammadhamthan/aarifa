@@ -34,16 +34,21 @@ def todo(connector: InMemoryConnector, task: str) -> list[dict[str, object]]:
 
 
 def test_blueprint_names_and_periodic_tasks() -> None:
+    """v1 (D14, features.scraping=false): the scraper task exists but is never scheduled; v2 schedules it."""
     app = App(connector=InMemoryConnector())
     app.add_tasks_from(build_jobs().blueprint, namespace="automation")
-    assert "automation:deliver_outbound" in app.tasks
+    assert "automation:deliver_outbound" in app.tasks and "automation:run_price_scrapes" in app.tasks
     periodic = {p.task.name: p.cron for p in app.periodic_registry.periodic_tasks.values()}
     assert periodic == {
         "automation:relay_outbox": "* * * * * */5",
         "automation:approval_sweep": "*/5 * * * *",
-        "automation:run_price_scrapes": "0 2 * * *",
         "automation:requeue_outbound": "*/5 * * * *",
     }
+    v2 = App(connector=InMemoryConnector())
+    v2.add_tasks_from(build_jobs(scraping=True).blueprint, namespace="automation")
+    assert {p.task.name: p.cron for p in v2.periodic_registry.periodic_tasks.values()}[
+        "automation:run_price_scrapes"
+    ] == "0 2 * * *"
 
 
 async def test_delivery_dedupes_per_message_and_orders_per_thread(

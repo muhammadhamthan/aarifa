@@ -66,10 +66,15 @@ async def search_knowledge(query: str, runtime: Runtime) -> str:
 
 @tool
 async def delivery_estimate(runtime: Runtime) -> str:
-    """Estimated ready and delivery dates (always say: estimated, confirmed by our team)."""
+    """The usual delivery time for the buyer's product. Never promise a date or a faster delivery: a
+    different delivery request is a change request for the salesperson."""
     ctx = runtime.context
     est = await ctx.gateway.delivery_estimate(ctx.deal_id)
-    return "No estimate yet; the team will confirm." if est is None else est.model_dump_json()
+    if est is None:
+        return "No delivery time on file; say our sales team will confirm it on the quotation."
+    if est.lead_time_text is not None:  # v1 (D10): the product's default, confirmed by the salesperson
+        return f"Usual delivery time: {est.lead_time_text}. Say the salesperson confirms it on the quotation."
+    return est.model_dump_json()  # v2: calculated dates (always "estimated, confirmed by our team")
 
 
 @tool

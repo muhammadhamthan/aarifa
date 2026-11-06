@@ -75,6 +75,7 @@ class AgentSpec(BaseModel):
     stages: frozenset[DealStage] = _ALL_OPEN
     may_quote_prices: bool = False  # False => the guard allows no amount at all
     purpose: str = ""
+    enabled: bool = True  # False: the orchestrator never routes to this role (v2 agents in v1, D14)
 
 
 def _spec(
@@ -184,7 +185,7 @@ DEFAULT_SPECS: Final[tuple[AgentSpec, ...]] = (
         tools=_CONVERSATION_TOOLS,
         stages=frozenset({DealStage.WON}),
         prices=True,
-    ),
+    ).model_copy(update={"enabled": False}),  # §18 "Repeat sales [v2]: not active in v1" (D14)
 )
 
 
@@ -199,6 +200,9 @@ class AgentRegistry:
 
     def get(self, role: AiRole) -> AgentSpec:
         return self._specs[role]
+
+    def disabled(self) -> frozenset[AiRole]:
+        return frozenset(r for r, s in self._specs.items() if not s.enabled)
 
     def with_specs(self, *overrides: AgentSpec) -> AgentRegistry:
         return AgentRegistry({**self._specs, **{s.role: s for s in overrides}}.values())

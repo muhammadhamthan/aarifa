@@ -72,7 +72,9 @@ def _qualification_role(deal: DealContext) -> AiRole:
     return AiRole.CONTACT_CAPTURE if missing else AiRole.LEAD_QUALIFICATION
 
 
-def route(text: str, deal: DealContext, *, first_turn: bool = False) -> Route:
+def route(
+    text: str, deal: DealContext, *, first_turn: bool = False, disabled: frozenset[AiRole] = frozenset()
+) -> Route:
     conv = GraphName.CONVERSATION
     if not deal.ai_enabled:
         # D13 / §14.6: after the final quote the salesperson owns the conversation; outside working hours
@@ -83,6 +85,8 @@ def route(text: str, deal: DealContext, *, first_turn: bool = False) -> Route:
     if deal.stage is DealStage.LOST:
         return Route("reply", conv, AiRole.CONCIERGE, "lost_reengage")
     if deal.stage is DealStage.WON:
+        if AiRole.REPEAT_SALES in disabled:  # v2 agent off (D14): the salesperson answers won customers
+            return Route("silent", None, AiRole.ORCHESTRATOR, "won_salesperson")
         return Route("reply", conv, AiRole.REPEAT_SALES, "won_customer")
     price = asks_price(text)
     if deal.stage in _AFTER_QUOTE:

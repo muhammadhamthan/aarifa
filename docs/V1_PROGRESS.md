@@ -164,3 +164,14 @@ steps.
 Tests added: 7 (scenario 1 advance → PAYMENT → WON with the re-order date → order statuses; WON needs the advance;
 §15 reasons; LOST with a new reason; scenario 9 date; silent buyer → one task, never LOST; a reply stops it).
 Totals: 427 passed.
+
+## WP9. Switch v2 features off (flags; code kept)
+
+**Done.** `features.scraping=false`: `build_jobs(scraping=...)` keeps the scraper task but schedules it only when
+the flag is on; the container reads the flag from `crm.settings` at boot. Staleness: no warning/block in
+price-list mode (quote expiry still runs daily). `features.delivery_calc=false`: `delivery_estimate` returns the
+quote's (or product's) default delivery text, no calculated date and no estimate row. `features.news_digest=false`:
+there is no digest job in v1 (tables only). Repeat sales: `AgentSpec.enabled=False`, the orchestrator sends
+won-customer messages to the salesperson. The 4 Nov blueprint test now checks both flag positions.
+Tests added: smoke test asserts the scraper is not scheduled and repeat sales is off after boot; routing unit;
+2 CRM DB (delivery answer without calculation, staleness job off). Totals: 430 passed.

@@ -64,14 +64,14 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | §16 reminder ladder (approvals and change requests) | `kx.automation.alerts.ApprovalLadder` over `LadderTicket.for_approval` / `.for_change` |
 | Staff notices (§17 "notified", alert hours) | `kx.automation.alerts.notify_staff` |
 | Webhooks router | `kx.automation.webhooks.build_router(WebhookDeps)` |
-| Jobs | `kx.automation.jobs.build_jobs`, `AutomationRuntime`, `ProcrastinateScheduler` |
+| Jobs | `kx.automation.jobs.build_jobs(scraping=...)` (scraper scheduled only with `features.scraping`, D14), `AutomationRuntime`, `ProcrastinateScheduler` |
 | Kill switch / rate limits | `kx.automation.killswitch.KillSwitch`, `kx.automation.ratelimit.TokenBucketLimiter` |
 | Price scraping → proposals | `kx.automation.scraping.PriceScraper` |
 
 ## kx.agents — AI agent framework
 | Capability | Import |
 |---|---|
-| 12 roles, prompts | `kx.agents.registry`: `AgentRegistry`, `AgentSpec`, `PromptStore`, `DefaultPromptStore`, `ModelTier` |
+| 12 roles, prompts (`AgentSpec.enabled`; repeat sales off in v1) | `kx.agents.registry`: `AgentRegistry` (`disabled()`), `AgentSpec`, `PromptStore`, `DefaultPromptStore`, `ModelTier` |
 | Models + fallback | `kx.agents.models`: `ModelRouter`, `AnthropicApiProvider`, `BedrockProvider` |
 | Routing (no LLM; handed-over deals: silent, or the fixed acknowledgement after hours) | `kx.agents.orchestrator` |
 | Reply guard | `kx.agents.guard` (prices, cost wording, injection, length) |
