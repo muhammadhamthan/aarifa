@@ -104,6 +104,9 @@ class QuoteApproved(EventPayload):
     buyer_timezone: str | None = None
     buyer_country: str | None = None  # ISO-2: the regional WhatsApp number (§11.4)
     language: str | None = None
+    # final quote only (§14.5, §17): the salesperson is alerted and the manager notified
+    salesperson: StaffContact | None = None
+    manager: StaffContact | None = None
 
 
 class QuoteRejected(EventPayload):

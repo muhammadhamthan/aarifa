@@ -42,6 +42,7 @@ class Phrase(StrEnum):
     QUOTE_REJECTED = "quote_rejected"
     CHANGE_REQUEST = "change_request"  # §13.1: "... updated quotation within {hours} working hours"
     REVISED_QUOTE = "revised_quote"  # §12.2 rule 5: new tier, revised quote after the salesperson approves
+    HANDOVER_ACK = "handover_ack"  # §14.6: outside working hours on a handed-over deal
 
 
 _ALL_OPEN: Final = frozenset(DealStage) - {DealStage.LOST}
@@ -296,6 +297,9 @@ DEFAULT_PHRASES: Final[dict[tuple[Phrase, str], str]] = {
         Phrase.REVISED_QUOTE,
         "ar",
     ): "شكراً لك — أقوم بإعداد عرض أسعار محدّث لهذه الكمية، وسيرسله لك {name} قريباً.",
+    # §14.6: outside working hours on a handed-over deal ("Thanks — Sara will reply in the morning.")
+    (Phrase.HANDOVER_ACK, "en"): "Thanks — {name} will reply in the morning.",
+    (Phrase.HANDOVER_ACK, "ar"): "شكراً لك — سيرد عليك {name} في الصباح.",
 }
 
 _TEAM: Final[dict[str, str]] = {"en": "our sales team", "ar": "فريق المبيعات"}

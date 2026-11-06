@@ -36,6 +36,7 @@ from kx.crm.models import (
 )
 from kx.crm.pdf import DocLine, QuoteDocument, SalesContact, pdf_key, quote_message
 from kx.crm.services import deals as deal_svc
+from kx.crm.services import staff
 from kx.crm.services.grants import GrantPolicy, issue_grant
 from kx.crm.services.journal import Actor, Emit, Timeline, record
 from kx.crm.services.settings import BusinessSettings
@@ -139,6 +140,13 @@ async def issue_to_buyer(
     await deps.uploader.upload(key, pdf)
     subject, body = quote_message(doc)
     sha = priced_content_sha256(body, pdf_sha)
+    salesperson = manager = None
+    if kind == "final":  # §14.5 / §17: alert the salesperson, notify the manager
+        owner = await staff.approver_for(session, deal)
+        salesperson, manager = (
+            staff.staff_contact(owner),
+            staff.staff_contact(await staff.manager_user(session)),
+        )
     version.status, version.pdf_s3_key, version.content_sha256 = "approved", key, pdf_sha
     deal.low_ask_count = 0  # §12.2 rule 4 counts low asks per open negotiation: a new version starts one
     await session.flush()
@@ -189,6 +197,8 @@ async def issue_to_buyer(
                 buyer_timezone=contact.timezone,
                 buyer_country=await _buyer_country(session, deal),
                 language=contact.language,
+                salesperson=salesperson,
+                manager=manager,
             ),
         ),
     )

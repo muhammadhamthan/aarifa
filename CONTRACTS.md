@@ -77,6 +77,8 @@ No cross-database foreign keys: reference other DBs with `*_ref uuid` columns.
 
 **Sending (WP6):** `OutboundRequest.buyer_country` and `QuoteApproved.buyer_country` / `language` pick the regional WhatsApp number; `CrmGateway.set_cover_note(deal_id, note, actor)` stores the AI's "open to discuss" line on the quote waiting for approval (message only, hashed into the grant with the rest of the body).
 
+**Handover (WP7):** `QuoteApproved.salesperson` / `manager` are set for the final quote only (automation alerts the salesperson and notifies the manager); `DealContext.ai_paused_reason` and `team_available` let the orchestrator answer a handed-over deal with the fixed out-of-hours acknowledgement only (`Route.action = "acknowledge"`).
+
 ## 4. Code standards
 
 - Python 3.14, `from __future__ import annotations`, full type hints, `mypy --strict` clean, `ruff` clean (config in root `pyproject.toml`).

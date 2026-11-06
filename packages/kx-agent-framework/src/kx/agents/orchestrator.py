@@ -42,7 +42,7 @@ _AFTER_QUOTE: Final = frozenset(
 
 @dataclass(frozen=True, slots=True)
 class Route:
-    action: Literal["reply", "silent"]
+    action: Literal["reply", "silent", "acknowledge"]
     graph: GraphName | None
     role: AiRole
     reason: str
@@ -75,6 +75,10 @@ def _qualification_role(deal: DealContext) -> AiRole:
 def route(text: str, deal: DealContext, *, first_turn: bool = False) -> Route:
     conv = GraphName.CONVERSATION
     if not deal.ai_enabled:
+        # D13 / §14.6: after the final quote the salesperson owns the conversation; outside working hours
+        # the buyer gets the fixed acknowledgement only, never an AI reply
+        if deal.ai_paused_reason == "handover" and not deal.team_available:
+            return Route("acknowledge", None, AiRole.ORCHESTRATOR, "handover_after_hours")
         return Route("silent", None, AiRole.ORCHESTRATOR, "ai_disabled")
     if deal.stage is DealStage.LOST:
         return Route("reply", conv, AiRole.CONCIERGE, "lost_reengage")

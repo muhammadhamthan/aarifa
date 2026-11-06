@@ -185,3 +185,41 @@ async def test_quotation_waits_durably_and_resumes(databases: Any, pg_databases:
         )
     assert done is not None and done.status == "handoff"
     assert sent == ["Your quotation is being prepared.", "Our team will contact you shortly."]
+
+
+# ---------------------------------------------------------------- WP7: handover (D13, §14.6)
+@pytest.mark.parametrize(
+    ("team_available", "expected"), [(True, None), (False, "Thanks — Sara will reply in the morning.")]
+)
+async def test_handed_over_deal_gets_no_ai_reply(
+    databases: Any, team_available: bool, expected: str | None
+) -> None:
+    deal = make_deal(DealStage.READY_TO_CLOSE).model_copy(
+        update={
+            "ai_enabled": False,
+            "ai_paused_reason": "handover",
+            "team_available": team_available,
+            "salesperson_name": "Sara",
+        }
+    )
+    model = ScriptedChatModel(script=[])  # any model call would fail the test
+    gw = FakeCrmGateway(deal)
+    svc = AgentService(databases=databases, gateway=gw, models=ModelRouter.static(model))
+    sent: list[str] = []
+
+    async def deliver(body: str, language: str) -> None:
+        sent.append(body)
+
+    turn = InboundTurn(
+        channel="whatsapp",
+        text="How do I pay the advance? Can you send your bank details?",
+        deal_id=deal.deal_id,
+        thread_key=f"whatsapp:{uuid.uuid7()}",
+        trigger_event="message.received.v1",
+        trigger_event_id=uuid.uuid7(),
+    )
+    result = await svc.handle_turn(turn, deliver)
+    assert model.calls == [] and result.reply == expected
+    assert sent == ([] if expected is None else [expected])
+    assert ("add_timeline", "inbound_message") in gw.calls  # the salesperson's inbox
+    assert result.status == ("silent" if expected is None else "acknowledged")

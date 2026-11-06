@@ -36,6 +36,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Pricing maths (pure; cost-based = **v2**) | `kx.crm.pricing.engine`: `unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, `price_line`, `quote_totals`, `concession_ladder`, `evaluate_counter`, `estimate_delivery` |
 | Business rules (pure) | `kx.crm.rules` (stage machine, LOST reasons, staleness 3/7 days, qualification fields) |
 | Audit + timeline + outbox in one call | `kx.crm.services.journal.record()` |
+| Handover after the final quote (AI off, reason `handover`) | `kx.crm.services.deals.hand_over` |
 | Who may act on a deal (approve, edit, view; MD takeover read-only) | `kx.crm.services.access`: `ensure_can_approve`, `ensure_can_edit`, `ensure_can_view` |
 | Approvals (salesperson, manager any deal, MD on takeover; special price; 120-min escalation) | `kx.crm.services.approvals`: `open_approval`, `decide`, `sweep_overdue`, `initial_role` |
 | Edit then approve / revise a quote (special price below the minimum) | `kx.crm.services.quotes.revise_quote` (`QuoteEdits`, `LineEdit`) |
@@ -70,7 +71,7 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 |---|---|
 | 12 roles, prompts | `kx.agents.registry`: `AgentRegistry`, `AgentSpec`, `PromptStore`, `DefaultPromptStore`, `ModelTier` |
 | Models + fallback | `kx.agents.models`: `ModelRouter`, `AnthropicApiProvider`, `BedrockProvider` |
-| Routing (no LLM) | `kx.agents.orchestrator` |
+| Routing (no LLM; handed-over deals: silent, or the fixed acknowledgement after hours) | `kx.agents.orchestrator` |
 | Reply guard | `kx.agents.guard` (prices, cost wording, injection, length) |
 | Graphs | `kx.agents.graphs.conversation` / `quotation` (interrupt/resume) / `deal` |
 | Memory, checkpointer | `kx.agents.memory`: `open_checkpointer`, turn store |

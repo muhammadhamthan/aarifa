@@ -318,6 +318,8 @@ async def build_context(s: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID) -> D
         next_action_at=deal.next_action_at,
         salesperson_name=owner.full_name if (owner := await staff.owner_of(s, deal)) else None,
         change_request_hours=settings.change_request_sla_working_hours,
+        ai_paused_reason=deal.ai_paused_reason,
+        team_available=settings.alert_window().contains(deps.now()),
     )
 
 

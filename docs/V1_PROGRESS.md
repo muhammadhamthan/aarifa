@@ -133,3 +133,18 @@ the PDF. The guard passes on the generated message against the deal's allowed pr
 Tests added: 3 automation (country routing + default, existing thread wins, email/alerts identity), 6 CRM unit
 (PDF fields, no cover line in the PDF, Arabic RTL, PDF bytes, signed message + guard, varied fallback, final /
 revision wording), 1 CRM DB (sent message: AI cover line, signature, region, guard). Totals: 415 passed.
+
+## WP7. Final quote and handover
+
+**Plan.** CRM `deals.hand_over` called on final approval, `QuoteApproved.salesperson/manager` (final only),
+`DealContext.ai_paused_reason/team_available`; automation final-quote alert + manager notice; agents orchestrator
+`acknowledge` route, `Phrase.HANDOVER_ACK`, service delivers it. Tests in agents (`test_db.py`, `test_routing.py`),
+automation (`test_auto_db.py`), CRM (`test_approvals_db.py`).
+
+**Done.** Approving the final quote sends it (QUOTE_APPROVED kind final, as before), alerts the salesperson
+(`final_quote_alert`) and notifies the manager (`staff_notice`) in alert hours, and sets `ai_enabled=false`,
+`ai_paused_reason='handover'`. Buyer messages on a handed-over deal never reach a model: they go to the
+salesperson's timeline/inbox; outside staff hours the buyer gets only "Thanks — Sara will reply in the morning."
+Tests added: 2 agents DB (no AI reply in hours; acknowledgement only after hours), 1 routing unit, 1 automation
+(quote sent, salesperson alert, manager notice), 1 CRM DB (final approval hands over; only the final quote alerts).
+Totals: 420 passed.

@@ -486,3 +486,34 @@ async def test_email_ingest_stores_attachments_and_announces(auto_db: Any) -> No
     await jobs.relay_all(rt)
     (event,) = published
     assert event.payload["channel"] == "email" and event.payload["text"].startswith("Re: Your quote Q-1045")
+
+
+# ---------------------------------------------------------------- WP7: final quote (§14.5, §17)
+async def test_final_quote_is_sent_then_the_salesperson_alerted_and_the_manager_notified(
+    auto_db: Any, clock: Clock
+) -> None:
+    sender = RecordingSender()
+    handlers, *_ = build(auto_db, clock, sender)
+    approved = QuoteApproved(
+        approval_ref=uuid.uuid4(),
+        quote_ref=uuid.uuid4(),
+        quote_version_ref=uuid.uuid4(),
+        deal_ref=uuid.uuid4(),
+        contact_ref=uuid.uuid4(),
+        kind="final",
+        grant_ref=uuid.uuid4(),
+        channel="whatsapp",
+        to_address="+971501234567",
+        pdf_s3_key="q.pdf",
+        body="Quote",
+        subject="Quotation Q-2026-00012 from Arifa Pack",
+        content_sha256="a" * 64,
+        salesperson=SALES,
+        manager=MANAGER,
+    )
+    assert await handlers.dispatch(make_event(ev.QUOTE_APPROVED, "approval", approved.approval_ref, approved))
+    quote, alert, notice = sender.requests
+    assert (quote.kind.value, quote.grant_id) == ("final_quote", approved.grant_ref)
+    assert (alert.template_name, alert.to_address) == ("final_quote_alert", SALES.whatsapp)
+    assert (notice.template_name, notice.to_address) == ("staff_notice", MANAGER.whatsapp)
+    assert "Q-2026-00012" in alert.template_params[0] and alert.not_before is not None

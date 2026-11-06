@@ -29,7 +29,15 @@ from kx.agents.language import reply_language
 from kx.agents.memory import TurnStore
 from kx.agents.models import ModelRouter
 from kx.agents.orchestrator import Route, route
-from kx.agents.registry import AgentRegistry, DefaultPromptStore, GraphName, ModelTier, Phrase, PromptStore
+from kx.agents.registry import (
+    AgentRegistry,
+    DefaultPromptStore,
+    GraphName,
+    ModelTier,
+    Phrase,
+    PromptStore,
+    team_member,
+)
 from kx.agents.runs import RunStatus, RunStore, UsageMeter
 from kx.agents.tracing import Tracer
 from kx.core.contracts import AiRole, Channel, CrmGateway
@@ -57,7 +65,7 @@ class InboundTurn:
 class TurnResult:
     reply: str | None
     route: Route
-    status: RunStatus | Literal["silent", "duplicate"]
+    status: RunStatus | Literal["silent", "duplicate", "acknowledged"]
     language: str
     run_id: uuid.UUID | None = None
     log: RunLog = field(default_factory=RunLog)
@@ -164,7 +172,7 @@ class AgentService:
             )
             history = await self.turns.history(s, conv_id)
             rt = route(turn.text, deal, first_turn=history.turn_count == 0)
-            if rt.action == "silent":
+            if rt.action in ("silent", "acknowledge"):
                 await TurnStore.append(s, conv_id, "buyer", turn.text, language=language)
             else:
                 assert rt.graph is not None
@@ -184,11 +192,18 @@ class AgentService:
                     return TurnResult(None, rt, "duplicate", language)
                 if claim.fresh:
                     await TurnStore.append(s, conv_id, "buyer", turn.text, language=language)
-        if rt.action == "silent":  # AI paused / human took over: the team sees it on the timeline
+        if rt.action in ("silent", "acknowledge"):  # AI paused / handed over: the salesperson's inbox
             await self.gateway.add_timeline(
                 deal.deal_id, "inbound_message", turn.text[:500], AiRole.ORCHESTRATOR
             )
-            return TurnResult(None, rt, "silent", language)
+            if rt.action == "silent":
+                return TurnResult(None, rt, "silent", language)
+            ack = self.prompts.phrase(Phrase.HANDOVER_ACK, language).format(
+                name=deal.salesperson_name or team_member(None, language)
+            )
+            if deliver is not None:
+                await deliver(ack, language)
+            return TurnResult(ack, rt, "acknowledged", language)
 
         ctx = AgentContext(
             deal=deal,

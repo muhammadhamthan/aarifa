@@ -133,6 +133,8 @@ class DealContext(_Frozen):
     next_action_at: datetime | None
     salesperson_name: str | None = None  # D11: messages are signed with the assigned salesperson's name
     change_request_hours: int = 4  # §13.1: "updated quotation within N working hours" (CRM setting)
+    ai_paused_reason: str | None = None  # e.g. "handover" after the final quote (D13, §14.6)
+    team_available: bool = True  # inside staff hours now (08:00-22:00 Dubai); outside: auto-acknowledge only
 
 
 class RequirementPatch(BaseModel):

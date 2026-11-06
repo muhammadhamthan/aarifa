@@ -440,6 +440,30 @@ async def move_stage(
     return deal
 
 
+# ---------------------------------------------------------------- handover (D13, §14.6)
+async def hand_over(session: AsyncSession, deal: Deal, actor: Actor, now: datetime) -> None:
+    """The final quote is approved: the AI stops replying on this deal; buyer messages go to the
+    salesperson's inbox; payment, PO and banking are discussed by people only (§14.6-7)."""
+    if not deal.ai_enabled and deal.ai_paused_reason == "handover":
+        return
+    deal.ai_enabled, deal.ai_paused_reason, deal.ai_paused_at = False, "handover", now
+    await session.flush()
+    await record(
+        session,
+        actor,
+        "deal.handed_over",
+        "deal",
+        deal.id,
+        after={"ai_paused_reason": "handover"},
+        timeline=Timeline(
+            "handover",
+            "Final quote approved: the AI stepped back, the salesperson takes over",
+            deal.id,
+            deal.primary_contact_id,
+        ),
+    )
+
+
 # ---------------------------------------------------------------- next action (follow-ups)
 async def set_next_action(
     session: AsyncSession, deal: Deal, due_at: datetime, reason: str, actor: Actor, *, primary: bool = True

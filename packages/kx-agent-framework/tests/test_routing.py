@@ -97,3 +97,19 @@ def test_bedrock_transport_uses_block_level_caching() -> None:
 async def test_eval_scenarios_scripted(scenario: object) -> None:
     result = await run_scenario(scenario)  # type: ignore[arg-type]
     assert result.passed, result.failures
+
+
+def test_handover_routes_to_the_salesperson_and_acknowledges_only_after_hours() -> None:
+    from kx.agents.orchestrator import route as route_
+
+    deal = make_deal(DealStage.READY_TO_CLOSE).model_copy(
+        update={"ai_enabled": False, "ai_paused_reason": "handover"}
+    )
+    assert route_("Can you do 0.20?", deal).action == "silent"
+    after = deal.model_copy(update={"team_available": False})
+    assert (route_("hello?", after).action, route_("hello?", after).reason) == (
+        "acknowledge",
+        "handover_after_hours",
+    )
+    other = deal.model_copy(update={"ai_paused_reason": "below_range", "team_available": False})
+    assert route_("hello?", other).action == "silent"  # only the handover gets the morning acknowledgement

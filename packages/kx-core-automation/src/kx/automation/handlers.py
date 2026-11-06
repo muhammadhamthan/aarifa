@@ -174,6 +174,33 @@ class EventHandlers:
                 idempotency_key=f"quote-approved:{p.approval_ref}",
             ),
         )
+        if p.kind == "final":  # §14.5 / §17: salesperson alerted, manager notified
+            await self._final_quote_notices(event, p)
+
+    async def _final_quote_notices(self, event: Event, p: QuoteApproved) -> None:
+        at = self.settings.alert_window.next_open(self.clock())
+        a = self.settings.alerts
+        what = f"Final quote ({p.subject})" if p.subject else "The final quote"
+        if p.salesperson is not None:
+            await notify_staff(
+                self.sender,
+                (p.salesperson,),
+                a.final_quote_template,
+                (f"{what} approved and sent. The buyer is yours for payment and the order.",),
+                key=f"final:{event.event_id}:alert",
+                deal_ref=p.deal_ref,
+                not_before=at,
+            )
+        if p.manager is not None and (p.salesperson is None or p.manager.user_ref != p.salesperson.user_ref):
+            await notify_staff(
+                self.sender,
+                (p.manager,),
+                a.notice_template,
+                (f"{what} approved and sent.",),
+                key=f"final:{event.event_id}:notice",
+                deal_ref=p.deal_ref,
+                not_before=at,
+            )
 
     async def _next_action_set(self, _: AsyncSession, event: Event) -> None:
         action = parse_payload(event, DealNextActionSet)

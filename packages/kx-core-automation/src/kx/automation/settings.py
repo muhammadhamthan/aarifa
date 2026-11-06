@@ -64,6 +64,7 @@ class AlertSettings(_Group):
     escalation_template: str = "approval_escalation"  # 120 min: WhatsApp to the manager (+ call)
     negotiation_paused_template: str = "negotiation_paused"
     notice_template: str = "staff_notice"  # one-line notices (manager notified, takeover, handover ...)
+    final_quote_template: str = "final_quote_alert"  # §14.5: the salesperson takes over for payment
 
 
 class FollowUpSettings(_Group):

@@ -292,3 +292,18 @@ async def test_sent_quote_message_carries_the_ai_cover_line_signature_and_region
     assert (sent["buyer_country"], sent["language"]) == ("AE", "en")
     ctx = await gw.deal_context(deal_id)
     assert check_prices(sent["body"], ctx.allowed_prices, default_currency="AED").ok
+
+
+# ---------------------------------------------------------------- WP7: final approval hands over (D13)
+async def test_final_approval_hands_the_deal_to_the_salesperson(databases: Databases, deps: CrmDeps) -> None:
+    gw = CrmGatewayImpl(databases, deps)
+    deal_id = await sara_deal(databases, deps)
+    await approve_and_send(databases, deps, deal_id, SARA)
+    assert (await gw.deal_context(deal_id)).ai_enabled
+    await gw.mark_agreed(deal_id, AiRole.DEAL_CLOSER)
+    final = await approve_and_send(databases, deps, deal_id, SARA)
+    assert (final["salesperson"]["name"], final["manager"]["name"]) == ("Sara", "The Manager")
+    ctx = await gw.deal_context(deal_id)
+    assert (ctx.ai_enabled, ctx.ai_paused_reason, ctx.stage.value) == (False, "handover", "READY_TO_CLOSE")
+    first = (await outbox(databases, ev.QUOTE_APPROVED, deal_id))[0]
+    assert first["salesperson"] is None  # only the final quote alerts and notifies (§17)
