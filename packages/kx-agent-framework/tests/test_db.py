@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -141,6 +142,21 @@ async def test_rrf_hybrid_search_ranks_and_flags_gaps(databases: Any) -> None:
     assert result.hits[0].score > result.hits[-1].score
     assert (await kb.search("zzqx unrelated wording", "en")).weak
 
+    # D28: the embedding call fails or takes > 2 s -> full-text only, still the right document
+    class Broken(HashEmbedder):
+        async def embed_query(self, text: str) -> list[float]:
+            raise ConnectionError("embeddings container down")
+
+    class Slow(HashEmbedder):
+        async def embed_query(self, text: str) -> list[float]:
+            await asyncio.sleep(1)
+            return await super().embed_query(text)
+
+    for slow_or_broken in (Broken(), Slow()):
+        fallback = KnowledgeBase(databases, slow_or_broken, query_timeout_seconds=0.05)
+        result = await fallback.search(f"PET bottles juice {tag}", "en")
+        assert result.hits and result.hits[0].title == "PET bottles" and not result.weak
+
 
 async def test_quotation_waits_durably_and_resumes(databases: Any, pg_databases: dict[str, str]) -> None:
     deal = make_deal(DealStage.QUALIFIED)
@@ -159,7 +175,11 @@ async def test_quotation_waits_durably_and_resumes(databases: Any, pg_databases:
 
     async with open_checkpointer(pg_databases["agents"]) as saver:
         svc = AgentService(
-            databases=databases, gateway=gw, models=ModelRouter.static(model), checkpointer=saver
+            databases=databases,
+            gateway=gw,
+            models=ModelRouter.static(model),
+            checkpointer=saver,
+            deal_summaries=False,  # the script holds exactly the graph's replies
         )
         turn = InboundTurn(
             channel="whatsapp",

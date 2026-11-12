@@ -4,7 +4,7 @@ Revision ID: crm_0003
 Revises: crm_0002
 Create Date: 2026-11-05
 
-Each key is a rule of docs/BUSINESS_FLOW_V1.md that needs a manager-editable value; where the documents
+Each key is a rule of the SRS that needs a manager-editable value; where the documents
 give no value, the default is the safe one and the gap is logged in docs/OPEN_QUESTIONS.md.
 Idempotent (ON CONFLICT DO NOTHING keeps edited values); forward-only.
 """

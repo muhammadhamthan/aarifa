@@ -39,6 +39,7 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.post("/{deal_id}/handback", response_model=DealDetail)
     async def hand_back(deal_id: uuid.UUID, s: Session, p: MdOnly) -> DealDetail:
+        """End an MD or manager takeover: the salesperson can edit and approve again (§3)."""
         return await deal_detail(s, await assignment.hand_back(s, deps, deal_id, p))
 
     @r.post("/{deal_id}/quotes/manual", response_model=QuoteVersionOut, status_code=201)

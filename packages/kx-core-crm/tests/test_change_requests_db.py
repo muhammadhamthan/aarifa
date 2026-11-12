@@ -1,4 +1,4 @@
-"""WP4 (CRM) on real Postgres: the change-request lifecycle (docs/BUSINESS_FLOW_V1.md §13, §16, §23 scenario 4).
+"""WP4 (CRM) on real Postgres: the change-request lifecycle (the SRS §13, §16, §23 scenario 4).
 
 Done when: a CRM DB test covers the full lifecycle (raise -> start -> revise -> approve = resolved; decline).
 """

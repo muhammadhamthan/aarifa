@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # =============================================================================================
-# Kairox platform image: one image, three modes (`kx api` | `kx worker` | `kx voice`) plus the
-# one-off `kx migrate` and the db-bootstrap script. Built for linux/arm64 (Graviton Fargate).
+# Kairox platform image: one image, modes `kx api | worker | beat | voice | migrate | create-user`
+# (worker = Celery worker, beat = the ONE Celery Beat) plus the db-bootstrap script.
+# Built for linux/arm64 (Graviton Fargate).
 #
 #   docker buildx build --platform linux/arm64 -t kairox/app:dev .
 #   docker run --rm kairox/app:dev api
@@ -45,13 +46,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ---------------------------------------------------------------------------------------------
 FROM ${PYTHON_IMAGE} AS runtime
 
-# WeasyPrint (quote / requirement-summary PDFs): Pango + HarfBuzz + fontconfig, and fonts for
-# Latin, Arabic, Devanagari, Tamil, Sinhala (fonts-noto-core) and Chinese/Japanese/Korean
-# (fonts-noto-cjk). postgresql-client runs the db-bootstrap script.
+# Quote / requirement-summary PDFs (11 Nov, Recommendation): headless Chromium first (Arabic shaping),
+# WeasyPrint as the backup (Pango + HarfBuzz + fontconfig). Fonts for Latin, Arabic, Devanagari, Tamil,
+# Sinhala (fonts-noto-core) and Chinese/Japanese/Korean (fonts-noto-cjk). postgresql-client runs the
+# db-bootstrap script.
 # hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates \
+      chromium \
       libpango-1.0-0 \
       libpangoft2-1.0-0 \
       libharfbuzz0b \
@@ -81,8 +84,10 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     XDG_CACHE_HOME=/tmp/.cache \
+    XDG_CONFIG_HOME=/tmp/.config \
     HOME=/tmp \
-    KX_API_PORT=8000
+    KX_API_PORT=8000 \
+    KX_APP_CHROMIUM_PATH=/usr/bin/chromium
 
 USER 10001:10001
 EXPOSE 8000

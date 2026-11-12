@@ -1,4 +1,4 @@
-"""SPEC for v1 price-list pricing (docs/BUSINESS_FLOW_V1.md §10, §11.1, §12, §23; V1_CHANGE_PLAN D6, D7, WP2).
+"""SPEC for v1 price-list pricing (the SRS §10, §11.1, §12, §23; V1_CHANGE_PLAN D6, D7, WP2).
 
 Expected values are the worked examples of the business flow, verbatim:
 * §11.1   50,000 pcs at AED 0.25 = 12,500.00; VAT 5% = 625.00; total 13,125.00; export in USD at 3.6725

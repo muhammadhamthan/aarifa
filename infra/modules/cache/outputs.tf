@@ -7,6 +7,6 @@ output "replication_group_id" {
 }
 
 output "url_secret_arns" {
-  description = "company => secret ARN (JSON key `url`, a rediss:// URL with AUTH token and DB index)."
+  description = "company => secret ARN (JSON keys `url` and `broker_url`: rediss:// URLs with the AUTH token and DB index)."
   value       = { for k, s in aws_secretsmanager_secret.url : k => s.arn }
 }

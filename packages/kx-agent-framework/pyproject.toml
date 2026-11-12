@@ -14,7 +14,8 @@ dependencies = [
     "psycopg[binary]==3.3.7",
     "psycopg-pool==3.3.3",
     "pgvector==0.5.1",
-    "langfuse==5.1.0",
+    "opentelemetry-sdk==1.45.2",  # D29 Phoenix tracing over OTLP (replaces Langfuse)
+    "opentelemetry-exporter-otlp-proto-http==1.45.2",
 ]
 
 [project.optional-dependencies]

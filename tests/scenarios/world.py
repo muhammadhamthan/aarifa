@@ -1,4 +1,4 @@
-"""A small, real "world" for the §23 scenario tests (docs/BUSINESS_FLOW_V1.md §23).
+"""A small, real "world" for the §23 scenario tests (the SRS §23).
 
 * CRM: the real services on the test Postgres, reached by the AI through `CrmGatewayImpl`.
 * AI: the real orchestrator and graphs, driven by `kx.agents.testing.ScriptedChatModel` (the fake model).
@@ -112,6 +112,7 @@ class Scheduler:
     ladder: list[tuple[datetime, LadderTicket, int]] = field(default_factory=list)
     pauses: list[NegotiationPaused] = field(default_factory=list)
     followups: list[tuple[DealNextActionSet, datetime]] = field(default_factory=list)
+    optout_checks: list[tuple[Any, datetime]] = field(default_factory=list)
 
     async def enqueue_delivery(self, *a: Any, **k: Any) -> None:
         return None
@@ -124,6 +125,20 @@ class Scheduler:
 
     async def schedule_followup(self, action: DealNextActionSet, at: datetime) -> None:
         self.followups.append((action, at))
+
+    async def cancel_followups(self, deal_ref: uuid.UUID) -> int:
+        before = len(self.followups)
+        self.followups = [(a, at) for a, at in self.followups if a.deal_ref != deal_ref]
+        return before - len(self.followups)
+
+    async def schedule_optout_check(self, unclear: Any, at: datetime) -> None:
+        self.optout_checks.append((unclear, at))
+
+    async def schedule_quote_delivery_check(self, message_id: uuid.UUID, at: datetime) -> None:
+        return None
+
+    async def cancel_optout_check(self, deal_ref: uuid.UUID) -> int:
+        return 0
 
     async def schedule_pause_alert(self, paused: NegotiationPaused, at: datetime) -> None:
         self.pauses.append(paused)

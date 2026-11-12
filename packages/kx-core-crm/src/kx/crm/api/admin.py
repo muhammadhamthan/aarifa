@@ -53,6 +53,7 @@ def router(ctx: ApiContext) -> APIRouter:
         cursor: str | None = None,
         limit: Annotated[int, Query(ge=1, le=100)] = 50,
     ) -> Page[RateOut]:
+        """Material price proposals (from the v2 scraper or staff) waiting for the manager's decision."""
         stmt = keyset(
             select(MaterialRate).where(MaterialRate.status == status),
             cursor,
@@ -66,6 +67,7 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.post("/price-proposals/{rate_id}/approve", response_model=RateOut, tags=["prices"])
     async def approve(rate_id: uuid.UUID, body: RateDecisionIn, s: Session, p: HumanManager) -> RateOut:
+        """Manager (MFA): accept a proposed material rate (may be corrected); it becomes the current rate."""
         rate = await price_proposals.approve_rate(
             s, rate_id, Actor.user(p), deps.now(), rate_override=body.rate_per_unit, note=body.note
         )
@@ -73,12 +75,14 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.post("/price-proposals/{rate_id}/reject", response_model=RateOut, tags=["prices"])
     async def reject(rate_id: uuid.UUID, body: RateDecisionIn, s: Session, p: HumanManager) -> RateOut:
+        """Manager (MFA): reject a proposed material rate."""
         return RateOut.model_validate(
             await price_proposals.reject_rate(s, rate_id, Actor.user(p), deps.now(), body.note)
         )
 
     @r.get("/materials/freshness", response_model=list[FreshnessOut], tags=["prices"])
     async def freshness(s: Session, _: Manager) -> list[FreshnessOut]:
+        """How old each material's approved rate is (stale rates block pricing)."""
         return await _freshness(s)
 
     async def _freshness(s: AsyncSession) -> list[FreshnessOut]:
@@ -93,11 +97,14 @@ def router(ctx: ApiContext) -> APIRouter:
     # ------------------------------------------------------------ settings & flags
     @r.get("/settings", response_model=list[SettingOut], tags=["settings"])
     async def list_settings(s: Session, _: SettingsReader) -> list[SettingOut]:
+        """§20.11 business settings (timers, follow-up days, VAT, Incoterm, validity, hours, opt-out rules
+        ...)."""
         rows = (await s.execute(select(Setting).order_by(Setting.key))).scalars()
         return [SettingOut.model_validate(x) for x in rows]
 
     @r.put("/settings/{key}", response_model=SettingOut, tags=["settings"])
     async def put_setting(key: str, body: SettingIn, s: Session, p: SettingsWriter) -> SettingOut:
+        """Manager / admin (MFA): change one business setting (validated; logged)."""
         await deps.settings.update(s, key, body.value, Actor.user(p))
         await s.flush()
         row = await s.get(Setting, key, populate_existing=True)
@@ -105,6 +112,7 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.put("/feature-flags/{key}", status_code=204, tags=["settings"])
     async def put_flag(key: str, body: FlagIn, s: Session, p: SettingsWriter) -> None:
+        """Manager / admin (MFA): switch a feature on or off (v2 features stay off in v1, D14)."""
         await deps.settings.set_flag(s, key, body.enabled, Actor.user(p))
 
     # ------------------------------------------------------------ dashboard
@@ -118,6 +126,8 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.get("/dashboard/summary", response_model=DashboardSummary, tags=["dashboard"])
     async def summary(s: Session, _: Manager) -> DashboardSummary:
+        """Compact pipeline summary: deals by stage, open pipeline value, approvals pending / overdue, open
+        tasks."""
         by_stage = dict(
             (await s.execute(select(Deal.stage, func.count()).group_by(Deal.stage))).tuples().all()
         )

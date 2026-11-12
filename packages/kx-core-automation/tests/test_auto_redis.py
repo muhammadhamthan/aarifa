@@ -52,3 +52,20 @@ async def test_kill_switch_channel_and_all(redis: Redis) -> None:
 def test_bucket_validation() -> None:
     with pytest.raises(ValueError):
         Bucket(0, 1)
+
+
+async def test_kill_switch_ladder_levels_are_cumulative(redis: Redis) -> None:
+    """D35: marketing -> calls -> text only -> hold; each step includes the ones before it."""
+    kill = KillSwitch(redis, "ladder")
+    expected = {
+        "off": set(),
+        "marketing": {"marketing"},
+        "calls": {"marketing", "phone"},
+        "text_only": {"marketing", "phone", "voice"},
+        "hold": {"marketing", "phone", "voice", "whatsapp", "email"},
+    }
+    for level, stopped in expected.items():
+        await kill.set_level(level)  # type: ignore[arg-type]
+        assert await kill.level() == level
+        on = {s for s in ("marketing", "phone", "voice", "whatsapp", "email") if await kill.engaged(s)}
+        assert on == stopped, level

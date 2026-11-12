@@ -41,6 +41,11 @@ async def set_contact(contact: ContactPatch, runtime: Runtime) -> str:
     """Save the buyer's name, company, phone, email, preferred channel or language."""
     ctx = runtime.context
     await ctx.gateway.set_contact(ctx.deal_id, contact, ctx.spec.role)
+    if contact.phone is not None:  # §8.2 step 1: the silent format check
+        kind = (await ctx.gateway.deal_context(ctx.deal_id)).contact.phone_kind
+        if kind in ("landline", "invalid"):
+            ask = ctx.prompts.phrase(Phrase.PHONE_NOT_MOBILE, ctx.language)
+            return f"saved, but the number is {kind}. Ask naturally, in the buyer's language: {ask}"
     return "saved"
 
 

@@ -185,7 +185,7 @@ async def seed(databases: object) -> Seed:
     return await ensure_seed(databases)
 
 
-# ---------------------------------------------------------------- v1 price list (BUSINESS_FLOW_V1 §23)
+# ---------------------------------------------------------------- v1 price list (the SRS §23)
 LIST_SKU, LIST_PRODUCT_ID = "ALC-750-L", uuid.UUID("00000000-0000-7000-8000-0000000000b2")
 LIST_CATEGORY = "ALUMINIUM"
 TIERS_23 = ((5_000, 9_999, "0.32", "0.29"), (10_000, 49_999, "0.28", "0.255"), (50_000, None, "0.25", "0.23"))

@@ -11,7 +11,7 @@ from sqlalchemy import any_, func, literal, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kx.automation.models import ChannelAccount, Suppression, Thread, WebhookReceipt
+from kx.automation.models import ChannelAccount, ContactSuppression, Suppression, Thread, WebhookReceipt
 from kx.core.errors import RuleViolation
 
 ALL_CHANNELS: Final = "all"
@@ -134,20 +134,38 @@ async def upsert_thread(
     return ThreadRef(row.id, row.contact_ref, row.deal_ref, row.last_inbound_at)
 
 
-async def is_suppressed(session: AsyncSession, channel: str, address_hash: str) -> bool:
-    return (
-        await session.execute(
-            select(Suppression.reason)
-            .where(Suppression.address_hash == address_hash, Suppression.channel.in_((channel, ALL_CHANNELS)))
-            .limit(1)
-        )
-    ).scalar_one_or_none() is not None
+async def is_suppressed(
+    session: AsyncSession, channel: str, address_hash: str, contact_ref: uuid.UUID | None = None
+) -> bool:
+    """§8.1 step 2: the one suppression list, checked before every WhatsApp message, email and call.
+    `channel` is the scope being used now (whatsapp, email or phone); an `all` stop blocks every scope, and a
+    stop recorded on the person blocks whatever address they are reached on."""
+    scopes = (channel, ALL_CHANNELS)
+    by_address = select(Suppression.reason).where(
+        Suppression.address_hash == address_hash, Suppression.channel.in_(scopes)
+    )
+    if (await session.execute(by_address.limit(1))).scalar_one_or_none() is not None:
+        return True
+    if contact_ref is None:
+        return False
+    by_person = select(ContactSuppression.reason).where(
+        ContactSuppression.contact_ref == contact_ref, ContactSuppression.scope.in_(scopes)
+    )
+    return (await session.execute(by_person.limit(1))).scalar_one_or_none() is not None
 
 
 async def suppress(session: AsyncSession, channel: str, address_hash: str, reason: str) -> None:
     await session.execute(
         pg_insert(Suppression)
         .values(channel=channel, address_hash=address_hash, reason=reason)
+        .on_conflict_do_nothing()
+    )
+
+
+async def suppress_contact(session: AsyncSession, contact_ref: uuid.UUID, scope: str, reason: str) -> None:
+    await session.execute(
+        pg_insert(ContactSuppression)
+        .values(contact_ref=contact_ref, scope=scope, reason=reason)
         .on_conflict_do_nothing()
     )
 

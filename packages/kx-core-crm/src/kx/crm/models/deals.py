@@ -45,6 +45,11 @@ class Deal(Base):
     next_action_at: Mapped[datetime | None] = mapped_column(TZ)
     next_action_kind: Mapped[str | None] = mapped_column(Text)
     next_action_reason: Mapped[str | None] = mapped_column(Text)
+    opted_out_at: Mapped[datetime | None] = mapped_column(TZ)  # §8.1 step 8: the Opted out badge
+    ai_summary: Mapped[str | None] = mapped_column(Text)  # §7A.2: short AI summary on the deal page
+    ai_summary_at: Mapped[datetime | None] = mapped_column(TZ)
+    personal_contact_shared_at: Mapped[datetime | None] = mapped_column(TZ)  # §14 practical notes
+    personal_contact_shared_by: Mapped[uuid.UUID | None] = mapped_column(ref("users.id"))
     version: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = created_at()
     updated_at: Mapped[datetime] = updated_at()

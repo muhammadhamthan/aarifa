@@ -48,7 +48,7 @@ variable "companies" {
   description = "Companies hosted in staging => settings."
   type = map(object({
     db_prefix   = string
-    valkey_db   = number
+    redis_db    = number
     crm_urls    = list(string)
     ses_domain  = string
     cost_center = string
@@ -72,11 +72,16 @@ variable "service_sizes" {
     min    = number
     max    = number
   }))
+  # beat always runs exactly 1 task per company (min/max ignored).
   default = {
-    api    = { cpu = 512, memory = 1024, min = 1, max = 1 }
-    worker = { cpu = 512, memory = 1024, min = 1, max = 1 }
-    voice  = { cpu = 1024, memory = 2048, min = 0, max = 1 }
-    cms    = { cpu = 512, memory = 1024, min = 1, max = 1 }
+    api            = { cpu = 512, memory = 1024, min = 1, max = 1 }
+    worker         = { cpu = 512, memory = 1024, min = 1, max = 1 }
+    beat           = { cpu = 256, memory = 512, min = 1, max = 1 }
+    voice          = { cpu = 1024, memory = 2048, min = 0, max = 1 }
+    cms            = { cpu = 512, memory = 1024, min = 1, max = 1 }
+    embeddings     = { cpu = 1024, memory = 4096, min = 1, max = 1 }
+    phoenix        = { cpu = 512, memory = 1024, min = 1, max = 1 }
+    otel_collector = { cpu = 256, memory = 512, min = 1, max = 1 }
   }
 }
 
@@ -88,11 +93,6 @@ variable "api_health_path" {
 variable "cms_health_path" {
   type    = string
   default = "/admin"
-}
-
-variable "bedrock_region" {
-  type    = string
-  default = null
 }
 
 variable "alarm_emails" {

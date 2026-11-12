@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Must stay executable (git mode 100755): a non-executable initdb.d *.sh is *sourced* by the entrypoint.
 # Local dev only: runs once when the compose postgres volume is first created
-# (/docker-entrypoint-initdb.d). Same bootstrap as RDS (roles, DBs, extensions), then - unless
+# (/docker-entrypoint-initdb.d). Same bootstrap as RDS (roles, DBs incl. phoenix, extensions), then - unless
 # KX_INIT_APPLY_DDL=0 - applies db/ddl as each owning role and stamps the Alembic baseline so a
 # later `kx migrate` starts from revision 0001 instead of re-running it.
 set -euo pipefail
 
 export PGHOST=/var/run/postgresql PGUSER="${POSTGRES_USER:-postgres}" PGDATABASE=postgres
 export KX_BOOTSTRAP_PREFIXES=""
-for role in cms_app crm_app automation_app agents_app reporting_ro; do
+for role in cms_app crm_app automation_app agents_app phoenix_app reporting_ro; do
   export "KX_PW_${role^^}=${KX_DEV_DB_PASSWORD:-dev}"
 done
 

@@ -192,6 +192,129 @@ class MessageReceived(EventPayload):
     received_at: datetime
     provider_message_id: str
     opted_out: bool = False  # §8 / §17: STOP, unsubscribe, إيقاف ... (the address is already suppressed)
+    # §8.1 step 1 (rules first): a stop word inside a sentence -> the AI reads the meaning (step 6)
+    stop_in_sentence: bool = False
+    stop_language: str | None = None  # language of the matched stop word (confirmation language)
+    profile_name: str | None = None  # §8.2: the WhatsApp profile name shown when the buyer replies
+
+
+ConsentScope = Literal["all", "whatsapp", "email", "phone"]
+StopSource = Literal["rule", "ai", "unsubscribe_link", "salesperson", "no_answer"]
+
+
+class OptedOut(EventPayload):
+    """§8.1: a stop. `scope="all"` is the full opt-out (badge, LOST proposed); a channel scope stops one
+    channel only ("use email instead" -> whatsapp, "don't call me" -> phone). Raised by automation (rules,
+    the unsubscribe link, the 24-hour no-answer timer) or by the CRM (the AI's tool, a salesperson)."""
+
+    contact_ref: uuid.UUID | None
+    deal_ref: uuid.UUID | None
+    thread_ref: uuid.UUID | None = None
+    address_hashes: tuple[str, ...] = ()  # every address to suppress (the CRM adds the contact's others)
+    scope: ConsentScope
+    source: StopSource
+    channel: str  # where the buyer said it (whatsapp, email, web_chat, web_voice, crm)
+    exact_words: str | None = None  # permanent log (§8.1 step 9)
+    reason: str | None = None  # only a reason the buyer volunteered (step 4)
+    language: str | None = None
+    decided_by: str  # the rule id, or the AI model + prompt version, or the user
+    at: datetime
+    log_ref: uuid.UUID | None = None  # automation.opt_out_log id when automation already applied it
+    origin: Literal["automation", "crm"] = "automation"  # the producer already applied its own side
+
+
+class StopUnclear(EventPayload):
+    """§8.1 step 6: an unclear stop. Follow-ups pause at once; `live` = the AI asked "should we stop
+    messaging you?" (no answer by `answer_by` = opt-out); otherwise the salesperson reviews."""
+
+    contact_ref: uuid.UUID | None
+    deal_ref: uuid.UUID
+    thread_ref: uuid.UUID | None = None
+    live: bool
+    exact_words: str
+    asked_at: datetime
+    answer_by: datetime | None = None
+
+
+class StaffNotice(EventPayload):
+    """A one-line notice to named staff (WhatsApp in alert hours, per their alert channels; CRM always)."""
+
+    deal_ref: uuid.UUID | None
+    notify: tuple[StaffContact, ...]
+    text: str
+    key: str  # idempotency: one notice per key
+
+
+class RequirementSummary(EventPayload):
+    """§6.5 / §8.2: the one-page Requirement Summary (no prices) to send to the buyer's WhatsApp (an
+    approved template with a document header), else email. Sending it is what confirms the number."""
+
+    deal_ref: uuid.UUID
+    contact_ref: uuid.UUID
+    deal_number: str
+    pdf_s3_key: str
+    caption: str  # "Hi Ahmed, here's the summary of what we discussed ..." (§8.2 step 2)
+    summary_text: str = ""  # the middle of the caption: the WhatsApp template's second parameter
+    buyer_name: str | None = None
+    whatsapp: str | None = None
+    email: str | None = None
+    language: str = "en"
+    buyer_country: str | None = None
+
+
+class ProductPublished(EventPayload):
+    """§7 / D22: a CMS product was published (or unpublished). The CRM upserts it by product code; prices,
+    tiers, MOQ for quoting and the default delivery time are never taken from the CMS."""
+
+    code: str
+    cms_id: str
+    name: str
+    category_code: str | None = None
+    category_name: str | None = None
+    spec: dict[str, object] = {}
+    published: bool = True
+    custom_printing: bool | None = None
+
+
+class QuoteNotDelivered(EventPayload):
+    """D32: a priced WhatsApp message was not delivered within the wait. Automation reports the exact content
+    it sent (body, subject, PDF key, content hash) so the CRM can grant the same bytes on email."""
+
+    message_ref: uuid.UUID
+    grant_ref: uuid.UUID
+    deal_ref: uuid.UUID | None
+    contact_ref: uuid.UUID | None
+    kind: Literal["quote", "final_quote", "counter_offer"]
+    status: str
+    body: str | None
+    subject: str | None
+    pdf_s3_key: str | None
+    content_sha256: str
+
+
+class QuoteResendRequested(EventPayload):
+    """D32: the CRM granted the same approved quote on email; automation sends it (nothing else reacts)."""
+
+    grant_ref: uuid.UUID
+    deal_ref: uuid.UUID
+    contact_ref: uuid.UUID
+    kind: Literal["quote", "final_quote", "counter_offer"]
+    channel: Literal["email"]
+    to_address: str
+    body: str | None
+    subject: str | None
+    pdf_s3_key: str | None
+    content_sha256: str
+    buyer_timezone: str | None = None
+    language: str | None = None
+
+
+class ConversationSummaryUpdated(EventPayload):
+    """§7A.2: the short AI summary shown at the top of the deal page."""
+
+    deal_ref: uuid.UUID
+    summary: str
+    at: datetime
 
 
 class MessageStatus(EventPayload):
@@ -200,6 +323,11 @@ class MessageStatus(EventPayload):
     provider_message_id: str | None
     error: str | None = None
     at: datetime
+    # §8.2: which buyer and channel the status is about (phone status is read from WhatsApp signals)
+    contact_ref: uuid.UUID | None = None
+    deal_ref: uuid.UUID | None = None
+    channel: str | None = None
+    kind: str | None = None
 
 
 class PriceProposed(EventPayload):
@@ -305,6 +433,14 @@ PAYLOADS: dict[str, type[EventPayload]] = {
     ev.CHANGE_REQUEST_CLOSED: ChangeRequestClosed,
     ev.DEAL_ASSIGNED: DealAssigned,
     ev.DEAL_WON: DealWon,
+    ev.CONSENT_OPTED_OUT: OptedOut,
+    ev.CONSENT_STOP_UNCLEAR: StopUnclear,
+    ev.STAFF_NOTICE: StaffNotice,
+    ev.DEAL_REQUIREMENT_SUMMARY: RequirementSummary,
+    ev.CATALOGUE_PRODUCT_PUBLISHED: ProductPublished,
+    ev.CONVERSATION_SUMMARY_UPDATED: ConversationSummaryUpdated,
+    ev.QUOTE_NOT_DELIVERED: QuoteNotDelivered,
+    ev.QUOTE_RESEND_REQUESTED: QuoteResendRequested,
 }
 
 

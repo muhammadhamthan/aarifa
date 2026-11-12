@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import Literal
 
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kx.core.errors import RuleViolation
@@ -42,6 +42,14 @@ def recipient(contact: Contact) -> tuple[SendChannel, str]:
     raise RuleViolation("contact has no WhatsApp number or email to send the quote to")
 
 
+def recipient_on(contact: Contact, channel: SendChannel) -> tuple[SendChannel, str]:
+    """The contact's own address on one given channel (fallback sends, D32)."""
+    address = contact.email if channel == "email" else (contact.whatsapp_e164 or contact.phone_e164)
+    if not address:
+        raise RuleViolation(f"contact has no {channel} address", reason="no_address")
+    return channel, address
+
+
 GrantPolicy = Literal["sales", "manager", "md", "within_range"]  # who released it (D1)
 
 
@@ -54,10 +62,14 @@ async def issue_grant(
     contact: Contact,
     sha: str,
     s: BusinessSettings,
-    now: datetime,
     actor: Actor,
+    channel_override: SendChannel | None = None,
 ) -> tuple[QuoteSendGrant, SendChannel, str]:
-    channel, address = recipient(contact)
+    """Issue one grant. Its lifetime runs on the **database** clock, the same clock
+    `crm.consume_send_grant` checks, so the security boundary never depends on an app server's clock.
+    `channel_override` serves the D32 fallback (a WhatsApp quote not delivered goes by email): the
+    address still comes from the contact record, never from the caller."""
+    channel, address = recipient_on(contact, channel_override) if channel_override else recipient(contact)
     grant = QuoteSendGrant(
         id=new_id(),
         quote_version_id=version.id,
@@ -66,11 +78,12 @@ async def issue_grant(
         content_sha256=sha,
         channel=channel,
         recipient_hash=recipient_hash(channel, address),
-        issued_at=now,
-        expires_at=now + timedelta(hours=s.grant_ttl_hours),
+        issued_at=func.now(),
+        expires_at=func.now() + timedelta(hours=s.grant_ttl_hours),
     )
     session.add(grant)
     await session.flush()
+    await session.refresh(grant, ["issued_at", "expires_at"])
     await record(
         session,
         actor,

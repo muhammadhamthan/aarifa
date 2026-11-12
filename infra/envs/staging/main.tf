@@ -1,6 +1,6 @@
 # Shared staging account hosting every company (T21: keep it simple to operate).
-# One VPC / ALB / ECS cluster / RDS instance / Valkey node; per company: databases <prefix>cms ...,
-# login roles, secrets, buckets, SES identity, Cognito pool and services.
+# One VPC / ALB / ECS cluster / RDS instance / Redis node; per company: databases <prefix>cms ...,
+# login roles, secrets (incl. the staff-login keys), buckets, SES identity and services.
 
 locals {
   name = "kx-staging"
@@ -91,7 +91,7 @@ module "cache" {
   source                    = "../../modules/cache"
   name                      = local.name
   env                       = local.env
-  tenants                   = { for c, cfg in var.companies : c => cfg.valkey_db }
+  tenants                   = { for c, cfg in var.companies : c => cfg.redis_db }
   node_type                 = "cache.t4g.micro"
   replicas                  = 0
   snapshot_retention_days   = 0
@@ -118,30 +118,20 @@ module "email" {
   name                 = "${local.name}-${each.key}"
   domain               = each.value.ses_domain
   route53_zone_id      = var.route53_zone_id
-  event_webhook_url    = "https://${local.hosts[each.key].api}/v1/webhooks/ses"
+  event_webhook_url    = "https://${local.hosts[each.key].api}/webhooks/ses"
   inbound_mail_enabled = false
   kms_key_arn          = module.secrets.kms_key_arn
   tags                 = local.company_tags[each.key]
-}
-
-module "auth" {
-  source              = "../../modules/auth"
-  for_each            = var.companies
-  name                = "${local.name}-${each.key}"
-  callback_urls       = concat([for u in each.value.crm_urls : "${u}/auth/callback"], ["http://localhost:3000/auth/callback"])
-  logout_urls         = concat(each.value.crm_urls, ["http://localhost:3000"])
-  domain_prefix       = "kx-staging-${each.key}"
-  deletion_protection = false
-  user_pool_tier      = "ESSENTIALS"
-  tags                = local.company_tags[each.key]
 }
 
 module "cluster" {
   source           = "../../modules/ecs_cluster"
   name             = local.name
   pull_account_ids = var.prod_account_ids
-  kms_key_arn      = module.secrets.kms_key_arn
-  tags             = local.tags
+  # Recommendation (11 Nov): Better Stack replaces Container Insights.
+  container_insights = "disabled"
+  kms_key_arn        = module.secrets.kms_key_arn
+  tags               = local.tags
 }
 
 module "alb" {
@@ -171,6 +161,7 @@ module "app" {
   cluster_name            = module.cluster.cluster_name
   app_repository_url      = module.cluster.repository_urls["kairox/app"]
   cms_repository_url      = module.cluster.repository_urls["kairox/cms"]
+  vpc_id                  = module.network.vpc_id
   subnet_ids              = module.network.private_subnet_ids
   security_group_id       = module.network.app_security_group_id
   api_target_group_arn    = module.alb.target_group_arns["${each.key}-api"]
@@ -179,7 +170,9 @@ module "app" {
   public_api_url          = "https://${local.hosts[each.key].api}"
   public_cms_url          = "https://${local.hosts[each.key].cms}"
   db_secret_arns          = local.db_secret_arns[each.key]
-  valkey_secret_arn       = module.cache.url_secret_arns[each.key]
+  redis_secret_arn        = module.cache.url_secret_arns[each.key]
+  jwt_secret_arn          = module.secrets.jwt_secret_arns[each.key]
+  auth_secret_arn         = module.secrets.auth_secret_arns[each.key]
   integration_secret_arns = local.integration_secret_arns[each.key]
   generated_secret_arns   = local.generated_secret_arns[each.key]
   bucket_names            = module.storage[each.key].bucket_names
@@ -187,21 +180,15 @@ module "app" {
   inbound_bucket_arn      = null
   ses_identity_arn        = module.email[each.key].identity_arn
   ses_configuration_set   = module.email[each.key].configuration_set_name
+  ses_events_topic_arn    = module.email[each.key].events_topic_arn
   ses_from_domain         = each.value.ses_domain
-  jwt_issuer              = module.auth[each.key].issuer
-  jwks_url                = module.auth[each.key].jwks_url
-  jwt_audience            = module.auth[each.key].crm_client_id
-  bedrock_region          = var.bedrock_region
+  cors_origins            = concat(each.value.crm_urls, ["http://localhost:3000", "http://localhost:3001"])
   sizes                   = var.service_sizes
   capacity_provider       = "FARGATE_SPOT"
   db_bootstrap_family     = "${local.name}-db-bootstrap"
   kms_key_arn             = module.secrets.kms_key_arn
   log_retention_days      = 14
   tags                    = local.company_tags[each.key]
-
-  extra_environment = {
-    KX_CORS_ORIGINS = join(",", concat(each.value.crm_urls, ["http://localhost:3000"]))
-  }
 }
 
 # ---- one-off: databases, roles and extensions for every company (idempotent) ---------------
@@ -248,7 +235,7 @@ module "observability" {
   db_instance_ids           = [module.database.instance_id]
   db_allocated_storage_gb   = 30
   ecs_cluster_name          = module.cluster.cluster_name
-  ecs_services              = { for c in local.company_keys : "${c}-api" => "${local.name}-${c}-api" }
+  ecs_services              = merge([for c in local.company_keys : { "${c}-api" = "${local.name}-${c}-api", "${c}-worker" = "${local.name}-${c}-worker" }]...)
   companies                 = local.company_keys
   monthly_budget_usd        = var.monthly_budget_usd
   budget_emails             = var.alarm_emails

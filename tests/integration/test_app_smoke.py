@@ -1,9 +1,11 @@
 """Whole-app smoke test on real Postgres: migrate fresh DBs, boot the API with every package wired,
-check health + auth, and prove an event fans out to durable jobs for each subscribed package."""
+check health + auth, and prove an event fans out to durable jobs (automation.scheduled_jobs, D25) for each
+subscribed package."""
 
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 import psycopg
 import pytest
@@ -65,8 +67,8 @@ def test_migrations_create_all_schemas(migrated: dict[str, str]) -> None:
                 "select count(*) from information_schema.tables where table_schema=%s", (key,)
             ).fetchone()
             assert n and n[0] >= expect[key]
-    with psycopg.connect(migrated["automation"]) as c:
-        assert c.execute("select to_regclass('public.procrastinate_jobs')").fetchone() != (None,)
+    with psycopg.connect(migrated["automation"]) as c:  # the job queue is a table now (no procrastinate)
+        assert c.execute("select to_regclass('automation.scheduled_jobs')").fetchone() != (None,)
 
 
 async def test_api_boots_and_routes_events(migrated: dict[str, str]) -> None:
@@ -86,10 +88,12 @@ async def test_api_boots_and_routes_events(migrated: dict[str, str]) -> None:
         }
 
         container = app.state.container
-        # WP9 / D14: v2 features are off by the crm.settings seed; the scraper task exists, unscheduled
-        periodic = {p.task.name for p in container.proc.periodic_registry.periodic_tasks.values()}
-        assert "automation:run_price_scrapes" in container.proc.tasks
-        assert "automation:run_price_scrapes" not in periodic and "automation:relay_outbox" in periodic
+        # Beat's timetable names every periodic job the worker knows (and nothing it does not)
+        from arifaa_pack.schedule import beat_schedule
+
+        assert set(beat_schedule()) == set(container.periodic)
+        # WP9 / D14: v2 features are off by the crm.settings seed: the daily scraper returns at once
+        assert await container.periodic["automation.price_scrapes"](datetime.now(UTC)) is None
         assert not container.agent_service.registry.get(AiRole.REPEAT_SALES).enabled
         event = make_event(
             ev.PRICE_PROPOSED,
@@ -107,9 +111,12 @@ async def test_api_boots_and_routes_events(migrated: dict[str, str]) -> None:
             ),
         )
         await container.bus.publish(event)
+        await container.bus.publish(event)  # re-published by a relay retry: still one job per package
         with psycopg.connect(migrated["automation"]) as c:
             rows = c.execute(
-                "select task_name from procrastinate_jobs where args->'event'->>'event_id' = %s",
+                "select id, task, status from automation.scheduled_jobs where args->'event'->>'event_id' = %s",
                 (str(event.event_id),),
             ).fetchall()
-        assert {r[0] for r in rows} == {"app:crm_event"}  # CRM consumes price proposals; nobody else
+        assert [(r[1], r[2]) for r in rows] == [("crm.handle_event", "todo")]  # only the CRM consumes it
+        assert await container.runner.run(rows[0][0]) == "done"  # a worker runs it once ...
+        assert await container.runner.run(rows[0][0]) == "skipped"  # ... and a redelivery is a no-op

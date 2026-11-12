@@ -24,7 +24,7 @@ output "master_secret_arn" {
 }
 
 output "role_secret_arns" {
-  description = "\"<company>/<logical>\" => secret ARN (keys: username, password, host, port, dbname, dsn, migrate_dsn, uri). Logical includes reporting_ro."
+  description = "\"<company>/<logical>\" => secret ARN (keys: username, password, host, port, dbname, dsn, migrate_dsn, url, uri). Logical includes reporting_ro."
   value       = { for k, s in aws_secretsmanager_secret.role : k => s.arn }
 }
 

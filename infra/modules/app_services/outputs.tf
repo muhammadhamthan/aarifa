@@ -1,10 +1,27 @@
 output "service_names" {
   value = {
-    api    = module.api.service_name
-    worker = module.worker.service_name
-    voice  = module.voice.service_name
-    cms    = module.cms.service_name
+    api            = module.api.service_name
+    worker         = module.worker.service_name
+    beat           = module.beat.service_name
+    voice          = module.voice.service_name
+    cms            = module.cms.service_name
+    embeddings     = module.embeddings.service_name
+    phoenix        = module.phoenix.service_name
+    otel_collector = module.otel_collector.service_name
   }
+}
+
+output "internal_urls" {
+  description = "Private endpoints the Python services are configured with."
+  value = {
+    embeddings = local.embedding_url
+    phoenix    = local.phoenix_otlp
+    namespace  = local.namespace
+  }
+}
+
+output "vendor_order_prefix" {
+  value = local.vendor_prefix
 }
 
 output "migrate_task_family" {

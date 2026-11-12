@@ -1,4 +1,4 @@
-"""Human approval of every buyer-facing quote (docs/BUSINESS_FLOW_V1.md §3, §11.3, §14.4, §16; D1, D3).
+"""Human approval of every buyer-facing quote (the SRS §3, §11.3, §14.4, §16; D1, D3).
 
 * Approval 1 (first quote and every revised quote) and Approval 2 (the final quote) are both approved by
   the deal's **salesperson**; the **manager** may approve any deal; the **MD** only a deal it has taken

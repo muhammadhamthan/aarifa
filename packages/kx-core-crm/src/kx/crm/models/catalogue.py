@@ -66,6 +66,10 @@ class Product(Base):
     # D8: printed variants are priced by the salesperson; not quotable = no list price, never AI-priced
     custom_printing: Mapped[bool] = mapped_column(Boolean, default=False)
     is_quotable: Mapped[bool] = mapped_column(Boolean, default=True)
+    # §7 (D22): descriptive content mirrored from the CMS by product code; the CMS is its master
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    cms_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    cms_synced_at: Mapped[datetime | None] = mapped_column(TZ)
     created_at: Mapped[datetime] = created_at()
     updated_at: Mapped[datetime] = updated_at()
 

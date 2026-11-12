@@ -1,4 +1,4 @@
-"""WP12: the §17 notifications matrix, row by row (docs/BUSINESS_FLOW_V1.md §17).
+"""WP12: the §17 notifications matrix, row by row (the SRS §17).
 
 Each row: the event the CRM emits -> what automation does (who gets which template on which channel, or which
 reminder ladder starts). CRM-only columns ("CRM", "CRM timeline", "Dashboard") are covered by the CRM tests
@@ -18,12 +18,12 @@ from test_auto_db import MANAGER, SALES, Clock, RecordingSender, build
 from kx.automation.alerts import PauseAlerts, VoiceAlerts
 from kx.automation.settings import AutomationSettings
 from kx.core import events as ev
+from kx.core.contracts import OutboundKind
 from kx.core.event_payloads import (
     ChangeRequested,
     DealAssigned,
     DealWon,
     EventPayload,
-    MessageReceived,
     NegotiationPaused,
     OrderStatusChanged,
     QuoteApproved,
@@ -249,9 +249,11 @@ async def test_below_minimum_pause_alerts_the_salesperson_and_notifies_the_manag
 
 
 async def test_opt_out_sends_one_confirmation(auto_db: Any, clock: Clock) -> None:
-    """§17 last row: the buyer opts out -> a confirmation on the thread they wrote on (once)."""
+    """§8.1 step 3 / §17 last row: one plain confirmation, in the buyer's language, on the thread they wrote
+    on, inside the 24-hour window; follow-ups cancelled; a link click or a channel-only stop gets none."""
     from sqlalchemy import text
 
+    from kx.core.event_payloads import OptedOut
     from kx.core.settings import LogicalDb
 
     async with auto_db.transaction(LogicalDb.AUTOMATION) as s:
@@ -260,27 +262,35 @@ async def test_opt_out_sends_one_confirmation(auto_db: Any, clock: Clock) -> Non
         ).scalar_one()
         thread = (
             await s.execute(
-                text("INSERT INTO threads (channel_account_id, external_key) VALUES (:a, :k) RETURNING id"),
-                {"a": account, "k": BUYER},
+                text(
+                    "INSERT INTO threads (channel_account_id, external_key, last_inbound_at) "
+                    "VALUES (:a, :k, :t) RETURNING id"
+                ),
+                {"a": account, "k": BUYER, "t": clock.now},
             )
         ).scalar_one()
     sender = RecordingSender()
-    handlers, *_ = build(auto_db, clock, sender)
-    msg = MessageReceived(
-        message_ref=uuid.uuid4(),
-        thread_ref=thread,
-        channel="whatsapp",
-        from_address_hash="h" * 64,
+    handlers, _, scheduler, _ = build(auto_db, clock, sender)
+    stop = OptedOut(
         contact_ref=None,
         deal_ref=DEAL,
-        text="STOP",
-        received_at=clock.now,
-        provider_message_id="wamid.1",
-        opted_out=True,
+        thread_ref=thread,
+        address_hashes=("h" * 64,),
+        scope="all",
+        source="rule",
+        channel="whatsapp",
+        exact_words="إيقاف",
+        language="ar",
+        decided_by="word:إيقاف",
+        at=clock.now,
+        log_ref=None,
     )
-    assert await handlers.dispatch(make_event(ev.MESSAGE_RECEIVED, "x", uuid.uuid4(), msg))
-    ((template, to),) = [(r.template_name, r.to_address) for r in sender.requests]
-    assert (template, to) == ("opt_out_confirmation", BUYER)
-    normal = msg.model_copy(update={"opted_out": False})
-    assert await handlers.dispatch(make_event(ev.MESSAGE_RECEIVED, "x", uuid.uuid4(), normal))
-    assert len(sender.requests) == 1  # ordinary messages: nothing from automation
+    assert await handlers.dispatch(make_event(ev.CONSENT_OPTED_OUT, "x", uuid.uuid4(), stop))
+    ((kind, to, body),) = [(r.kind, r.to_address, r.body) for r in sender.requests]
+    assert (kind, to) == (OutboundKind.OPT_OUT_CONFIRMATION, BUYER) and "إلغاء" in (body or "")
+    assert ("cancel_followups", {"deal_ref": DEAL}) in scheduler.calls
+    link = stop.model_copy(update={"source": "unsubscribe_link"})
+    assert await handlers.dispatch(make_event(ev.CONSENT_OPTED_OUT, "x", uuid.uuid4(), link))
+    channel_only = stop.model_copy(update={"scope": "phone"})
+    assert await handlers.dispatch(make_event(ev.CONSENT_OPTED_OUT, "x", uuid.uuid4(), channel_only))
+    assert len(sender.requests) == 1  # nothing else leaves

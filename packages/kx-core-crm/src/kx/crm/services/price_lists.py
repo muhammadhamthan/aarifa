@@ -1,4 +1,4 @@
-"""Price-list maintenance (docs/BUSINESS_FLOW_V1.md §3, §10, §20; D6).
+"""Price-list maintenance (the SRS §3, §10, §20; D6).
 
 * Only the manager and admin edit the price list; every change is logged with who, when, old and new value.
 * A quote keeps the prices from the moment it was approved (its own snapshot); a change affects new quotes.

@@ -1,4 +1,4 @@
-"""WP5 unit tests: assignment rule order and away/backup (docs/BUSINESS_FLOW_V1.md §9, §24, D5). Pure, no DB."""
+"""WP5 unit tests: assignment rule order and away/backup (the SRS §9, §24, D5). Pure, no DB."""
 
 from __future__ import annotations
 

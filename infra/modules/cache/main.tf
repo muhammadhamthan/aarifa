@@ -1,5 +1,7 @@
-# ElastiCache Valkey: cache, rate limits and the ai_enabled / ai_outbound_enabled kill-switch cache only.
-# Nothing here is a source of truth (procrastinate in Postgres is the only queue).
+# ElastiCache for Redis OSS (11 Nov, Recommendation "Cache + job broker"): cache, rate limits, kill
+# switches, daily spend counters and the Celery broker. A broker must never lose keys, so the parameter
+# group uses maxmemory-policy = noeviction (Celery's Redis guide). Due work and long timers are NOT here:
+# they are rows in automation.scheduled_jobs (PostgreSQL), so a lost broker loses nothing durable.
 
 resource "aws_elasticache_subnet_group" "this" {
   name       = var.name
@@ -8,16 +10,16 @@ resource "aws_elasticache_subnet_group" "this" {
 }
 
 resource "aws_security_group" "cache" {
-  name        = "${var.name}-valkey"
-  description = "Valkey from application tasks only"
+  name        = "${var.name}-redis"
+  description = "Redis from application tasks only"
   vpc_id      = var.vpc_id
-  tags        = merge(var.tags, { Name = "${var.name}-valkey" })
+  tags        = merge(var.tags, { Name = "${var.name}-redis" })
 }
 
 resource "aws_vpc_security_group_ingress_rule" "cache" {
   for_each                     = var.client_security_group_ids
   security_group_id            = aws_security_group.cache.id
-  description                  = "Valkey from ${each.key}"
+  description                  = "Redis from ${each.key}"
   referenced_security_group_id = each.value
   ip_protocol                  = "tcp"
   from_port                    = 6379
@@ -25,14 +27,14 @@ resource "aws_vpc_security_group_ingress_rule" "cache" {
 }
 
 resource "aws_elasticache_parameter_group" "this" {
-  name   = var.name
+  name   = "${var.name}-redis"
   family = var.parameter_group_family
   tags   = var.tags
 
   parameter {
-    # rate-limit and cache keys all carry TTLs
+    # Celery broker keys have no TTL: evicting them would silently drop tasks.
     name  = "maxmemory-policy"
-    value = "volatile-lru"
+    value = "noeviction"
   }
 }
 
@@ -42,10 +44,10 @@ resource "random_password" "auth" {
 }
 
 resource "aws_elasticache_replication_group" "this" {
-  # checkov:skip=CKV2_AWS_50: failover follows var.replicas (1 in prod, 0 in staging); cache holds no source of truth
+  # checkov:skip=CKV2_AWS_50: failover follows var.replicas (1 in prod = 2 nodes in 2 zones, 0 in staging)
   replication_group_id = var.name
-  description          = "Kairox ${var.name} cache / rate limits / kill switches"
-  engine               = "valkey"
+  description          = "Kairox ${var.name} cache / rate limits / kill switches / Celery broker"
+  engine               = "redis"
   engine_version       = var.engine_version
   node_type            = var.node_type
   port                 = 6379
@@ -73,11 +75,15 @@ resource "aws_elasticache_replication_group" "this" {
   tags = var.tags
 }
 
+locals {
+  endpoint = aws_elasticache_replication_group.this.primary_endpoint_address
+}
+
 resource "aws_secretsmanager_secret" "url" {
   # checkov:skip=CKV2_AWS_57: rotated by tainting random_password.auth (ROTATE strategy keeps both valid)
   for_each                = var.tenants
-  name                    = "kx/${var.env}/${each.key}/valkey"
-  description             = "Valkey URL for ${each.key} (KX_REDIS_URL)"
+  name                    = "kx/${var.env}/${each.key}/redis"
+  description             = "Redis URLs for ${each.key}: url = KX_REDIS_URL, broker_url = KX_APP_CELERY_BROKER_URL"
   kms_key_id              = var.kms_key_arn
   recovery_window_in_days = 7
   tags                    = merge(var.tags, { company = each.key })
@@ -87,6 +93,10 @@ resource "aws_secretsmanager_secret_version" "url" {
   for_each  = var.tenants
   secret_id = aws_secretsmanager_secret.url[each.key].id
   secret_string = jsonencode({
-    url = "rediss://:${random_password.auth.result}@${aws_elasticache_replication_group.this.primary_endpoint_address}:6379/${each.value}"
+    # cache, rate limits, kill switches, spend counters (logical DB = tenant index)
+    url = "rediss://:${random_password.auth.result}@${local.endpoint}:6379/${each.value}"
+    # Celery broker on its own logical DB (tenant index + broker_db_offset) so a cache flush never drops
+    # tasks; Celery needs ssl_cert_reqs on rediss:// URLs (ElastiCache certificates are publicly trusted).
+    broker_url = "rediss://:${random_password.auth.result}@${local.endpoint}:6379/${each.value + var.broker_db_offset}?ssl_cert_reqs=required"
   })
 }

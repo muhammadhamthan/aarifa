@@ -1,5 +1,6 @@
 # One customer-managed KMS key per account/environment (RDS storage + PI, S3, Secrets Manager,
-# CloudWatch Logs, SNS, ElastiCache) and the Secrets Manager shells for every integration.
+# CloudWatch Logs, SNS, ElastiCache) and the Secrets Manager shells for every integration, plus the
+# staff-login keys (RS256 signing key, TOTP-seed encryption key) for the in-house login (11 Nov).
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -93,7 +94,7 @@ data "aws_iam_policy_document" "kms_full" {
 }
 
 resource "aws_kms_key" "main" {
-  description             = "${var.name} platform key (RDS, S3, secrets, logs, SNS, Valkey)"
+  description             = "${var.name} platform key (RDS, S3, secrets, logs, SNS, Redis)"
   enable_key_rotation     = true
   deletion_window_in_days = var.kms_deletion_window_days
   policy                  = data.aws_iam_policy_document.kms_full.json
@@ -148,4 +149,61 @@ resource "aws_secretsmanager_secret_version" "generated" {
   for_each      = local.generated_secrets
   secret_id     = aws_secretsmanager_secret.generated[each.key].id
   secret_string = jsonencode({ value = random_password.generated[each.key].result })
+}
+
+# ---- staff login (in-house, 11 Nov): RS256 signing key + TOTP-seed encryption key -------------
+resource "tls_private_key" "jwt" {
+  # checkov:skip=CKV_SECRET_6: generated key, stored only in encrypted state and Secrets Manager
+  for_each  = toset(var.companies)
+  algorithm = "RSA"
+  rsa_bits  = 3072
+}
+
+resource "aws_secretsmanager_secret" "jwt" {
+  # checkov:skip=CKV2_AWS_57: rotated by tainting tls_private_key.jwt and bumping jwt_key_generation
+  for_each                = toset(var.companies)
+  name                    = "kx/${var.env}/${each.key}/jwt"
+  description             = "RS256 key that signs staff access tokens for ${each.key} (KX_JWT_PRIVATE_KEY, KX_JWT_KEY_ID)"
+  kms_key_id              = aws_kms_key.main.arn
+  recovery_window_in_days = var.recovery_window_days
+  tags                    = merge(var.tags, { company = each.key })
+}
+
+resource "aws_secretsmanager_secret_version" "jwt" {
+  for_each  = toset(var.companies)
+  secret_id = aws_secretsmanager_secret.jwt[each.key].id
+  secret_string = jsonencode({
+    private_key_pem = tls_private_key.jwt[each.key].private_key_pem
+    public_key_pem  = tls_private_key.jwt[each.key].public_key_pem
+    key_id          = "${var.jwt_key_id_prefix}-${each.key}-${var.jwt_key_generation}"
+  })
+}
+
+# Fernet-format key (url-safe base64 of 32 random bytes) that encrypts TOTP seeds at rest.
+resource "random_bytes" "auth_encryption" {
+  for_each = toset(var.companies)
+  length   = 32
+}
+
+resource "aws_secretsmanager_secret" "auth" {
+  # checkov:skip=CKV2_AWS_57: rotating it means re-enrolling every authenticator app; done by hand
+  for_each                = toset(var.companies)
+  name                    = "kx/${var.env}/${each.key}/auth"
+  description             = "Staff-login encryption key for ${each.key} (KX_AUTH__ENCRYPTION_KEY)"
+  kms_key_id              = aws_kms_key.main.arn
+  recovery_window_in_days = var.recovery_window_days
+  tags                    = merge(var.tags, { company = each.key })
+}
+
+resource "aws_secretsmanager_secret_version" "auth" {
+  for_each  = toset(var.companies)
+  secret_id = aws_secretsmanager_secret.auth[each.key].id
+  secret_string = jsonencode({
+    encryption_key = replace(replace(random_bytes.auth_encryption[each.key].base64, "+", "-"), "/", "_")
+  })
+
+  lifecycle {
+    # A new key would make every enrolled TOTP seed unreadable: never replace it silently.
+    ignore_changes = [secret_string]
+  }
 }

@@ -1,4 +1,4 @@
-"""WP8 on real Postgres: payment, WON, LOST (docs/BUSINESS_FLOW_V1.md §5, §15, §16, §23 scenarios 1 and 9; D15)."""
+"""WP8 on real Postgres: payment, WON, LOST (the SRS §5, §15, §16, §23 scenarios 1 and 9; D15)."""
 
 from __future__ import annotations
 
@@ -40,9 +40,9 @@ async def agreed_deal(dbs: Databases, deps: CrmDeps) -> uuid.UUID:
 
 async def test_scenario_1_advance_then_won_with_the_reorder_date(databases: Databases, deps: CrmDeps) -> None:
     deal_id = await agreed_deal(databases, deps)
-    async with databases.transaction(CRM) as s:
-        with pytest.raises(RuleViolation, match="amount, currency and method"):
-            await orders.record_payment(s, deps, deal_id, Actor.user(SARA), amount=D(6562), currency="AED")
+    async with databases.transaction(CRM) as s:  # an amount needs its currency (it could not be read back)
+        with pytest.raises(RuleViolation, match="currency"):
+            await orders.record_payment(s, deps, deal_id, Actor.user(SARA), amount=D(6562))
     async with databases.transaction(CRM) as s:
         pay = await orders.record_payment(
             s,
@@ -57,9 +57,6 @@ async def test_scenario_1_advance_then_won_with_the_reorder_date(databases: Data
         )
         assert (pay.currency, pay.proof_s3_key) == ("AED", "pack/payments/tt-1001.pdf")
         assert (await deals.get_deal(s, deal_id)).stage == "PAYMENT"  # the advance moves it to PAYMENT
-    async with databases.transaction(CRM) as s:
-        with pytest.raises(RuleViolation, match="re-order date"):
-            await orders.mark_won(s, deps, deal_id, Actor.user(SARA), expected_reorder_date=None)
     reorder = deps.now().date() + timedelta(days=30)  # "about a month later"
     async with databases.transaction(CRM) as s:
         order = await orders.mark_won(s, deps, deal_id, Actor.user(SARA), expected_reorder_date=reorder)
@@ -83,8 +80,57 @@ async def test_won_needs_the_advance(databases: Databases, deps: CrmDeps) -> Non
             await orders.mark_won(s, deps, deal_id, Actor.user(SARA), expected_reorder_date=date(2027, 1, 1))
 
 
+async def test_advance_confirmed_without_details_then_won_without_a_reorder_date(
+    databases: Databases, deps: CrmDeps
+) -> None:
+    """§15.1-2 (11 Nov, D20): confirming the advance is required, its details are optional; marking WON is
+    mandatory, the expected re-order date optional."""
+    deal_id = await agreed_deal(databases, deps)
+    async with databases.transaction(CRM) as s:
+        pay = await orders.record_payment(s, deps, deal_id, Actor.user(SARA))
+        assert (pay.amount, pay.currency, pay.method) == (None, None, None)
+        assert (await deals.get_deal(s, deal_id)).stage == "PAYMENT"
+    async with databases.transaction(CRM) as s:
+        order = await orders.mark_won(s, deps, deal_id, Actor.user(SARA))
+        assert order.expected_reorder_date is None
+        assert (await deals.get_deal(s, deal_id)).stage == "WON"
+    async with databases.transaction(CRM) as s:
+        line = await s.scalar(
+            select(m.TimelineEvent.summary).where(
+                m.TimelineEvent.deal_id == deal_id, m.TimelineEvent.kind == "payment"
+            )
+        )
+    assert line == "Advance confirmed"
+
+
+async def test_manager_reopens_a_lost_deal_to_the_stage_it_was_lost_from(
+    databases: Databases, deps: CrmDeps
+) -> None:
+    """§7A.1 / D24: LOST -> back to its previous stage; the AI stays paused for a person."""
+    deal_id = await sara_deal(databases, deps)
+    async with databases.transaction(CRM) as s:
+        before = (await deals.get_deal(s, deal_id)).stage
+        deal = await deals.get_deal(s, deal_id, lock=True)
+        await deals.move_stage(
+            s, deal, DealStage.LOST, Actor.user(SARA), now=deps.now(), lost_reason="budget"
+        )
+    async with databases.transaction(CRM) as s:
+        deal = await deals.get_deal(s, deal_id, lock=True)
+        with pytest.raises(RuleViolation, match="reason"):
+            await deals.reopen(s, deal, Actor.user(SARA), now=deps.now(), reason=" ")
+    async with databases.transaction(CRM) as s:
+        deal = await deals.get_deal(s, deal_id, lock=True)
+        await deals.reopen(s, deal, Actor.user(SARA), now=deps.now(), reason="buyer came back")
+        assert (deal.stage, deal.lost_reason, deal.ai_enabled) == (before, None, False)
+    async with databases.transaction(CRM) as s:
+        deal = await deals.get_deal(s, deal_id, lock=True)
+        with pytest.raises(RuleViolation, match="only a LOST deal"):
+            await deals.reopen(s, deal, Actor.user(SARA), now=deps.now(), reason="again")
+
+
 def test_lost_reasons_are_section_15() -> None:
     assert {"budget", "duplicate", "other", "price_too_high", "no_response_postponed"} <= LOST_REASONS
+    assert "opted_out" in LOST_REASONS  # §8.1 step 8
 
 
 async def test_lost_with_a_new_reason_and_a_note(databases: Databases, deps: CrmDeps) -> None:
@@ -177,28 +223,50 @@ async def test_won_notifies_manager_and_md_and_thanks_the_buyer(databases: Datab
 
 
 async def test_opt_out_pauses_the_deal_for_the_salesperson(databases: Databases, deps: CrmDeps) -> None:
-    from kx.core.event_payloads import MessageReceived, make_event
+    """§8.1 step 8: Opted out badge, AI off, salesperson + manager notified, LOST proposed (reason Opted out
+    or the buyer's own), consent revoked on every channel; a repeated event changes nothing."""
+    from kx.core.event_payloads import OptedOut, make_event
     from kx.crm.jobs import HANDLERS, CrmRuntime, dispatch
 
     deal_id = await sara_deal(databases, deps)
-    msg = MessageReceived(
-        message_ref=uuid.uuid4(),
-        thread_ref=uuid.uuid4(),
-        channel="whatsapp",
-        from_address_hash="h" * 64,
-        contact_ref=None,
+    async with databases.transaction(CRM) as s:
+        contact_id = (await deals.get_deal(s, deal_id)).primary_contact_id
+    stop = OptedOut(
+        contact_ref=contact_id,
         deal_ref=deal_id,
-        text="STOP",
-        received_at=datetime.now(UTC),
-        provider_message_id="wamid.x",
-        opted_out=True,
+        address_hashes=("h" * 64,),
+        scope="all",
+        source="rule",
+        channel="whatsapp",
+        exact_words="STOP, found cheaper",
+        reason="found cheaper",
+        decided_by="phrase:stop",
+        at=datetime.now(UTC),
+        log_ref=uuid.uuid4(),
     )
 
     async def _noop(_: object) -> None:
         return None
 
-    event = make_event(ev.MESSAGE_RECEIVED, "x", uuid.uuid4(), msg)
-    await dispatch(CrmRuntime(databases, deps, publish=_noop), event, HANDLERS[ev.MESSAGE_RECEIVED])
+    rt = CrmRuntime(databases, deps, publish=_noop)
+    for _ in range(2):  # the same stop redelivered: once in effect
+        event = make_event(ev.CONSENT_OPTED_OUT, "x", uuid.uuid4(), stop)
+        await dispatch(rt, event, HANDLERS[ev.CONSENT_OPTED_OUT])
     async with databases.transaction(CRM) as s:
         deal = await deals.get_deal(s, deal_id)
         assert (deal.ai_enabled, deal.ai_paused_reason) == (False, "opt_out")
+        assert deal.opted_out_at is not None and deal.stage != "LOST"  # proposed, never automatic
+        tasks = (await s.execute(select(m.Task.kind, m.Task.payload).where(m.Task.deal_id == deal_id))).all()
+        consents = (
+            await s.execute(
+                select(m.Consent.channel, m.Consent.status).where(m.Consent.contact_id == contact_id)
+            )
+        ).all()
+    assert [(k, p["lost_reason"], p["buyer_reason"]) for k, p in tasks if k == "lost_proposal"] == [
+        ("lost_proposal", "opted_out", "found cheaper")
+    ]
+    assert {c for c, st in consents if st == "revoked"} >= {"whatsapp", "email", "call"}
+    notices = await outbox(databases, ev.STAFF_NOTICE, deal_id)
+    assert len(notices) == 1 and len(notices[0]["notify"]) == 2  # the salesperson and the manager
+    extended = await outbox(databases, ev.CONSENT_OPTED_OUT, deal_id)
+    assert extended and extended[0]["origin"] == "crm"  # every other address of the person is handed back

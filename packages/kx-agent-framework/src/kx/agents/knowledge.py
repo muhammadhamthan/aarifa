@@ -8,6 +8,7 @@ instead of the AI guessing manufacturing facts.
 
 from __future__ import annotations
 
+import asyncio
 import re
 import uuid
 from collections.abc import Sequence
@@ -22,14 +23,17 @@ from sqlalchemy.dialects.postgresql import insert
 from kx.agents.orm import KbChunk, KbDocument, KnowledgeGap
 from kx.core.db import Databases
 from kx.core.identity import sha256_hex
+from kx.core.logging import get_logger
 from kx.core.settings import LogicalDb
+
+log = get_logger(__name__)
 
 EMBEDDING_DIM: Final = 1024
 
 
 @runtime_checkable
 class Embedder(Protocol):
-    """1024-dim embeddings (app wires the provider, e.g. Titan v2 / Cohere multilingual on Bedrock)."""
+    """1024-dim embeddings (D28: Qwen3-Embedding-0.6B in our UAE container; the app wires the adapter)."""
 
     model: str
 
@@ -85,6 +89,25 @@ FROM fused f JOIN kb_chunks c ON c.id = f.id JOIN docs d ON d.id = c.document_id
 ORDER BY f.score DESC, f.id LIMIT :limit
 """).bindparams(bindparam("qv", type_=Vector(EMBEDDING_DIM)))
 
+# D28 fallback: "full-text only when the embedding call fails or takes > 2 s" (same fusion, no vector leg)
+_LEXICAL_SQL: Final = text("""
+WITH docs AS (SELECT id, title, url_path FROM kb_documents WHERE language = ANY(:langs)),
+fts AS (
+    SELECT c.id, row_number() OVER (ORDER BY ts_rank_cd(c.tsv, q) DESC) AS r
+    FROM kb_chunks c JOIN docs d ON d.id = c.document_id, websearch_to_tsquery('simple', :q) q
+    WHERE c.tsv @@ q ORDER BY ts_rank_cd(c.tsv, q) DESC LIMIT :n),
+tri AS (
+    SELECT c.id, row_number() OVER (ORDER BY word_similarity(:q, c.text) DESC) AS r
+    FROM kb_chunks c JOIN docs d ON d.id = c.document_id
+    WHERE :q <% c.text ORDER BY word_similarity(:q, c.text) DESC LIMIT :n),
+fused AS (
+    SELECT id, sum(1.0 / (:k + r)) AS score FROM (SELECT id, r FROM fts UNION ALL SELECT id, r FROM tri) u
+    GROUP BY id)
+SELECT f.id, c.text, d.title, d.url_path, f.score, 0 AS sim, 1 AS lexical
+FROM fused f JOIN kb_chunks c ON c.id = f.id JOIN docs d ON d.id = c.document_id
+ORDER BY f.score DESC, f.id LIMIT :limit
+""")
+
 
 class KnowledgeBase:
     def __init__(
@@ -95,29 +118,31 @@ class KnowledgeBase:
         rrf_k: int = 60,
         candidates: int = 40,
         min_similarity: float = 0.35,
+        query_timeout_seconds: float = 2.0,
     ) -> None:
         self._db = databases
         self._embedder = embedder
         self._k = rrf_k
         self._n = candidates
         self._min_sim = min_similarity
+        self._query_timeout = query_timeout_seconds
+
+    async def _query_vector(self, query: str) -> list[float] | None:
+        """D28: the embedding, or None when the call fails or takes longer than 2 s (then full-text only)."""
+        try:
+            return await asyncio.wait_for(self._embedder.embed_query(query), self._query_timeout)
+        except Exception as exc:
+            log.warning("kb.embedding_fallback", model=self._embedder.model, error=type(exc).__name__)
+            return None
 
     async def search(self, query: str, language: str, limit: int = 5) -> KbResult:
-        qv = await self._embedder.embed_query(query)
+        qv = await self._query_vector(query)
+        params = {"q": query, "langs": sorted({language, "en"}), "n": self._n, "k": self._k, "limit": limit}
         async with self._db.transaction(LogicalDb.AGENTS) as s:
-            rows = (
-                await s.execute(
-                    _RRF_SQL,
-                    {
-                        "qv": qv,
-                        "q": query,
-                        "langs": sorted({language, "en"}),
-                        "n": self._n,
-                        "k": self._k,
-                        "limit": limit,
-                    },
-                )
-            ).all()
+            if qv is None:
+                rows = (await s.execute(_LEXICAL_SQL, params)).all()
+            else:
+                rows = (await s.execute(_RRF_SQL, {**params, "qv": qv})).all()
         hits = tuple(KbHit(r.id, r.text, r.title, r.url_path, float(r.score), float(r.sim)) for r in rows)
         weak = not rows or (float(rows[0].sim) < self._min_sim and not rows[0].lexical)
         return KbResult(hits, weak)

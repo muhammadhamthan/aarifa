@@ -1,4 +1,4 @@
-"""WP6: the regional WhatsApp number for the buyer's country (docs/BUSINESS_FLOW_V1.md §11.4, §19; D11).
+"""WP6: the regional WhatsApp number for the buyer's country (the SRS §11.4, §19; D11).
 
 Done when: a regional routing test passes.
 """

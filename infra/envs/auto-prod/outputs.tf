@@ -15,13 +15,22 @@ output "nat_public_ips" {
   value = module.network.nat_public_ips
 }
 
-output "cognito" {
+output "staff_login" {
+  description = "In-house staff login (11 Nov): tokens are RS256, verifiable with the API's public JWKS."
   value = {
-    user_pool_id  = module.auth.user_pool_id
-    client_id     = module.auth.crm_client_id
-    issuer        = module.auth.issuer
-    hosted_domain = module.auth.hosted_domain
+    issuer   = "https://${var.api_host}"
+    audience = "kx-crm"
+    jwks_url = "https://${var.api_host}/.well-known/jwks.json"
   }
+}
+
+output "internal_urls" {
+  value = module.app.internal_urls
+}
+
+output "vendor_order_prefix" {
+  description = "Parameter Store path of the vendor order per field (edit to switch vendors without a deploy)."
+  value       = module.app.vendor_order_prefix
 }
 
 output "ecr_repositories" {

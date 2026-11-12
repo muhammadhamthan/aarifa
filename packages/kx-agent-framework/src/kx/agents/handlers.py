@@ -137,6 +137,9 @@ class AgentHandlers:
         if deal_ref is None or not m.text.strip():
             log.info("agents.message_skipped", message_ref=str(m.message_ref))
             return
+        if m.opted_out:  # §8.1 steps 2-3: the stop already happened; the one confirmation is all that leaves
+            log.info("agents.opted_out_no_reply", message_ref=str(m.message_ref))
+            return
         deliver = self._deliver(addr, deal_ref, f"agent-reply:{event.event_id}") if addr else None
         await self.service.handle_turn(
             InboundTurn(
@@ -147,6 +150,7 @@ class AgentHandlers:
                 trigger_event=event.event_type,
                 trigger_event_id=event.event_id,
                 contact_ref=m.contact_ref,
+                stop_word=m.stop_in_sentence,
             ),
             deliver,
         )

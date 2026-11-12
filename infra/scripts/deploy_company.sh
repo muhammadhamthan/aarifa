@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Deploy one company in one environment:
 #   1. record the image tag in SSM (Terraform reads it back, so applies never roll back a deploy)
-#   2. db-bootstrap (idempotent)  3. kx migrate  4. roll api/worker/voice (+ cms) and wait
+#   2. db-bootstrap (idempotent)  3. kx migrate  4. roll api / worker / beat / voice (+ cms) and wait
+#   5. wait for the private third-party services (embeddings, phoenix, otel-collector) to be stable
+# Beat rolls with min 0 % / max 100 %: the old Beat stops before the new one starts (never two Beats).
+# Third-party images are pinned in Terraform (app_services var.images): they are not re-registered here.
 # ECS deployment circuit breaker (rollback = true) reverts a failed rollout; this script then fails.
 #
 #   infra/scripts/deploy_company.sh <env> <company> <app-tag> [cms-tag]
@@ -22,6 +25,7 @@ cms_image="$(jq -r .cms_repository <<<"$manifest"):${CMS_TAG}"
 bootstrap="$(jq -r .db_bootstrap <<<"$manifest")"
 migrate="$(jq -r .migrate_family <<<"$manifest")"
 mapfile -t services < <(jq -r '.services[]' <<<"$manifest")
+mapfile -t internal < <(jq -r '(.internal_services // [])[]' <<<"$manifest")
 cms_service="$(jq -r '.cms_service // empty' <<<"$manifest")"
 
 echo "deploy ${COMPANY}/${ENV_NAME}: ${app_image}"
@@ -46,6 +50,11 @@ fi
 
 echo "waiting for ${rolled[*]} to become stable"
 aws ecs wait services-stable --cluster "$cluster" --services "${rolled[@]}"
+
+if ((${#internal[@]})); then
+  echo "waiting for private services ${internal[*]}"
+  aws ecs wait services-stable --cluster "$cluster" --services "${internal[@]}"
+fi
 
 # shellcheck disable=SC2016  # JMESPath backticks, not shell
 failed="$(aws ecs describe-services --cluster "$cluster" --services "${rolled[@]}" \

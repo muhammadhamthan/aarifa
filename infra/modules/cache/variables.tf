@@ -7,19 +7,25 @@ variable "env" {
 }
 
 variable "tenants" {
-  description = "Company => Valkey logical DB index (staging shares one node: pack=0, auto=1)."
+  description = "Company => Redis logical DB index for the cache (staging shares one node: pack=0, auto=1)."
   type        = map(number)
 }
 
+variable "broker_db_offset" {
+  description = "Celery broker logical DB = tenant index + this offset (pack=8, auto=9 with the default)."
+  type        = number
+  default     = 8
+}
+
 variable "engine_version" {
-  description = "Valkey engine version available in me-central-1 (aws elasticache describe-cache-engine-versions --engine valkey)."
+  description = "Redis OSS engine version offered in me-central-1 (aws elasticache describe-cache-engine-versions --engine redis)."
   type        = string
-  default     = "8.1"
+  default     = "7.1"
 }
 
 variable "parameter_group_family" {
   type    = string
-  default = "valkey8"
+  default = "redis7"
 }
 
 variable "node_type" {
@@ -50,7 +56,7 @@ variable "kms_key_arn" {
 }
 
 variable "snapshot_retention_days" {
-  description = "Cache holds only rebuildable data (rate limits, kill-switch cache); 0-1 is fine."
+  description = "Redis holds rebuildable data only (cache, counters, broker messages re-created from PostgreSQL); 0-1 is fine."
   type        = number
   default     = 1
 }

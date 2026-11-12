@@ -1,11 +1,13 @@
-# Local development stack.
-#   docker compose up -d postgres valkey          # databases only (run the app with `uv run kx api`)
-#   docker compose up --build                     # + migrate, api, worker in containers
+# Local development stack (11 Nov topology, docs/DEPLOYMENT.md).
+#   docker compose up -d postgres redis           # databases only (run the app with `uv run kx api|worker|beat`)
+#   docker compose up --build                     # + migrate, api, Celery worker and the one Celery Beat
+#   docker compose --profile ai up -d embeddings  # Qwen3-Embedding-0.6B on Text Embeddings Inference (CPU)
 #   docker compose --profile aws up -d localstack # optional S3 / SES / SNS / Secrets Manager emulation
 #   docker compose --profile voice up voice       # LiveKit agent worker (needs LIVEKIT_* in .env)
 #
-# Postgres init (first start of the volume): roles + 4 databases + extensions via the same
-# infra/scripts/db_bootstrap.sh used on RDS, then db/ddl applied as each owning role.
+# Postgres init (first start of the volume): roles + databases (cms, crm, automation, agents, phoenix) +
+# extensions via the same infra/scripts/db_bootstrap.sh used on RDS, then db/ddl applied as each owning role.
+# Redis runs with maxmemory-policy noeviction, like ElastiCache: it is also the Celery broker.
 # Reset: docker compose down -v
 
 x-kx-env: &kx-env
@@ -15,10 +17,13 @@ x-kx-env: &kx-env
   KX_CRM_DSN: postgresql+asyncpg://crm_app:dev@postgres:5432/crm
   KX_AUTOMATION_DSN: postgresql+asyncpg://automation_app:dev@postgres:5432/automation
   KX_AGENTS_DSN: postgresql+asyncpg://agents_app:dev@postgres:5432/agents
-  KX_REDIS_URL: redis://valkey:6379/0
+  KX_REDIS_URL: redis://redis:6379/0
+  KX_APP_CELERY_BROKER_URL: redis://redis:6379/8
+  KX_APP_EMBEDDING_URL: http://embeddings:80
   KX_AWS_REGION: me-central-1
   KX_S3_BUCKET: kx-local
   KX_API_PORT: "8000"
+  KX_APP_CHROMIUM_PATH: /usr/bin/chromium
   # Only used when the `aws` profile (LocalStack) is running.
   AWS_ENDPOINT_URL: http://localstack:4566
   AWS_ACCESS_KEY_ID: test
@@ -58,16 +63,26 @@ services:
       timeout: 3s
       retries: 30
 
-  valkey:
-    image: valkey/valkey:8.1
-    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+  redis:
+    image: redis:8.2
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory-policy", "noeviction"]
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 20
+
+  embeddings:
+    profiles: ["ai"]
+    # Same server as the ECS `embeddings` service (infra var.images["embeddings"]); amd64 image.
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7.2
+    command: ["--model-id", "Qwen/Qwen3-Embedding-0.6B", "--port", "80"]
+    ports:
+      - "8080:80"
+    volumes:
+      - hfcache:/data
 
   localstack:
     profiles: ["aws"]
@@ -102,7 +117,7 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      valkey:
+      redis:
         condition: service_healthy
 
   worker:
@@ -114,7 +129,20 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      valkey:
+      redis:
+        condition: service_healthy
+
+  # Exactly one Celery Beat: never scale this service.
+  beat:
+    <<: *kx-app
+    command: ["beat"]
+    environment:
+      <<: *kx-env
+      KX_PROCESS: beat
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
         condition: service_healthy
 
   voice:
@@ -130,3 +158,4 @@ services:
 
 volumes:
   pgdata:
+  hfcache:

@@ -19,7 +19,7 @@ output "data_subnet_ids" {
 }
 
 output "app_security_group_id" {
-  description = "Attach to every ECS task; RDS/Valkey trust this group."
+  description = "Attach to every ECS task; RDS/Redis trust this group."
   value       = aws_security_group.app.id
 }
 

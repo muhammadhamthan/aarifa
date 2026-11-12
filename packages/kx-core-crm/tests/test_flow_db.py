@@ -159,9 +159,9 @@ async def test_orm_matches_ddl(databases: Databases) -> None:
     assert set(db) == set(m.metadata.tables.keys()) | set() or set(db) == {
         t.name for t in m.metadata.tables.values()
     }
-    assert (
-        len(m.metadata.tables) == 48
-    )  # 45 baseline + product_price_tiers, quote_line_tiers, change_requests
+    # 45 baseline + product_price_tiers, quote_line_tiers, change_requests (5 Nov)
+    # + staff_credentials, auth_sessions, auth_challenges (11 Nov, D26 in-house login)
+    assert len(m.metadata.tables) == 51
     problems = []
     for table in m.metadata.tables.values():
         cols = db[table.name]
@@ -648,7 +648,16 @@ async def test_message_received_lands_on_timeline_once(
         },
     )
     rt = CrmRuntime(databases, deps, publish=_noop)
-    assert set(HANDLERS) == {ev.PRICE_PROPOSED, ev.MESSAGE_RECEIVED}
+    assert set(HANDLERS) == {
+        ev.PRICE_PROPOSED,
+        ev.MESSAGE_RECEIVED,
+        ev.CONSENT_OPTED_OUT,
+        ev.MESSAGE_STATUS,
+        ev.DEAL_QUALIFIED,
+        ev.CONVERSATION_SUMMARY_UPDATED,  # §7A.2 the AI summary on the deal page (WP17)
+        ev.CATALOGUE_PRODUCT_PUBLISHED,  # §7 the CMS product mirror (WP18)
+        ev.QUOTE_NOT_DELIVERED,  # D32 WhatsApp quote -> email (WP25)
+    }
     await dispatch(rt, event)
     await dispatch(rt, event)
     async with databases.transaction(CRM) as s:

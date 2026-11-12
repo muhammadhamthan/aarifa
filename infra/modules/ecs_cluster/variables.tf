@@ -21,9 +21,9 @@ variable "keep_images" {
 }
 
 variable "container_insights" {
-  description = "enabled | enhanced | disabled"
+  description = "enabled | enhanced | disabled. Off since 11 Nov (Better Stack replaces Container Insights, Recommendation)."
   type        = string
-  default     = "enhanced"
+  default     = "disabled"
 }
 
 variable "kms_key_arn" {

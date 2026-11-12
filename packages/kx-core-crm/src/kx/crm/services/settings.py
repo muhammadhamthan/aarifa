@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time as _time
 from collections.abc import Callable
-from datetime import time
+from datetime import time, timedelta
 from decimal import Decimal
 from typing import Any, Literal, Self
 
@@ -47,6 +47,8 @@ def _alias(key: str, default: Any, **kw: Any) -> Any:
 Incoterm = Literal["EXW", "FCA", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DDP"]
 # §9.2 optional assignment rules, checked in this order when listed: language, country, category
 AssignmentRule = Literal["language", "country", "category"]
+# §21: who receives the scheduled reports (CRM roles; every active user with the role)
+ReportRecipient = Literal["manager", "md", "admin"]
 
 
 class BusinessSettings(BaseModel):
@@ -100,7 +102,24 @@ class BusinessSettings(BaseModel):
     weekend_days_by_country: dict[str, tuple[int, ...]] = _alias(
         "followup.weekend_days_by_country", {"SA": (5, 6)}
     )
+    # ---- 11 Nov SRS §8.1 (D18): crm_0009 seed
+    optout_ask_reason: bool = _alias("optout.ask_reason", False)  # off until a lawyer confirms
+    optout_live_minutes: int = _alias("optout.live_minutes", 10, ge=1)
+    # §14 practical notes: after 24 h without a buyer message only an approved template restarts the chat,
+    # "Sara from Arifa Pack here about your order - reply to continue." ({{1}} salesperson, {{2}} company)
+    handover_reopen_template: str = _alias("handover.reopen_template", "staff_reopen", min_length=1)
+    optout_unclear_answer_hours: int = _alias("optout.unclear_answer_hours", 24, ge=1)
+    # §21 scheduled reports: a daily summary and a weekly report to the manager and MD (company time, the
+    # alert-hours zone). Times and the weekday are proposals in OPEN_QUESTIONS #67; crm_0011 seed.
+    report_daily_time: time = _alias("reports.daily_time", time(8))
+    report_weekly_day: int = _alias("reports.weekly_day", 1, ge=1, le=7)  # ISO weekday, 1 = Monday
+    report_weekly_time: time = _alias("reports.weekly_time", time(8))
+    report_recipients: tuple[ReportRecipient, ...] = _alias("reports.recipients", ("manager", "md"))
     flags: dict[str, bool] = Field(default_factory=dict)
+
+    @property
+    def optout_unclear_answer(self) -> timedelta:
+        return timedelta(hours=self.optout_unclear_answer_hours)
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:

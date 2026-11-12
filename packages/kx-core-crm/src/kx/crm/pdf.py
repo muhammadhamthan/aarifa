@@ -1,4 +1,8 @@
-"""Quote PDF: jinja2 HTML (RTL-capable) -> WeasyPrint PDF, plus the buyer message that carries it.
+"""Quote PDF and Requirement Summary PDF: jinja2 HTML (RTL-capable) -> PDF, plus the buyer messages.
+
+Engines (11 Nov, D37; platform docs Recommendation "Quote PDFs in Arabic"): headless Chromium on the
+worker first, WeasyPrint as the backup. Every switch is logged and counted (`Kairox/VendorSwitch`,
+field `pdf`).
 
 The PDF bytes and the message body are hashed together into the send grant (see services.grants),
 so what the MD approved is exactly what leaves the platform. Numbers are formatted from Decimal via
@@ -8,6 +12,9 @@ kx.core.money.display only: no float ever touches a printed price.
 from __future__ import annotations
 
 import asyncio
+import pathlib
+import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -18,7 +25,11 @@ from typing import Any, Final, Protocol, runtime_checkable
 from jinja2 import Environment, PackageLoader, StrictUndefined
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
+from kx.core.logging import get_logger
+from kx.core.metrics import emit_metric
 from kx.core.money import display
+
+log = get_logger(__name__)
 
 RTL_LANGUAGES: Final = frozenset({"ar", "fa", "ur", "he"})
 
@@ -244,8 +255,80 @@ def quote_message(doc: QuoteDocument) -> tuple[str, str]:
     return subject.format(**values), body.format(**values)
 
 
+class PdfEngine(Protocol):
+    name: str
+
+    async def render(self, html: str) -> bytes: ...
+
+
+class ChromiumEngine:
+    """Headless Chromium `--print-to-pdf` (best Arabic shaping). Runs as a subprocess in /tmp, the only
+    writable path on the read-only ECS task; `--no-sandbox` because the task runs as a non-root user
+    without user namespaces, `--disable-dev-shm-usage` because Fargate's /dev/shm is small."""
+
+    name = "chromium"
+
+    def __init__(self, path: str, timeout_s: float = 30.0) -> None:
+        self._path = path
+        self._timeout = timeout_s
+
+    async def render(self, html: str) -> bytes:
+        with tempfile.TemporaryDirectory(prefix="kx-pdf-") as tmp:
+            src, out = pathlib.Path(tmp) / "doc.html", pathlib.Path(tmp) / "doc.pdf"
+            src.write_text(html, encoding="utf-8")
+            proc = await asyncio.create_subprocess_exec(
+                self._path,
+                "--headless",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--no-pdf-header-footer",
+                f"--print-to-pdf={out}",
+                src.as_uri(),
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, err = await asyncio.wait_for(proc.communicate(), self._timeout)
+            if proc.returncode != 0 or not out.exists():
+                raise RuntimeError(f"chromium exited {proc.returncode}: {err.decode(errors='replace')[:300]}")
+            return out.read_bytes()
+
+
+class WeasyPrintEngine:
+    name = "weasyprint"
+
+    async def render(self, html: str) -> bytes:
+        def run() -> bytes:
+            from weasyprint import HTML  # type: ignore[import-untyped]  # noqa: PLC0415 - heavy (Pango)
+
+            data: bytes = HTML(string=html).write_pdf()
+            return data
+
+        return await asyncio.to_thread(run)
+
+
+async def render_pdf(html: str, engines: Sequence[PdfEngine], company: str = "") -> bytes:
+    """First engine that works wins (D37: Chromium -> WeasyPrint). A switch is logged and counted."""
+    last: Exception | None = None
+    for i, engine in enumerate(engines):
+        try:
+            data = await engine.render(html)
+        except Exception as exc:
+            last = exc
+            log.warning("pdf.engine_failed", engine=engine.name, error=str(exc)[:300])
+            continue
+        if i > 0:
+            emit_metric("VendorSwitch", 1, company=company or "unknown", field="pdf", vendor=engine.name)
+        return data
+    raise RuntimeError("no PDF engine could render the document") from last
+
+
 class QuoteRenderer:
-    """Renders QuoteDocument -> HTML -> PDF. WeasyPrint is CPU-bound, so it runs in a worker thread."""
+    """Renders QuoteDocument / SummaryDocument -> HTML -> PDF through the engine chain (D37)."""
+
+    def __init__(self, engines: Sequence[PdfEngine] | None = None, company: str = "") -> None:
+        self.engines: tuple[PdfEngine, ...] = tuple(engines) if engines else (WeasyPrintEngine(),)
+        self._company = company
 
     @cached_property
     def _env(self) -> Environment:
@@ -266,14 +349,120 @@ class QuoteRenderer:
     def html(self, doc: QuoteDocument) -> str:
         return self._env.get_template("quote.html.j2").render(doc=doc, t=LABELS[doc.lang], css=self._css)
 
-    def pdf_sync(self, doc: QuoteDocument) -> bytes:
-        from weasyprint import HTML  # type: ignore[import-untyped]  # noqa: PLC0415 - heavy (Pango), render only
-
-        data: bytes = HTML(string=self.html(doc)).write_pdf()
-        return data
+    def summary_html(self, doc: SummaryDocument) -> str:
+        return self._env.get_template("requirement_summary.html.j2").render(
+            doc=doc, t=SUMMARY_LABELS[doc.lang], css=self._css
+        )
 
     async def pdf(self, doc: QuoteDocument) -> bytes:
-        return await asyncio.to_thread(self.pdf_sync, doc)
+        return await render_pdf(self.html(doc), self.engines, self._company)
+
+    async def summary_pdf(self, doc: SummaryDocument) -> bytes:
+        return await render_pdf(self.summary_html(doc), self.engines, self._company)
+
+
+# ---------------------------------------------------------------- §6.5 / §8.2 Requirement Summary (no prices)
+SUMMARY_LABELS: Final[dict[str, dict[str, str]]] = {
+    "en": {
+        "title": "Requirement Summary",
+        "to": "For",
+        "date": "Date",
+        "ref": "Reference",
+        "item": "Product",
+        "qty": "Quantity",
+        "spec": "Specification",
+        "delivery": "Delivery",
+        "needed_by": "Needed by",
+        "next": "Next steps",
+        "next_text": "Our sales team is preparing your quotation. You'll receive it on WhatsApp shortly.",
+        "no_prices": "This summary lists what you asked for. Prices follow in your quotation.",
+    },
+    "ar": {
+        "title": "ملخص الطلب",
+        "to": "إلى",
+        "date": "التاريخ",
+        "ref": "المرجع",
+        "item": "المنتج",
+        "qty": "الكمية",
+        "spec": "المواصفات",
+        "delivery": "التسليم",
+        "needed_by": "مطلوب بحلول",
+        "next": "الخطوات التالية",
+        "next_text": "يقوم فريق المبيعات لدينا بإعداد عرض السعر. ستصلك على واتساب قريباً.",
+        "no_prices": "يعرض هذا الملخص ما طلبته. ستصلك الأسعار في عرض السعر.",
+    },
+}
+# §8.2 step 2, worded as service: "Hi Ahmed, here's the summary of what we discussed — 50,000 aluminium
+# containers, 750 ml with lid, delivery to Riyadh. Our team is preparing your quotation."
+SUMMARY_CAPTION: Final[dict[str, str]] = {
+    "en": "Hi {name}, here's the summary of what we discussed — {summary}. "
+    "Our team is preparing your quotation.",
+    "ar": "مرحباً {name}، إليك ملخص ما ناقشناه — {summary}. يقوم فريقنا بإعداد عرض السعر.",
+}
+_DELIVERY_TO: Final = {"en": "delivery to {place}", "ar": "التسليم إلى {place}"}
+
+
+@dataclass(frozen=True, slots=True)
+class SummaryLine:
+    description: str
+    code: str | None
+    quantity: Decimal | None
+    unit: str
+    spec: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class SummaryDocument:
+    """What the buyer asked for, never a price (§6.5 "It never includes prices")."""
+
+    reference: str
+    issued_on: date
+    language: str
+    buyer_name: str
+    buyer_company: str | None
+    lines: tuple[SummaryLine, ...]
+    delivery_country: str | None
+    delivery_city: str | None
+    needed_by: date | None
+    letterhead: Letterhead
+
+    @property
+    def lang(self) -> str:
+        return self.language if self.language in SUMMARY_LABELS else "en"
+
+    @property
+    def direction(self) -> str:
+        return "rtl" if self.lang in RTL_LANGUAGES else "ltr"
+
+
+def summary_phrase(doc: SummaryDocument) -> str:
+    """ "50,000 Aluminium container 750 ml, delivery to Riyadh" (no prices)."""
+    parts = [
+        " ".join(x for x in (fmt_qty(ln.quantity) if ln.quantity else None, ln.description) if x)
+        for ln in doc.lines
+    ]
+    place = doc.delivery_city or doc.delivery_country
+    if place:
+        parts.append(_DELIVERY_TO[doc.lang].format(place=place))
+    return ", ".join(p for p in parts if p)
+
+
+def summary_caption(doc: SummaryDocument) -> str:
+    """The WhatsApp / email words that carry the summary (never a code, never "verify", §8.2 step 5)."""
+    parts = [
+        " ".join(x for x in (fmt_qty(ln.quantity) if ln.quantity else None, ln.description) if x)
+        for ln in doc.lines
+    ]
+    place = doc.delivery_city or doc.delivery_country
+    if place:
+        parts.append(_DELIVERY_TO[doc.lang].format(place=place))
+    return SUMMARY_CAPTION[doc.lang].format(
+        name=doc.buyer_name or "", summary=", ".join(p for p in parts if p)
+    )
+
+
+def summary_key(company_code: str, reference: str, pdf_sha256: str) -> str:
+    return f"{company_code}/summaries/{reference}-{pdf_sha256[:12]}.pdf"
 
 
 def weasyprint_available() -> bool:

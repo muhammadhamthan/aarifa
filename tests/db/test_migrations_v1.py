@@ -66,11 +66,14 @@ def upgraded(at_0001: dict[str, str]) -> dict[str, str]:
 
 
 def _revisions(db: str) -> list[Any]:
-    """The 5 Nov revisions (0002 and later) of one database, oldest first."""
+    """The revisions after the baseline (0002 and later) of one database, oldest first."""
     import arifaa_pack.migrations as mig
 
     out = []
-    for path in sorted((pathlib.Path(mig.__file__).parent / db / "versions").glob("000[2-9]_*.py")):
+    versions = pathlib.Path(mig.__file__).parent / db / "versions"
+    for path in sorted(
+        p for p in versions.glob("[0-9][0-9][0-9][0-9]_*.py") if not p.name.startswith("0001_")
+    ):
         spec = importlib.util.spec_from_file_location(f"_mig_{db}_{path.stem}", path)
         assert spec and spec.loader
         module = importlib.util.module_from_spec(spec)

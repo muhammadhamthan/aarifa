@@ -1,4 +1,4 @@
-"""Propose LOST after silence (docs/BUSINESS_FLOW_V1.md §5 step 15, §16, §23 scenario 9; D15).
+"""Propose LOST after silence (the SRS §5 step 15, §16, §23 scenario 9; D15).
 
 "No reply 14 days after day 10: the system proposes LOST (no response) and the salesperson confirms."
 The proposal is a `lost_proposal` task for the deal's salesperson; the deal never moves by itself.

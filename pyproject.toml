@@ -63,6 +63,8 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query", 
 "candidates/judge_*.py" = ["ALL"]
 # multilingual digits, separators and punctuation are the point of this module
 "packages/kx-core-db/src/kx/core/price_guard.py" = ["RUF001", "PLR0917"]  # hot path: positional args
+# §8.1 stop words and confirmations in Arabic, Hindi, Tamil, Chinese and Sinhala are the point of this module
+"packages/kx-core-db/src/kx/core/optout.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.14"
@@ -73,7 +75,12 @@ mypy_path = "packages/kx-core-db/src:packages/kx-core-crm/src:packages/kx-core-a
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["procrastinate.*", "pywa.*", "twilio.*", "aioboto3.*", "phonenumbers.*", "langfuse.*", "livekit.*"]
+# Celery ships no type hints: its task/signal decorators are untyped. Only the worker module uses them.
+module = ["arifaa_pack.celery_app"]
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "kombu.*", "pywa.*", "twilio.*", "aioboto3.*", "phonenumbers.*", "livekit.*"]
 ignore_missing_imports = true
 
 # Module boundaries: a package may not import another package's internals

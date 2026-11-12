@@ -16,8 +16,9 @@ from kx.core.errors import NotFound
 from kx.crm.api.context import MANAGERS, STAFF, ApiContext
 from kx.crm.api.pagination import Page, keyset, page_of
 from kx.crm.api.schemas import ApprovalOut, DecisionIn, LineCostOut, QuoteLineOut, QuoteVersionOut
-from kx.crm.models import Approval, QuoteVersion
-from kx.crm.services import approvals, quotes
+from kx.crm.models import Approval, Quote, QuoteVersion
+from kx.crm.services import access, approvals, quotes
+from kx.crm.services import deals as deal_svc
 from kx.crm.services.issuing import lines_of
 
 Staff = Annotated[Principal, Depends(require_role(*STAFF))]
@@ -37,8 +38,12 @@ def router(ctx: ApiContext) -> APIRouter:
         return v
 
     @r.get("/quote-versions/{version_id}", response_model=QuoteVersionOut)
-    async def get_version(version_id: uuid.UUID, s: Session, _: Staff) -> QuoteVersionOut:
+    async def get_version(version_id: uuid.UUID, s: Session, p: Staff) -> QuoteVersionOut:
+        """§11.3 quote approval screen: one quote version with its lines, terms, delivery and totals."""
         v = await version_or_404(s, version_id)
+        quote = await s.get(Quote, v.quote_id)
+        assert quote is not None  # FK
+        await access.check_view(s, p, await deal_svc.get_deal(s, quote.deal_id))  # §3: own deals only
         lines = [QuoteLineOut.model_validate(ln) for ln in await lines_of(s, v.id)]
         return QuoteVersionOut.model_validate(v).model_copy(update={"lines": lines})
 
@@ -64,6 +69,8 @@ def router(ctx: ApiContext) -> APIRouter:
         cursor: str | None = None,
         limit: Annotated[int, Query(ge=1, le=100)] = 50,
     ) -> Page[ApprovalOut]:
+        """Manager / MD: approvals open (with SLA deadlines, §16) or decided. Salespeople see theirs in the
+        inbox."""
         cond = (
             Approval.status.in_(approvals.OPEN)
             if status == "open"

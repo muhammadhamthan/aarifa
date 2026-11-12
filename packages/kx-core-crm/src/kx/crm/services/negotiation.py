@@ -478,6 +478,13 @@ async def pause_ai(
 
 
 async def resume_ai(session: AsyncSession, deal: Deal, actor: Actor) -> None:
+    """A person hands the conversation back to the AI. Never after an opt-out: the AI may add a stop but
+    never remove one (§8.1 step 6); only the buyer writing again and consenting lifts it (step 7)."""
+    if deal.opted_out_at is not None:
+        raise RuleViolation(
+            "the buyer opted out: the AI stays off until the buyer writes again and consents (§8.1)",
+            reason="opted_out",
+        )
     deal.ai_enabled, deal.ai_paused_reason, deal.ai_paused_at = True, None, None
     await session.flush()
     await record(

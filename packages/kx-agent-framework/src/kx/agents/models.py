@@ -1,9 +1,8 @@
 """Model factory: tier -> chat model, with provider fallback.
 
-Providers: the Anthropic API (langchain-anthropic `ChatAnthropic`) and AWS Bedrock. langchain-anthropic
-1.7.9 ships no Bedrock class, but `ChatAnthropic` documents a transport seam: a subclass that overrides
-`_llm_type` and the SDK clients gets Bedrock-correct prompt caching (block-level breakpoints). We use
-that seam with the official `anthropic.AsyncAnthropicBedrock` client, so no langchain-aws dependency.
+D27 (11 Nov): Claude Sonnet 5.5 on money turns (SMART) and Haiku 5.5 on the rest (FAST), called directly
+through the Claude API (langchain-anthropic `ChatAnthropic`); Amazon Bedrock was dropped. Backup providers
+are appended to the router's list only once they pass the eval suite and the client agrees.
 
 Live agents (`create_agent`) get fallbacks through `ModelFallbackMiddleware` (a `.with_fallbacks()`
 runnable is not a chat model and cannot bind tools); plain node calls use `.with_fallbacks()`.
@@ -13,10 +12,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from functools import cached_property
 from typing import Any, Final, Protocol, runtime_checkable
 
-import anthropic
 from langchain.agents.middleware import AgentMiddleware, ModelFallbackMiddleware
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
@@ -70,47 +67,6 @@ class AnthropicApiProvider:
         )
 
 
-class BedrockChatAnthropic(ChatAnthropic):
-    """ChatAnthropic over AWS Bedrock (IAM task role credentials; model ids are inference profiles)."""
-
-    aws_region: str = "me-central-1"
-
-    @property
-    def _llm_type(self) -> str:
-        return "anthropic-bedrock-chat"  # not "anthropic-chat": switches caching to block breakpoints
-
-    @cached_property
-    def _client(self) -> anthropic.AnthropicBedrock:  # type: ignore[override]
-        return anthropic.AnthropicBedrock(
-            aws_region=self.aws_region, max_retries=self.max_retries, timeout=self.default_request_timeout
-        )
-
-    @cached_property
-    def _async_client(self) -> anthropic.AsyncAnthropicBedrock:  # type: ignore[override]
-        return anthropic.AsyncAnthropicBedrock(
-            aws_region=self.aws_region, max_retries=self.max_retries, timeout=self.default_request_timeout
-        )
-
-
-class BedrockProvider:
-    name = "bedrock"
-
-    def __init__(self, model_ids: Mapping[ModelTier, str], region: str = "me-central-1") -> None:
-        self._ids = dict(model_ids)
-        self._region = region
-
-    def chat_model(self, tier: ModelTier, options: ModelOptions) -> BaseChatModel:
-        return BedrockChatAnthropic(
-            model=self._ids[tier],
-            aws_region=self._region,
-            temperature=options.temperature,
-            max_tokens_to_sample=options.max_tokens,
-            timeout=options.timeout_s,
-            max_retries=options.max_retries,
-            stop=None,
-        )
-
-
 @dataclass(frozen=True, slots=True)
 class ModelSet:
     """A tier's primary model plus ordered fallbacks."""
@@ -144,7 +100,7 @@ class ModelSet:
 
 @dataclass
 class ModelRouter:
-    """Tier -> ModelSet. The first provider is primary (Bedrock when configured), the rest fall back."""
+    """Tier -> ModelSet. The first provider is primary (the Claude API), the rest fall back."""
 
     providers: Sequence[ModelProvider]
     options: Mapping[ModelTier, ModelOptions] = field(default_factory=dict)

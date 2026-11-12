@@ -26,12 +26,17 @@ variable "cluster_name" {
 }
 
 variable "app_repository_url" {
-  description = "ECR URL of the Python image (one image, three modes)."
+  description = "ECR URL of the Python image (one image: api | worker | beat | voice | migrate)."
   type        = string
 }
 
 variable "cms_repository_url" {
   description = "ECR URL of the Payload CMS image (built from apps/arifaa-cms once it exists)."
+  type        = string
+}
+
+variable "vpc_id" {
+  description = "VPC of the private Cloud Map namespace <company>.<env>.kx.internal (embeddings, phoenix, otel-collector)."
   type        = string
 }
 
@@ -78,16 +83,27 @@ variable "public_cms_url" {
 }
 
 variable "db_secret_arns" {
-  description = "logical (cms, crm, automation, agents) => role secret ARN from the database module."
+  description = "logical (cms, crm, automation, agents, phoenix) => role secret ARN from the database module."
   type        = map(string)
 }
 
-variable "valkey_secret_arn" {
-  type = string
+variable "redis_secret_arn" {
+  description = "Secret with JSON keys url (KX_REDIS_URL) and broker_url (KX_APP_CELERY_BROKER_URL) from the cache module."
+  type        = string
+}
+
+variable "jwt_secret_arn" {
+  description = "Staff-login RS256 key secret (private_key_pem, key_id) from the secrets module."
+  type        = string
+}
+
+variable "auth_secret_arn" {
+  description = "Staff-login encryption key secret (encryption_key) from the secrets module."
+  type        = string
 }
 
 variable "integration_secret_arns" {
-  description = "short name (meta_whatsapp, twilio ...) => secret ARN for this company."
+  description = "short name (anthropic, meta_whatsapp, postmark, telnyx, twilio, livekit, deepgram, elevenlabs, betterstack ...) => secret ARN for this company."
   type        = map(string)
 }
 
@@ -105,6 +121,12 @@ variable "bucket_arns" {
 }
 
 variable "inbound_bucket_arn" {
+  description = "SES Mail Manager inbound bucket (optional; buyer replies arrive through Postmark since 11 Nov)."
+  type        = string
+  default     = null
+}
+
+variable "inbound_bucket_name" {
   type    = string
   default = null
 }
@@ -121,22 +143,84 @@ variable "ses_from_domain" {
   type = string
 }
 
-variable "jwt_issuer" {
-  type = string
+variable "ses_events_topic_arn" {
+  description = "SNS topic of SES delivery/bounce/complaint events (only this topic may feed /webhooks/ses)."
+  type        = string
+  default     = null
 }
 
-variable "jwks_url" {
-  type = string
+variable "email_from_address" {
+  description = "The one company sending address (SES and the Postmark backup). null = sales@<ses_from_domain>."
+  type        = string
+  default     = null
+}
+
+variable "jwt_issuer" {
+  description = "Issuer of the in-house staff access tokens (null = public_api_url)."
+  type        = string
+  default     = null
 }
 
 variable "jwt_audience" {
-  type = string
+  type    = string
+  default = "kx-crm"
 }
 
-variable "bedrock_region" {
-  description = "Region the Bedrock runtime client calls. Anthropic models may only be reachable via cross-region inference profiles (prompts leave the UAE: client consent). null = Bedrock not used (Anthropic API direct)."
+variable "cors_origins" {
+  description = "Browser origins allowed to call the API (CRM screens, website), sent as KX_APP_CORS_ORIGINS (JSON list)."
+  type        = list(string)
+  default     = []
+}
+
+variable "embedding_model" {
+  description = "Model served by the embeddings service (Platform contest R4 winner; runner-up BAAI/bge-m3)."
   type        = string
-  default     = null
+  default     = "Qwen/Qwen3-Embedding-0.6B"
+}
+
+variable "vendor_order" {
+  description = "Seed value of /kx/<env>/<company>/vendors/<field> (primary first). Terraform ignores later edits. The app reads `email` today; calls stay Twilio-only until Telnyx is wired (OPEN_QUESTIONS #55)."
+  type        = map(list(string))
+  default = {
+    llm        = ["claude"]
+    calls      = ["twilio"]
+    email      = ["ses", "postmark"]
+    embeddings = ["qwen3", "fulltext"]
+    stt        = ["deepgram", "soniox"]
+    tts        = ["elevenlabs", "google"]
+  }
+}
+
+variable "images" {
+  description = <<-EOT
+    Third-party images (pinned; Terraform owns them, deploys do not touch them). CONFIRM each tag before the
+    first apply and bump deliberately:
+      embeddings     Text Embeddings Inference CPU image with Qwen3-Embedding support (>= 1.7.2)
+      phoenix        Arize Phoenix server (replace "latest" with the version you tested)
+      otel_collector OpenTelemetry Collector contrib (needs the awscloudwatch receiver + otlphttp exporter)
+  EOT
+  type        = map(string)
+  default = {
+    embeddings     = "ghcr.io/huggingface/text-embeddings-inference:cpu-1.7.2"
+    phoenix        = "arizephoenix/phoenix:latest"
+    otel_collector = "otel/opentelemetry-collector-contrib:0.120.0"
+  }
+}
+
+variable "architectures" {
+  description = "Fargate CPU architecture per third-party service. X86_64 where an arm64 image is not confirmed."
+  type        = map(string)
+  default = {
+    embeddings     = "X86_64"
+    phoenix        = "X86_64"
+    otel_collector = "ARM64"
+  }
+}
+
+variable "phoenix_enable_auth" {
+  description = "Phoenix login (PHOENIX_ENABLE_AUTH). Off by default: Phoenix is reachable only inside the app security group; turning it on also needs an API key for trace ingestion."
+  type        = bool
+  default     = false
 }
 
 variable "extra_environment" {
@@ -146,19 +230,14 @@ variable "extra_environment" {
 }
 
 variable "sizes" {
-  description = "Per service: cpu, memory, min, max (desired starts at min)."
+  description = "Per service: cpu, memory, min, max (desired starts at min). Merged over the module defaults (api, worker, beat, voice, cms, embeddings, phoenix, otel_collector); beat always runs exactly 1."
   type = map(object({
     cpu    = number
     memory = number
     min    = number
     max    = number
   }))
-  default = {
-    api    = { cpu = 1024, memory = 2048, min = 2, max = 4 }
-    worker = { cpu = 1024, memory = 2048, min = 1, max = 2 }
-    voice  = { cpu = 2048, memory = 4096, min = 1, max = 2 }
-    cms    = { cpu = 512, memory = 1024, min = 1, max = 1 }
-  }
+  default = {}
 }
 
 variable "capacity_provider" {

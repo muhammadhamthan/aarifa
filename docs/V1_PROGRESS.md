@@ -265,3 +265,278 @@ steps); follow-ups ignored the buyer country's weekend (`crm_0008`); no way to p
 
 502 passed, 0 skipped (309 before the work): CRM 110, automation 128, agents 64, root spec 131, scenarios + safety
 41, unit 14, DB 12, integration 2. `make lint`: ruff, ruff format, mypy --strict (133 files), import-linter 3/3.
+
+---
+
+# 11 Nov plan (WP13–WP29 of docs/V1_CHANGE_PLAN.md)
+
+Sources: the SRS (`docs/Arifaa Pack — Detailed Business Flow v1 (SRS basis) (2).md`) and the platform docs
+(`docs/Arifaa Platform — Platforms, Pricing & Fallbacks/`). Gate: the same Linux container + pgvector Postgres 18 as
+before (Windows cannot run psycopg's async pool or WeasyPrint natively).
+
+## Baseline (12 Nov, before the work)
+
+502 tests, but **13 failed by date**: the grant was issued on the app clock (fixed test dates of 9 Nov) and consumed
+against the database's real `now()`, so every quote send in the DB tests expired on 11 Nov 06:00 UTC. Fixed in the
+code, not the tests: `grants.issue_grant` now stamps `issued_at` / `expires_at` with the database clock, the same
+clock `crm.consume_send_grant` checks (a security boundary must not depend on an app server's clock). Scenario 9 now
+advances from the real send time. Two pure Excel tests that inherited a DB fixture moved to
+`test_price_list_rows.py` (they now run on Windows). Result: **502 passed, 0 failed**.
+
+## WP13. Documents
+
+CLAUDE.md, CONTRACTS.md, README.md, `docs/V1_CHANGE_PLAN.md` (11 Nov plan, D17–D40), `docs/OPEN_QUESTIONS.md`
+(#40–#60), HANDOFF_CONTEXT.md, DEPLOYMENT.md, CONTESTS.md (§5 platform contest), `db/README.md`, the root
+`V1_CHANGE_PLAN.md` (now a pointer). Code comments say "the SRS" instead of the deleted `docs/BUSINESS_FLOW_V1.md`.
+
+## WP16. Payment, WON, LOST reopen, visibility (§15, §7A.1, §3, §14; D20, D24)
+
+* §15.1 / D20: confirming the advance is required, every detail optional (an amount needs its currency);
+  timeline "Advance confirmed …". §15.2: WON mandatory, re-order date optional.
+* §7A.1 / D24: `POST /v1/deals/{id}/reopen` (manager or MD, MFA, reason): LOST -> the stage it was lost from; the AI
+  stays paused. §14: `POST /v1/deals/{id}/personal-contact-shared`.
+* §3: a salesperson's `GET /v1/deals` shows only their own deals and those they cover; timeline and quote list check
+  view access (before this, any salesperson could read any deal's timeline). §20.3 board filters: salesperson,
+  country, product id / code, value in AED, opted out.
+* Migration `crm_0009` (also used by WP14/15/17/18): `deals.opted_out_at`, `ai_summary(_at)`,
+  `personal_contact_shared_at/_by`, LOST reason `opted_out`, task kinds `optout_review` / `phone_unreached` /
+  `call_buyer`, `contacts.phone_status(_at)` + `whatsapp_profile_name` (back-filled `verified` for WhatsApp contacts),
+  `products.spec` / `cms_published` / `cms_synced_at`, settings `optout.*`.
+* After-the-deal routes (payment, WON, order status) moved to `kx.crm.api.deal_actions` (same paths).
+* Tests: 2 DB (details-free payment + WON without a date; reopen) and 3 HTTP (§3 lists, reopen needs manager + MFA,
+  personal contact).
+
+## WP20. Background jobs on Celery (D25)
+
+* `kx.core.jobs`: `JobStore` over `automation.scheduled_jobs` (enqueue with de-duplication key, replace, pull forward,
+  cancel by key or prefix, claim with per-lock ordering under an advisory lock, finish kicks the next job on the same
+  lock, retry with exponential back-off, recover rows left `running` by a dead worker, queue lag) and `JobRunner`
+  (the task type's `JobSpec` owns its retry policy). Migration `automation_0003`.
+* `kx.automation.jobs`: same task bodies; `JobScheduler` implements `TaskScheduler` (+ `cancel_followups`,
+  `schedule_optout_check`, `cancel_optout_check`); `periodic_jobs()`. `kx.crm.jobs.periodic_jobs()`. Procrastinate is
+  gone from both packages and the lock.
+* App: `arifaa_pack.jobqueue` (the one Celery app: acks_late, reject on worker lost, prefetch 1, visibility timeout
+  2 h; `CeleryKicker` publishes in a thread), `arifaa_pack.schedule` (Beat timetable: sweep 30 s, relays 5 s,
+  heartbeat 30 s, the 4 Nov crons), `arifaa_pack.celery_app` (`kx.run_job`, `kx.periodic`; one event loop + container
+  per worker process), `kx worker` / `kx beat`. The container's `EventBus` writes one job per subscribed package.
+* The scraper's daily job returns at once while `features.scraping` is off (D14).
+* Tests: 9 DB (store and scheduler); the smoke test boots the app, fans an event out to `scheduled_jobs`, runs it once
+  and shows a redelivery is a no-op; Beat's timetable equals the worker's periodic map.
+
+## WP14. STOP flow (§8.1, D18)
+
+* `kx.core.optout`: the rules (whole-message words, clear phrases, channel phrases, stop word in a sentence -> the AI;
+  voice: "stop" = wait), the confirmation texts (EN from the SRS; AR/HI/TA/ZH/SI drafts for review, OPEN #41).
+* Automation: suppression by scope (`all`/`whatsapp`/`email`/`phone`) and by person (`contact_suppressions`); the
+  permanent `opt_out_log`; `apply_stop` (suppress, cancel the queue, log, announce `consent.opted_out.v1`) inside the
+  webhook's transaction; the one confirmation as free text in the buyer's language inside the 24-hour window;
+  follow-ups cancelled; the 24-hour "no answer" timer; one-click email unsubscribe (RFC 8058 headers, page with an
+  optional reason; a GET changes nothing). `OutboundService` now stores `contact_ref` and `recipient_hash` on every
+  row (the columns existed since 0002 but were never filled). Migration `automation_0004`.
+* CRM: `kx.crm.services.consent` (consent rows, Opted out badge, salesperson + manager notice via the new generic
+  `staff.notice_requested.v1`, LOST proposed with reason `opted_out` or the buyer's own, channel switch for
+  "use email instead"); a stop automation knew by one address is handed back with every address of the person.
+* Agents: no AI reply to a message that already stopped; a stop word in a sentence is read by the fast model
+  (opt-out / not / unclear; a failure counts as unclear); unclear -> the SRS question if the buyer was active in the
+  last 10 minutes, else a review task; voice "stop" = listen, "stop calling me" = calls stopped.
+* Tests: 29 spec (every example sentence in §8.1, confirmations, a hypothesis property), 5 automation DB, 5 agents DB,
+  2 CRM DB, and the 5 earlier opt-out tests rewritten to the new rules.
+
+Totals after WP14: **554 passed** (root 229, CRM 117, automation 139, agents 69); ruff, format, mypy --strict
+(147 files) and import-linter clean.
+
+## WP15. Phone confirmation and Requirement Summary (§8.2, §6.5, D19)
+
+* `contacts.phone_status` moves forward only on WhatsApp's own signals (delivered = reachable, read = likely, buyer
+  reply = verified, failed = not reached); `phone_kind` (mobile / landline / invalid) makes the AI ask the §8.2 line.
+* On QUALIFIED the CRM renders the Requirement Summary PDF (no prices; headless Chromium, WeasyPrint fallback) and
+  automation sends it as an approved template with a document header. A failed summary blocks the WhatsApp quote:
+  email when the buyer gave one, else WhatsApp as the approving salesperson decides, with a task (OPEN #46).
+* Tests: 12 CRM DB, 1 automation DB.
+
+## WP21. In-house staff login + MFA (D26)
+
+* `kx.core.passwords` (Argon2id, TOTP with replay protection, Fernet-sealed seeds), `kx.core.auth.TokenIssuer` (RS256,
+  15-minute access tokens, `amr`), JWKS at `/.well-known/jwks.json`. Migration `crm_0010` (credentials, sessions,
+  challenges).
+* `/v1/auth/*`: login -> challenge; TOTP (`mfa=true`) or email code (`mfa=false`: no approvals); refresh in an HttpOnly
+  cookie, rotated on every use, a replayed old token ends every session; logout, me, TOTP enrolment, password change,
+  recovery by email code (always 202). 5 wrong passwords or codes lock for 15 minutes; every step audited. A
+  break-glass sign-in notifies the MD and the manager (`staff.notice_requested.v1`).
+* `/v1/users` (admin with MFA): list, create with a one-time password, edit (role, active, alert channels, assignment
+  fields), reset MFA, unlock. `kx create-user` for the first admin. Staging and production refuse to start without
+  `KX_JWT_PRIVATE_KEY` and `KX_AUTH__ENCRYPTION_KEY`.
+* Tests: 6 HTTP+DB (email code then TOTP, lock-out, refresh rotation and reuse, single-use codes, break-glass alert,
+  reset by code).
+
+## WP17. Salesperson inbox reply, click-to-call, AI summary (§14, §7A.2, D21, D23)
+
+* `POST /v1/deals/{id}/messages`: a staff reply on the buyer's channel and company number through `OutboundService`
+  (kind `staff_reply`), signed "— Name, Company" on WhatsApp; email from the company address with the salesperson's
+  name as sender (`outbound_messages.sender_name`, migration `automation_0005`). The price guard runs on staff text:
+  an amount outside the latest issued quote or offer is refused (`unapproved_price`); percentages (payment terms)
+  are for people. WhatsApp after 24 h answers `window_closed`; the screen resends with the approved re-open template
+  (`handover.reopen_template`, default `staff_reopen`, params: name, company). The AI pauses (human takeover).
+* `POST /v1/deals/{id}/call`: `CallBridge` rings the salesperson, then dials the buyer from the company number
+  (`answerOnBridge`), after the §8.1 call stop and the calls kill switch; one ring per click; logged on the deal.
+* Agents write the deal-page summary after the first exchange, every third exchange and at hand-over
+  (`conversation.summary_updated.v1`); the CRM stores it without bumping the deal version, newest wins.
+* Fixed on the way: the migration test's glob skipped revision `0010`.
+* Tests: 10 CRM DB, 3 automation DB (bridge, call stop, kill switch), 1 outbound DB, 1 email, 8 agents spec.
+
+Totals after WP17: **596 passed** (root 229, CRM 145, automation 145, agents 77); ruff, format and mypy --strict clean.
+
+## WP18. CMS publish -> AI knowledge + CRM product mirror (§7, D22)
+
+* `POST /webhooks/cms` (`kx.automation.cms`): HMAC-SHA256 over `"<timestamp>." + body` (`X-Kx-Timestamp`,
+  `X-Kx-Signature: sha256=...`), 5-minute window, one receipt per `event_id`. Raises `kb.content_published.v1` per
+  locale for pages, products, categories, FAQs, certificates, tour hotspots and testimonials, and
+  `catalogue.product_published.v1` for products. Price-like spec keys are dropped before anything is stored.
+* CRM `services/catalogue.py`: upsert by product code (case-insensitive); only descriptive fields; a new code is
+  not quotable until the manager prices it; a new category is created; unpublish only clears the flag.
+* Tests: 6 automation DB (signature, replay, stale, locales, no prices), 2 CRM DB.
+
+## WP19. Website API (§6, D34, D39)
+
+* `kx.agents.website`: `POST /v1/public/sessions` (Turnstile, signed session token, voice consent stored with its
+  time: migration `agents_0003`), `/messages` (one turn through `AgentService`; the CRM deal is created on the first
+  message), `/voice` (LiveKit token with `deal_ref` + `language`; refused for Sinhala and without voice consent),
+  `/identify` (handed to the CRM merge; same answer whether the buyer was known). Per-IP and per-session token
+  buckets (OPEN #61); the daily AI cap answers 503. `kx.core.signed` for the session token.
+* Tests: 8 DB, 1 spec. Staging and production refuse to start without the Turnstile key.
+
+## WP22. AI route, fallbacks and spend caps (D27, D30, D34)
+
+* Bedrock removed (provider, config, client); `ModelRouter` = Claude API only (Haiku 5.5 FAST, Sonnet 5.5 SMART).
+  Gemini stays a switch only: no Gemini client library is in the lock (not added without approval).
+* `kx.core.fallback`: `CircuitBreaker` (3 failures / 60 s -> 5 minutes -> one trial) and `FallbackChain` (order,
+  breakers, `Kairox/VendorSwitch` metric, alert hook, `AllVendorsFailed`).
+* Agents: when every model fails, or Claude's breaker is open, the buyer gets "Let me check with our sales team."
+  and the CRM pauses the AI with a task for the salesperson. Run cost from the official price table
+  (`kx.agents.runs.PRICES`, Haiku's >100K tier included) is stored on `agent_runs.cost_usd` and added to the daily
+  AI cap (`kx.core.spend.SpendMeter`: integers in Redis per local day, one alert at 80 % and at 100 %).
+* Tests: 3 spec (breaker, chain, prices), 1 spec (spend), 1 DB (safe reply + breaker).
+
+## WP23. Knowledge search on Qwen3 (D28)
+
+* `HttpEmbedder` (OpenAI-compatible `/v1/embeddings`, Qwen3 query instruction, 1,024 dims checked, L2-normalised)
+  replaces Titan. `KnowledgeBase.search` falls back to full-text + trigram when the embedding fails or takes > 2 s.
+* Tests: the KB DB test now also searches with a failing and a slow embedder.
+
+Totals after WP23: **618 passed** (root 234, CRM 147, automation 151, agents 86); ruff, format, mypy --strict and
+import-linter clean.
+
+## WP24. Observability (D29)
+
+* Phoenix tracing over OpenTelemetry (`kx.agents.tracing`): one span per model call with OpenInference attribute
+  names, PII masked; Langfuse removed from the dependencies (`uv lock`: langfuse and backoff gone, OTel 1.45.2 kept and
+  now declared). Sentry SDK (Better Stack) now also starts in the API process.
+* Tests: 2 (span content and masking; off without a collector).
+
+## WP25. Channel fallbacks and kill-switch ladder (D30-D35)
+
+* Email: `PostmarkSender` (fields per Postmark's API docs, read 12 Nov) and `EmailChain` (SES -> Postmark in the
+  Parameter Store order, breaker, switch metric) used by `OutboundService` and the staff-code mailer.
+  `POST /webhooks/postmark/inbound` (Basic auth, Postmark does not sign) records buyer replies like SES mail.
+* `VendorOrder`: `<KX_APP_VENDOR_ORDER_SSM_PREFIX>/<field>`, cached 60 s, defaults on error.
+* D32: 10 minutes after a priced WhatsApp message is sent, undelivered -> `quote.not_delivered.v1` with the exact
+  content; the CRM grants the same hash on email and raises `quote.resend_requested.v1` (automation sends it), or
+  tells the salesperson to call when there is no email.
+* D35: `kx.core.killswitch` ladder (off / marketing / calls / text_only / hold) with `GET`/`PUT
+  /v1/admin/kill-switch` (admin or MD with MFA, audited); follow-ups stop at `marketing`, calls at `calls`.
+* Telnyx: not built (OPEN #55 lists the three points the docs did not confirm); calls stay on Twilio.
+* Tests: 4 Postmark, 1 chain, 1 ladder, 1 outbound D32, 2 CRM D32.
+
+Totals after WP25: **631 passed** (root 234, CRM 149, automation 160, agents 88); ruff, format, mypy --strict and
+import-linter clean.
+
+## WP28. CRM screens API completion (§20, §21)
+
+* `kx.crm.api.records`: contacts (search, §3 visibility, edit non-identity fields), companies (list, create, edit),
+  product catalogue (list, detail, manager+MFA edit of the CRM-owned fields only, D22), orders list, FX rates
+  (latest per currency, manager+MFA override, D38).
+* `kx.crm.api.reports`: `/dashboards/salesperson`, `/dashboards/manager` (incl. opt-out count and the buyers' own
+  reasons), `/dashboards/md`; `/exports/{deals|contacts|companies|orders|products}?format=csv|xlsx`.
+* `kx.automation.admin_api`: WhatsApp numbers per region (countries, default, status) and message templates
+  (WhatsApp ones `submitted` until Meta's approval is recorded), admin with MFA.
+* Kill switch: `GET`/`PUT /v1/admin/kill-switch` (WP25). Definitions chosen: OPEN #63, #64, #66.
+* Tests: 5 CRM HTTP, 2 automation HTTP.
+
+## WP29. Hand-offs
+
+* `.env.example`: generated from `CoreSettings` (KX_), `AutomationSettings` (KX_AUTO_) and `AppSettings` (KX_APP_)
+  = all 123 settings with the code's defaults and empty secrets, plus the voice-plugin, migration and CMS-container
+  variables. Checked: all three settings classes load it.
+* `docs/frontend/CRM_API.md`, `WEBSITE_API.md`: a written overview (design, roles, screens -> endpoints, sign-in,
+  conventions, errors, mock server) + an endpoint reference generated from the code's OpenAPI, with the roles read
+  from each route's auth dependency. `openapi-crm.json` / `openapi-website.json` for mock servers.
+  `docs/frontend/CMS.md`: the content model (§7), the publish-webhook contract and the REST fields the platform
+  reads back, from `kx.automation.cms` and `PayloadContentSource`.
+* 46 routes had no docstring: each now states its purpose (shows in OpenAPI and the docs). One docstring was
+  corrected after checking (`GET /v1/approvals` is manager / MD only).
+* Makefile: `up` starts `postgres redis` (Valkey replaced in WP27); `worker` / `beat` targets for Celery.
+
+Final totals: **638 passed** (root 234, CRM 154, automation 162, agents 88); ruff, ruff format, mypy --strict
+(170 files) and import-linter (3 contracts) clean.
+
+## WP26. FX daily rate (§11.2, D38) — blocked
+
+* The manager override path is built and tested: `POST /v1/fx-rates` (manager + MFA) writes `crm.fx_rates`
+  with source `manual`, and quoting reads the latest rate per currency; a manual rate always wins.
+* The **automatic daily CBUAE feed is not built**: the documents do not give a machine-readable source,
+  endpoint or licence for the UAE Central Bank rates (OPEN_QUESTIONS #56). Until that is confirmed, rates are
+  entered by the manager. No `cbuae`/FX Beat entry exists, by design, so nothing silently serves a stale rate.
+
+## WP27. Local stack: Redis
+
+* `make up` and `docker-compose` run PostgreSQL (pgvector) + Redis. An earlier Valkey image was replaced with
+  Redis so local matches the ElastiCache (Redis) target; the `SpendMeter` and rate limiter use it.
+
+## 12 Nov. Audit pass (post-WP29 review and fixes)
+
+A full audit of the 11 Nov code against the SRS and the platform docs (63 items done, 29 partial, 3 missing)
+found and fixed the following, with tests. No SRS or platform doc was edited (read-only, as instructed).
+
+**Access and safety**
+* Quote-version read (`GET /v1/quote-versions/{id}`) now checks the caller may see the deal (§3); it leaked
+  across salespeople before. Change-request and export lists apply the same `visible_to` filter.
+* `handover.reply` / `call_buyer`: the "who may contact the buyer" check (§14 — admin never does, MD only on
+  takeover) now runs **before** the "sender/caller configured" check, so authorisation no longer depends on
+  infrastructure being present (admin got 503 instead of 403).
+* Website `_ip` reads the **last** X-Forwarded-For entry (the ALB's own append); earlier entries are
+  client-supplied and were spoofable for the per-IP rate limit.
+* Opt-out reason counts on the manager dashboard de-duplicate per stop (one `(contact, at)`), not per consent
+  row — a scope-`all` stop writes four rows and was counted 4×.
+
+**Degrade and spend (D34/D35)**
+* Model tiers corrected to D27: Haiku (FAST) on non-money roles, Sonnet (SMART) on every price-quoting role.
+* AI spend cap: at 100 % of the daily AI budget a turn hands over **before** any model call (`budget_left`).
+* WhatsApp-template cap: buyer templates are held at 100 % (`spend_cap`, a transient reason the caller
+  retries); staff alerts are never held; each template actually sent is counted.
+* Kill-switch `text_only` and an exhausted voice-minute budget now block the website voice token.
+* Price-guard block now hands the deal to the salesperson (not just a safe reply).
+* Metric names are bare (`VendorSwitch`, `SpendCap`) so the CloudWatch alarms in `infra/modules/observability`
+  match what the app emits; a `SpendCap` alarm was added.
+
+**Config and ops**
+* PDF renderer: the container wires headless Chromium first, WeasyPrint as the backup (D37); without the
+  Chromium binary (a developer laptop) it logs once and uses WeasyPrint only.
+* Postmark inbound env key corrected (`inbound_username`); stale Telnyx/audio-bucket env vars removed.
+* `.env.example`: added `KX_PROCESS`, `KX_API_PORT`, `KX_HEALTH_PATH`; marked `KX_AUTH__COOKIE_SECURE=false`
+  as a local override. `docker/healthcheck.py` falls back to `KX_APP_API_PORT`.
+
+**New features filling §-gaps the audit flagged partial/missing**
+* §8.1 step 4: `POST /v1/deals/{id}/opt-out` — a salesperson records a buyer's stop (and their own reason),
+  add-only, same effect as a STOP.
+* §20.7 change history: `GET /v1/products/{id}/history` and `GET /v1/price-list/history` read the audit rows.
+* §7A.3 team board: `unassigned=true` and `escalated=true` filters on the deals board.
+* §21 scheduled reports: a daily summary and a weekly report to the manager and MD (`kx.crm.services.
+  scheduled_reports`, Beat `crm.scheduled_reports` every 15 min; times/recipients are settings, `crm_0011`
+  seed). The manager-board figures moved to `kx.crm.services.dashboards` so the report and the screen agree.
+
+**Tests added:** 27 — root unit 17 (tiers, X-Forwarded-For, VendorOrder, metric/alarm names), CRM 7 (opt-out,
+change history, team board, scheduled reports, export visibility, quote-version access, admin-never-contacts),
+automation 2 (template cap, staff bypass + count), agents 1 (AI budget hand-over).
+
+Totals after the audit pass: **665 passed** (root 251, CRM 161, automation 164, agents 89); ruff, ruff format,
+mypy --strict (per package) and import-linter (3 contracts) clean. New migration `crm_0011` (report settings).

@@ -314,13 +314,24 @@ class WhatsAppClient:
         return await self._send(to_e164, {"type": "text", "text": {"body": body, "preview_url": preview_url}})
 
     async def send_template(
-        self, to_e164: str, name: str, language: str, params: tuple[str, ...] = ()
+        self,
+        to_e164: str,
+        name: str,
+        language: str,
+        params: tuple[str, ...] = (),
+        document: DocumentRef | None = None,
     ) -> str:
+        """An approved template; `document` fills a DOCUMENT header (the §8.2 Requirement Summary PDF)."""
         template: dict[str, Any] = {"name": name, "language": {"code": language}}
+        components: list[dict[str, Any]] = []
+        if document is not None:
+            doc: dict[str, Any] = {"filename": document.filename}
+            doc.update({"id": document.media_id} if document.media_id else {"link": document.link})
+            components.append({"type": "header", "parameters": [{"type": "document", "document": doc}]})
         if params:
-            template["components"] = [
-                {"type": "body", "parameters": [{"type": "text", "text": p} for p in params]}
-            ]
+            components.append({"type": "body", "parameters": [{"type": "text", "text": p} for p in params]})
+        if components:
+            template["components"] = components
         return await self._send(to_e164, {"type": "template", "template": template})
 
     async def send_document(self, to_e164: str, document: DocumentRef, caption: str | None = None) -> str:

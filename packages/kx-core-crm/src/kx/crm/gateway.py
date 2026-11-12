@@ -29,6 +29,7 @@ from kx.core.contracts import (
     DealContext,
     DealStage,
     DeliveryEstimateView,
+    OptOutScope,
     QualifyResult,
     QuoteLineView,
     QuoteView,
@@ -36,6 +37,7 @@ from kx.core.contracts import (
     RequirementView,
 )
 from kx.core.db import Databases
+from kx.core.identity import phone_kind
 from kx.core.money import MONEY_PLACES, q
 from kx.core.settings import LogicalDb
 from kx.crm.deps import CrmDeps
@@ -53,7 +55,16 @@ from kx.crm.models import (
     QuoteVersion,
 )
 from kx.crm.rules import pause_reason
-from kx.crm.services import approvals, assignment, change_requests, grants, negotiation, quotes, staff
+from kx.crm.services import (
+    approvals,
+    assignment,
+    change_requests,
+    consent,
+    grants,
+    negotiation,
+    quotes,
+    staff,
+)
 from kx.crm.services import deals as deal_svc
 from kx.crm.services.issuing import lines_of
 from kx.crm.services.journal import Actor
@@ -79,6 +90,8 @@ def contact_view(c: Contact, company: Company | None) -> ContactView:
         has_phone=bool(c.phone_e164 or c.whatsapp_e164),
         has_email=bool(c.email),
         phone_verified=c.phone_verified_at is not None,
+        phone_status=c.phone_status,
+        phone_kind=phone_kind(number) if (number := c.whatsapp_e164 or c.phone_e164) else None,
     )
 
 
@@ -293,6 +306,41 @@ class CrmGatewayImpl:
         """D9: the AI's "open to discuss" line for the message of the quote waiting for approval."""
         async with self._tx() as s:
             await quotes.set_cover_note(s, deal_id, note, Actor.ai(actor))
+
+    async def record_opt_out(
+        self,
+        deal_id: uuid.UUID,
+        *,
+        scope: OptOutScope,
+        exact_words: str,
+        reason: str | None,
+        decided_by: str,
+        actor: AiRole,
+    ) -> None:
+        """§8.1 step 6: the AI read a stop in a sentence. It may only ADD a stop."""
+        async with self._tx() as s:
+            deal = await deal_svc.get_deal(s, deal_id, lock=True)
+            await consent.record_opt_out(
+                s,
+                self._deps,
+                deal,
+                scope=scope,
+                words=exact_words,
+                reason=reason,
+                decided_by=decided_by,
+                source="ai",
+                actor=Actor.ai(actor),
+            )
+
+    async def flag_unclear_stop(
+        self, deal_id: uuid.UUID, *, exact_words: str, live: bool, actor: AiRole
+    ) -> None:
+        """§8.1 step 6, unclear: pause follow-ups; ask once (live) or hand it to the salesperson."""
+        async with self._tx() as s:
+            deal = await deal_svc.get_deal(s, deal_id, lock=True)
+            await consent.flag_unclear_stop(
+                s, self._deps, deal, words=exact_words, live=live, actor=Actor.ai(actor)
+            )
 
 
 async def build_context(s: AsyncSession, deps: CrmDeps, deal_id: uuid.UUID) -> DealContext:

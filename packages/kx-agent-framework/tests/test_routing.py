@@ -4,9 +4,9 @@ import pytest
 
 from kx.agents.evals.harness import load_scenarios, run_scenario
 from kx.agents.language import detect_script_language, reply_language
-from kx.agents.models import BedrockChatAnthropic
+from kx.agents.models import AnthropicApiProvider, ModelRouter
 from kx.agents.orchestrator import route
-from kx.agents.registry import AgentRegistry
+from kx.agents.registry import AgentRegistry, ModelTier
 from kx.agents.testing import make_deal
 from kx.agents.voice import VoiceRouter
 from kx.core.contracts import AiRole, DealStage
@@ -63,21 +63,16 @@ def test_registry_has_all_twelve_roles_and_only_price_roles_quote() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    ("lang", "stt", "tts"),
-    [
-        ("en", "elevenlabs", "elevenlabs"),
-        ("ar-AE", "elevenlabs", "elevenlabs"),
-        ("zh", "elevenlabs", "elevenlabs"),
-        ("hi", "sarvam", "sarvam"),
-        ("ta", "sarvam", "sarvam"),
-        ("si", "azure", "azure"),
-        ("fr", "elevenlabs", "elevenlabs"),
-    ],
-)
-def test_voice_routing(lang: str, stt: str, tts: str) -> None:
+@pytest.mark.parametrize("lang", ["en", "ar-AE", "zh", "hi", "ta", "fr"])
+def test_voice_routing_is_deepgram_and_elevenlabs_with_backups(lang: str) -> None:
+    """D36 (Fallback plan): Deepgram Nova-3 -> Soniox; ElevenLabs Flash -> Google Chirp 3 HD."""
     r = VoiceRouter().route(lang)
-    assert (r.stt, r.tts) == (stt, tts)
+    assert (r.stt, r.tts, r.voice_available) == (("deepgram", "soniox"), ("elevenlabs", "google"), True)
+
+
+def test_sinhala_is_text_only() -> None:
+    """Platform contest round 1: "No option covers Sinhala in live voice; Sinhala stays text-only"."""
+    assert not VoiceRouter().route("si").voice_available
 
 
 def test_language_detection() -> None:
@@ -87,10 +82,14 @@ def test_language_detection() -> None:
     assert reply_language("hello", "si") == "si"
 
 
-def test_bedrock_transport_uses_block_level_caching() -> None:
-    m = BedrockChatAnthropic(model_name="global.anthropic.claude-sonnet-5-5", aws_region="me-central-1")
-    assert m._llm_type == "anthropic-bedrock-chat"
-    assert type(m._async_client).__name__ == "AsyncAnthropicBedrock"
+def test_claude_api_direct_haiku_on_the_rest_sonnet_on_money_turns() -> None:
+    """D27: both through the Claude API (Bedrock dropped 11 Nov); no backup until the suite passes."""
+    from pydantic import SecretStr
+
+    router = ModelRouter([AnthropicApiProvider(SecretStr("test-key"))])
+    assert router.for_tier(ModelTier.FAST).name == "claude-haiku-5-5"
+    assert router.for_tier(ModelTier.SMART).name == "claude-sonnet-5-5"
+    assert router.for_tier(ModelTier.SMART).fallbacks == ()
 
 
 @pytest.mark.parametrize("scenario", load_scenarios(), ids=lambda s: s.id)

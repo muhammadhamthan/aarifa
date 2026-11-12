@@ -1,9 +1,10 @@
-"""Background work for the CRM: periodic jobs (procrastinate Blueprint) and event handlers.
+"""Background work for the CRM: periodic job bodies and event handlers (no job-queue import: the app runs
+them on Celery, D25).
 
-Wire in the worker:
+Wire in the app:
     rt = CrmRuntime(databases, deps, publish=<publisher that hands crm outbox events to the bus>)
-    app.add_tasks_from(build_blueprint(rt), namespace="crm")
-    for name, handler in HANDLERS.items(): bus.subscribe(name, lambda e, h=handler: dispatch(rt, e, h))
+    periodic_jobs(rt)          # name -> coroutine for Beat (schedules in arifaa_pack.schedule)
+    HANDLERS / dispatch(rt, e) # events the CRM consumes, run as `crm.handle_event` jobs
 
 Each job runs in one CRM transaction and is safe to run twice: the sweep and the relay use
 SKIP LOCKED, handlers are de-duplicated with kx.core.events.inbox_once in the same transaction.
@@ -11,32 +12,59 @@ SKIP LOCKED, handlers are de-duplicated with kx.core.events.inbox_once in the sa
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime
 from functools import wraps
 from typing import Any, Final
 
-from procrastinate import Blueprint, RetryStrategy
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kx.core import events as ev
 from kx.core.db import Databases
-from kx.core.event_payloads import MessageReceived, PriceProposed, parse_payload
+from kx.core.event_payloads import (
+    ConversationSummaryUpdated,
+    DealQualified,
+    MessageReceived,
+    MessageStatus,
+    OptedOut,
+    PriceProposed,
+    ProductPublished,
+    QuoteNotDelivered,
+    parse_payload,
+)
 from kx.core.events import Event, Publisher, inbox_once, relay_once
 from kx.core.logging import get_logger
 from kx.core.settings import LogicalDb
 from kx.crm.deps import CrmDeps
-from kx.crm.models import Deal
+from kx.crm.models import Contact, Deal
 from kx.crm.models.base import SCHEMA
 from kx.crm.rules import OPEN_STAGES
-from kx.crm.services import approvals, change_requests, lost_proposals, price_proposals, quotes, retention
+from kx.crm.services import (
+    approvals,
+    catalogue,
+    change_requests,
+    consent,
+    issuing,
+    lost_proposals,
+    phone,
+    price_proposals,
+    quotes,
+    retention,
+    scheduled_reports,
+    summary,
+)
 from kx.crm.services import deals as deal_svc
-from kx.crm.services.journal import Actor, Timeline, record
+from kx.crm.services.journal import Actor, Emit, Timeline, record
 
 log = get_logger(__name__)
+_STAFF_KINDS: Final = frozenset({"approval_alert", "md_notice"})
+_SIGNAL: Final[dict[str, phone.Signal]] = {"delivered": "delivered", "read": "read", "failed": "failed"}
 EventHandler = Callable[[AsyncSession, CrmDeps, Event], Awaitable[None]]
 SUMMARY_CHARS: Final = 500
+AI_SUMMARY_CHARS: Final = 1200
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +106,15 @@ async def run_retention(rt: CrmRuntime) -> dict[str, int]:
     return counts
 
 
+async def run_scheduled_reports(rt: CrmRuntime) -> int:
+    """§21: the daily summary and the weekly report, once each when their time (a setting) has passed."""
+    async with rt.databases.transaction(LogicalDb.CRM) as s:
+        sent = await scheduled_reports.send_due(s, rt.deps)
+    if sent:
+        log.info("crm.scheduled_reports", sent=sent)
+    return sent
+
+
 async def run_outbox_relay(rt: CrmRuntime, limit: int = 100) -> int:
     async with rt.databases.transaction(LogicalDb.CRM) as s:
         return await relay_once(s, SCHEMA, rt.publish, limit)
@@ -114,23 +151,11 @@ async def on_message_received(session: AsyncSession, deps: CrmDeps, event: Event
     if deal is None:
         log.info("crm.message_received.unmatched", message_ref=str(m.message_ref))
         return
-    if m.opted_out and deal.ai_enabled:  # §8: opt-out stops all messages; §17: the salesperson sees it
-        deal.ai_enabled, deal.ai_paused_reason, deal.ai_paused_at = False, "opt_out", deps.now()
-        await session.flush()
-        await record(
-            session,
-            Actor.system("inbound"),
-            "deal.opted_out",
-            "deal",
-            deal.id,
-            after={"ai_paused_reason": "opt_out"},
-            timeline=Timeline(
-                "opt_out",
-                "Buyer opted out: no more messages on any channel",
-                deal.id,
-                deal.primary_contact_id,
-            ),
-        )
+    # §8.1: a stop arrives as its own event (consent.opted_out.v1 -> on_opted_out); here only the timeline
+    if m.channel == "whatsapp":  # §8.2: the buyer replied from that number -> Verified (+ profile name)
+        contact = await session.get(Contact, deal.primary_contact_id)
+        if contact is not None:
+            await phone.apply_signal(session, contact, "reply", m.received_at, profile_name=m.profile_name)
     await record(
         session,
         Actor.system("inbound"),
@@ -149,6 +174,132 @@ async def on_message_received(session: AsyncSession, deps: CrmDeps, event: Event
             actor_type="buyer",
         ),
     )
+
+
+@once("crm.opted_out")
+async def on_opted_out(session: AsyncSession, deps: CrmDeps, event: Event) -> None:
+    """§8.1 step 8: a stop automation applied (a rule, the unsubscribe link, the 24-hour timer). A stop the
+    CRM decided itself (origin crm) is already applied."""
+    p = parse_payload(event, OptedOut)
+    if p.origin == "crm":
+        return
+    contact = await session.get(Contact, p.contact_ref) if p.contact_ref else None
+    if contact is None and p.address_hashes:
+        contact = await deal_svc.contact_by_recipient_hash(session, p.address_hashes[0])
+    if contact is None:
+        log.info("crm.opted_out.unknown_contact", log_ref=str(p.log_ref))
+        return
+    deal = await session.get(Deal, p.deal_ref) if p.deal_ref else None
+    deal = deal or await _latest_deal(session, contact.id)
+    await consent.apply_opt_out(
+        session,
+        deps,
+        deal=deal,
+        contact=contact,
+        scope=p.scope,
+        source=p.source,
+        words=p.exact_words,
+        reason=p.reason,
+        decided_by=p.decided_by,
+        channel=p.channel,
+        actor=Actor.system(f"opt_out:{p.source}"),
+    )
+    missing = set(contact.recipient_hashes or ()) - set(p.address_hashes)
+    if p.scope == "all" and (missing or p.contact_ref is None):
+        # step 2 "stop at once, everywhere": automation knew one address (e.g. the email link); hand it the
+        # person and every address the CRM holds
+        await record(
+            session,
+            Actor.system(f"opt_out:{p.source}"),
+            "consent.opt_out_extended",
+            "contact",
+            contact.id,
+            emit=Emit(
+                ev.CONSENT_OPTED_OUT,
+                "contact",
+                contact.id,
+                p.model_copy(
+                    update={
+                        "contact_ref": contact.id,
+                        "deal_ref": deal.id if deal else p.deal_ref,
+                        "address_hashes": tuple(sorted(missing)),
+                        "origin": "crm",
+                        "log_ref": None,
+                    }
+                ),
+            ),
+        )
+
+
+@once("crm.phone_status")
+async def on_message_status(session: AsyncSession, deps: CrmDeps, event: Event) -> None:
+    """§8.2 step 3: read WhatsApp's signals silently (Delivered, Read, failed) for messages to the buyer. A
+    message our own gate refused (blocked, cancelled) says nothing about the number."""
+    p = parse_payload(event, MessageStatus)
+    if p.channel != "whatsapp" or p.contact_ref is None or p.kind in _STAFF_KINDS:
+        return
+    if p.error and p.error.startswith(("blocked:", "cancelled:")):
+        return
+    signal = _SIGNAL.get(p.status)
+    contact = await session.get(Contact, p.contact_ref)
+    if signal is None or contact is None:
+        return
+    await phone.apply_signal(session, contact, signal, p.at)
+    if signal == "failed" and p.kind == "summary_pdf" and p.deal_ref is not None:
+        deal = await session.get(Deal, p.deal_ref)
+        if deal is not None:
+            await summary.summary_not_delivered(session, deps, deal)
+
+
+@once("crm.requirement_summary")
+async def on_deal_qualified(session: AsyncSession, deps: CrmDeps, event: Event) -> None:
+    """§5 step 3 / §6.5 / §17 row 1: the qualified deal's Requirement Summary goes to the buyer."""
+    p = parse_payload(event, DealQualified)
+    deal = await session.get(Deal, p.deal_ref)
+    if deal is not None:
+        await summary.send_requirement_summary(session, deps, deal)
+
+
+@once("crm.cms_product")
+async def on_product_published(session: AsyncSession, deps: CrmDeps, event: Event) -> None:
+    """§7 / D22: a CMS publish or unpublish mirrors the descriptive product record by product code."""
+    await catalogue.mirror_product(session, parse_payload(event, ProductPublished), deps.now())
+
+
+@once("crm.quote_not_delivered")
+async def on_quote_not_delivered(session: AsyncSession, deps: CrmDeps, event: Event) -> None:
+    """D32: the same approved quote by email (its own grant), else the salesperson is told to call."""
+    await issuing.resend_by_email(session, deps, parse_payload(event, QuoteNotDelivered))
+
+
+@once("crm.ai_summary")
+async def on_summary_updated(session: AsyncSession, deps: CrmDeps, event: Event) -> None:
+    """§7A.2 (D23): the short AI summary at the top of the deal page. A display field, not a business state:
+    written without bumping the deal version (staff edits are not refused because the AI re-summarised),
+    audited but kept off the timeline (it changes every few turns). An older summary never replaces a newer
+    one (events can arrive out of order)."""
+    p = parse_payload(event, ConversationSummaryUpdated)
+    result = await session.execute(
+        update(Deal)
+        .where(
+            Deal.id == p.deal_ref,
+            (Deal.ai_summary_at.is_(None)) | (Deal.ai_summary_at < p.at),
+        )
+        .values(ai_summary=p.summary[:AI_SUMMARY_CHARS], ai_summary_at=p.at)
+        .execution_options(synchronize_session=False)
+    )
+    if getattr(result, "rowcount", 0):
+        await record(session, Actor.system("ai_summary"), "deal.ai_summary_updated", "deal", p.deal_ref)
+
+
+async def _latest_deal(session: AsyncSession, contact_id: uuid.UUID) -> Deal | None:
+    stmt = (
+        select(Deal)
+        .where(Deal.primary_contact_id == contact_id)
+        .order_by(Deal.stage.in_([s.value for s in OPEN_STAGES]).desc(), Deal.created_at.desc())
+        .limit(1)
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()
 
 
 async def _deal_for_message(session: AsyncSession, m: MessageReceived) -> Deal | None:
@@ -171,6 +322,12 @@ async def _deal_for_message(session: AsyncSession, m: MessageReceived) -> Deal |
 HANDLERS: Final[dict[str, EventHandler]] = {
     ev.PRICE_PROPOSED: on_price_proposed,
     ev.MESSAGE_RECEIVED: on_message_received,
+    ev.CONSENT_OPTED_OUT: on_opted_out,
+    ev.MESSAGE_STATUS: on_message_status,
+    ev.DEAL_QUALIFIED: on_deal_qualified,
+    ev.CONVERSATION_SUMMARY_UPDATED: on_summary_updated,
+    ev.CATALOGUE_PRODUCT_PUBLISHED: on_product_published,
+    ev.QUOTE_NOT_DELIVERED: on_quote_not_delivered,
 }
 
 
@@ -184,40 +341,39 @@ async def dispatch(rt: CrmRuntime, event: Event, handler: EventHandler | None = 
     return True
 
 
-# ---------------------------------------------------------------- procrastinate wiring
-def build_blueprint(rt: CrmRuntime) -> Blueprint:
-    """Tasks for `app.add_tasks_from(bp, namespace="crm")`. Times are UTC (Dubai = UTC+4)."""
-    bp = Blueprint()
-    retry = RetryStrategy(max_attempts=5, exponential_wait=5)
+# ---------------------------------------------------------------- periodic jobs (Beat, by name)
+Periodic = Callable[[datetime], Awaitable[Any]]
 
-    @bp.periodic(cron="*/5 * * * *", periodic_id="approval_sweep")
-    @bp.task(name="approval_sweep", queueing_lock="crm.approval_sweep", retry=retry)
-    async def approval_sweep(timestamp: int) -> None:
-        await run_approval_sweep(rt)
 
-    @bp.periodic(cron="23 5 * * *", periodic_id="price_staleness")  # 09:23 Dubai
-    @bp.task(name="price_staleness", queueing_lock="crm.price_staleness", retry=retry)
-    async def price_staleness(timestamp: int) -> None:
-        await run_price_staleness(rt)
+def periodic_jobs(rt: CrmRuntime) -> dict[str, Periodic]:
+    """CRM work Beat runs on a timer. Times are UTC in `arifaa_pack.schedule` (Dubai = UTC+4)."""
 
-    @bp.periodic(cron="7 4 * * *", periodic_id="lost_proposals")  # 08:07 Dubai, start of staff hours
-    @bp.task(name="lost_proposals", queueing_lock="crm.lost_proposals", retry=retry)
-    async def lost_proposals_job(timestamp: int) -> None:
-        await run_lost_proposals(rt)
+    async def relay(_: datetime) -> int:
+        total = 0
+        while (n := await run_outbox_relay(rt)) == 100:  # drain bursts without waiting for the next tick
+            total += n
+        return total + n
 
-    @bp.periodic(cron="41 23 * * *", periodic_id="retention")  # 03:41 Dubai
-    @bp.task(name="retention", queueing_lock="crm.retention", retry=retry)
-    async def retention_job(timestamp: int) -> None:
-        await run_retention(rt)
+    async def sweep(_: datetime) -> int:
+        return await run_approval_sweep(rt)
 
-    @bp.periodic(cron="* * * * * */5", periodic_id="outbox_relay")  # every 5 s (croniter seconds field)
-    @bp.task(name="outbox_relay", queueing_lock="crm.outbox_relay")
-    async def outbox_relay(timestamp: int) -> None:
-        while await run_outbox_relay(rt) == 100:  # drain bursts without waiting for the next tick
-            pass
+    async def staleness(_: datetime) -> int:
+        return await run_price_staleness(rt)
 
-    @bp.task(name="handle_event", retry=retry)
-    async def handle_event(event: dict[str, Any]) -> None:
-        await dispatch(rt, Event.model_validate(event))
+    async def lost(_: datetime) -> int:
+        return await run_lost_proposals(rt)
 
-    return bp
+    async def retention_(_: datetime) -> dict[str, int]:
+        return await run_retention(rt)
+
+    async def reports(_: datetime) -> int:
+        return await run_scheduled_reports(rt)
+
+    return {
+        "relay.crm": relay,
+        "crm.approval_sweep": sweep,
+        "crm.price_staleness": staleness,
+        "crm.lost_proposals": lost,
+        "crm.retention": retention_,
+        "crm.scheduled_reports": reports,
+    }

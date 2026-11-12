@@ -34,20 +34,28 @@ bench: ## speed benchmarks of the hot paths
 	uv run pytest tests/spec -m bench --benchmark-enable --benchmark-columns=min,mean,ops
 
 .PHONY: migrate
-migrate: ## apply Alembic migrations + job-queue schema (uses KX_*_DSN)
+migrate: ## apply Alembic migrations to every DB (the job queue is a table in the automation revisions)
 	uv run kx migrate
+
+.PHONY: frontend-docs
+frontend-docs: ## regenerate docs/frontend/ (CRM + website API) from the code's OpenAPI
+	uv run python scripts/gen_frontend_docs.py
 
 .PHONY: api
 api: ## run the API locally on :8000
 	uv run kx api
 
 .PHONY: worker
-worker: ## run the job worker locally
-	uv run kx worker
+worker: ## run the Celery worker locally (D25)
+	uv run kx worker --pool solo
+
+.PHONY: beat
+beat: ## run the one Celery Beat locally (D25)
+	uv run kx beat
 
 .PHONY: up
-up: ## Start postgres + valkey
-	docker compose up -d postgres valkey
+up: ## Start postgres + redis
+	docker compose up -d postgres redis
 
 .PHONY: up-all
 up-all: ## Build and start migrate + api + worker as well

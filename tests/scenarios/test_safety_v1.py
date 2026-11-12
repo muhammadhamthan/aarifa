@@ -1,4 +1,4 @@
-"""Safety rules of the 5 Nov flow, end to end (docs/BUSINESS_FLOW_V1.md §3, §12.2 rules 6 and 8, §13, §18;
+"""Safety rules of the 5 Nov flow, end to end (the SRS §3, §12.2 rules 6 and 8, §13, §18;
 CONTRACTS.md §3)."""
 
 from __future__ import annotations

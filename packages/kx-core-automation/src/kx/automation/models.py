@@ -48,7 +48,12 @@ _EMPTY_JSON = text("'{}'::jsonb")
 OutboundStatus = Literal["queued", "blocked", "sending", "sent", "delivered", "read", "failed", "cancelled"]
 CallStatus = Literal["queued", "ringing", "answered", "no_answer", "busy", "failed", "completed"]
 CallPurpose = Literal[
-    "approval_alert", "below_range_alert", "customer_callback", "inbound", "change_request_alert"
+    "approval_alert",
+    "below_range_alert",
+    "customer_callback",
+    "inbound",
+    "change_request_alert",
+    "click_to_call",  # §14: the salesperson calls the buyer from the CRM through the company number
 ]
 InboundKind = Literal[
     "text", "audio", "image", "document", "button", "interactive", "email", "call", "reaction", "other"
@@ -174,6 +179,7 @@ class OutboundMessage(Base):
     template_params: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     contact_ref: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     recipient_hash: Mapped[str | None] = mapped_column(CHAR(64))
+    sender_name: Mapped[str | None] = mapped_column(Text)  # §14 email From display name
 
 
 class WebhookReceipt(Base):
@@ -183,6 +189,62 @@ class WebhookReceipt(Base):
     external_id: Mapped[str] = mapped_column(Text, primary_key=True)
     signature_ok: Mapped[bool] = mapped_column(Boolean)
     received_at: Mapped[datetime] = _ts(nullable=False, now=True)
+
+
+class ScheduledJob(Base):
+    """Background work and long timers (D25). Read and written by `kx.core.jobs.JobStore` in SQL; mapped
+    here so the schema checks and ad-hoc queries see it."""
+
+    __tablename__ = "scheduled_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    task: Mapped[str] = mapped_column(Text)
+    args: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    dedup_key: Mapped[str | None] = mapped_column(Text)
+    lock_key: Mapped[str | None] = mapped_column(Text)
+    run_at: Mapped[datetime] = _ts(nullable=False)
+    status: Mapped[str] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer)
+    max_attempts: Mapped[int] = mapped_column(Integer)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    dispatched_at: Mapped[datetime | None] = _ts()
+    created_at: Mapped[datetime] = _ts(nullable=False, now=True)
+    updated_at: Mapped[datetime] = _ts(nullable=False, now=True)
+    finished_at: Mapped[datetime | None] = _ts()
+
+
+class ContactSuppression(Base):
+    """§8.1: a stop that follows the person (any address the CRM knows for them)."""
+
+    __tablename__ = "contact_suppressions"
+
+    contact_ref: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    scope: Mapped[str] = mapped_column(Text, primary_key=True)
+    reason: Mapped[str] = mapped_column(Text)
+    at: Mapped[datetime] = _ts(nullable=False, now=True)
+
+
+class OptOutLog(Base):
+    """§8.1 step 9: permanent record of every stop and the confirmation sent."""
+
+    __tablename__ = "opt_out_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    at: Mapped[datetime] = _ts(nullable=False, now=True)
+    channel: Mapped[str] = mapped_column(Text)
+    contact_ref: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    deal_ref: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    thread_ref: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    address_hash: Mapped[str | None] = mapped_column(CHAR(64))
+    scope: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(Text)
+    exact_words: Mapped[str | None] = mapped_column(Text)
+    volunteered_reason: Mapped[str | None] = mapped_column(Text)
+    decided_by: Mapped[str] = mapped_column(Text)
+    stopped: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    confirmation_text: Mapped[str | None] = mapped_column(Text)
+    confirmation_message_ref: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    confirmation_queued_at: Mapped[datetime | None] = _ts()
 
 
 class Suppression(Base):
@@ -213,6 +275,7 @@ class CallAttempt(Base):
     digits_pressed: Mapped[str | None] = mapped_column(Text)
     recording_notice_played: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     recording_s3_key: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str | None] = mapped_column(Text)  # click-to-call: one ring per click
     started_at: Mapped[datetime | None] = _ts()
     ended_at: Mapped[datetime | None] = _ts()
     created_at: Mapped[datetime] = _ts(nullable=False, now=True)

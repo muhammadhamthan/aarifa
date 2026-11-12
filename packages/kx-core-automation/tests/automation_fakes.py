@@ -98,6 +98,20 @@ class FakeScheduler:
     async def schedule_followup(self, action: DealNextActionSet, at: datetime) -> None:
         self.calls.append(("followup", {"action": action, "at": at}))
 
+    async def cancel_followups(self, deal_ref: uuid.UUID) -> int:
+        self.calls.append(("cancel_followups", {"deal_ref": deal_ref}))
+        return sum(1 for kw in self.named("followup") if kw["action"].deal_ref == deal_ref)
+
+    async def schedule_optout_check(self, unclear: Any, at: datetime) -> None:
+        self.calls.append(("optout_check", {"unclear": unclear, "at": at}))
+
+    async def schedule_quote_delivery_check(self, message_id: uuid.UUID, at: datetime) -> None:
+        self.calls.append(("quote_check", {"message_id": message_id, "at": at}))
+
+    async def cancel_optout_check(self, deal_ref: uuid.UUID) -> int:
+        self.calls.append(("cancel_optout_check", {"deal_ref": deal_ref}))
+        return 0
+
     async def schedule_pause_alert(self, paused: NegotiationPaused, at: datetime) -> None:
         self.calls.append(("pause", {"paused": paused, "at": at}))
 
@@ -123,8 +137,15 @@ class FakeWhatsApp:
         return self._ok("text", to_e164, body)
 
     async def send_template(
-        self, to_e164: str, name: str, language: str, params: tuple[str, ...] = ()
+        self,
+        to_e164: str,
+        name: str,
+        language: str,
+        params: tuple[str, ...] = (),
+        document: DocumentRef | None = None,
     ) -> str:
+        if document is not None:
+            return self._ok("template", to_e164, name, language, params, document)
         return self._ok("template", to_e164, name, language, params)
 
     async def send_document(self, to_e164: str, document: DocumentRef, caption: str | None = None) -> str:
@@ -146,6 +167,17 @@ class FakeEmail:
         body: str,
         attachment: Attachment | None = None,
         in_reply_to: str | None = None,
+        list_unsubscribe: str | None = None,
+        from_name: str | None = None,
     ) -> str:
-        self.sent.append({"to": to_address, "subject": subject, "body": body, "attachment": attachment})
+        self.sent.append(
+            {
+                "to": to_address,
+                "subject": subject,
+                "body": body,
+                "attachment": attachment,
+                "list_unsubscribe": list_unsubscribe,
+                "from_name": from_name,
+            }
+        )
         return f"ses-{len(self.sent)}"

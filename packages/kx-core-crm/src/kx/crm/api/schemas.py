@@ -28,6 +28,7 @@ class DealSummary(_Out):
     next_action_at: datetime | None
     owner_user_id: uuid.UUID | None
     taken_over_by: uuid.UUID | None = None
+    opted_out_at: datetime | None = None  # §8.1 step 8: the Opted out badge
     version: int
     updated_at: datetime
 
@@ -53,6 +54,11 @@ class ContactOut(_Out):
     preferred_channel: str | None
     language: str
     timezone: str
+    # §8.2: Verified | Likely | Reachable | Not reached (+ unknown before any signal), with its time
+    phone_status: str = "unknown"
+    phone_status_at: datetime | None = None
+    whatsapp_profile_name: str | None = None
+    company_id: uuid.UUID | None = None
 
 
 class DealDetail(DealSummary):
@@ -61,6 +67,45 @@ class DealDetail(DealSummary):
     missing_fields: list[str]
     lost_reason: str | None
     lost_note: str | None
+    ai_summary: str | None = None  # §7A.2: shown at the top of the deal page
+    ai_summary_at: datetime | None = None
+    personal_contact_shared_at: datetime | None = None  # §14 practical notes
+
+
+class StaffMessageIn(BaseModel):
+    """§14: the salesperson writes to the buyer from the CRM inbox (same channel, same company number)."""
+
+    text: str = Field(default="", max_length=4000)
+    client_key: str = Field(min_length=8, max_length=80)  # the screen's id for this message: one send per tap
+    channel: Literal["whatsapp", "email"] | None = None  # default: the buyer's channel on the contact record
+    reopen_template: bool = False  # WhatsApp after 24 h of silence: the approved re-open template instead
+
+
+class StaffMessageOut(BaseModel):
+    message_id: uuid.UUID  # automation outbound message; its delivery status arrives on the timeline
+
+
+class CallIn(BaseModel):
+    client_key: str = Field(min_length=8, max_length=80)
+
+
+class CallOut(BaseModel):
+    call_id: uuid.UUID  # the call log row; the salesperson's phone rings first, then the buyer
+
+
+class OptOutIn(BaseModel):
+    """§8.1 step 4: a salesperson records a stop the buyer asked for in a conversation the buyer started
+    (e.g. on a call). Add only: nobody removes a stop here (step 6)."""
+
+    scope: Literal["all", "whatsapp", "email", "phone"] = "all"
+    words: str = Field(min_length=1, max_length=2000, description="what the buyer said, as close as possible")
+    reason: str | None = Field(default=None, max_length=2000, description="only a reason the buyer gave")
+
+
+class ReopenIn(BaseModel):
+    """§7A.1 / D24: the manager reopens a LOST deal (back to the stage it was lost from)."""
+
+    reason: str = Field(min_length=1, max_length=500)
 
 
 class StageMoveIn(BaseModel):
@@ -72,6 +117,9 @@ class StageMoveIn(BaseModel):
 
 
 class AiToggleIn(BaseModel):
+    """Pause the AI (any reason) or resume it. A deal paused for `opt_out` cannot be resumed here: the AI
+    may never remove a stop (§8.1 step 6); only a fresh, logged consent from the buyer lifts it."""
+
     enabled: bool
     reason: Literal["human_takeover", "md_takeover", "opt_out", "exception"] = "human_takeover"
 
@@ -82,15 +130,16 @@ class ManagerOfferIn(BaseModel):
 
 
 class PaymentIn(BaseModel):
-    """§15.1: the advance the salesperson recorded (amount, currency, method, reference, date, proof)."""
+    """§15.1 / D20: the salesperson confirms the advance was received. Every detail is optional; an amount
+    needs its currency."""
 
-    amount: Decimal = Field(gt=0, max_digits=14, decimal_places=4)
-    currency: str = Field(min_length=3, max_length=3)
-    method: str = Field(min_length=1, max_length=100)
-    reference: str | None = None
+    amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=4)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    method: str | None = Field(default=None, min_length=1, max_length=100)
+    reference: str | None = Field(default=None, max_length=200)
     paid_on: date | None = None
-    note: str | None = None
-    proof_s3_key: str | None = None
+    note: str | None = Field(default=None, max_length=2000)
+    proof_s3_key: str | None = Field(default=None, max_length=500)
 
 
 class PaymentOut(_Out):
@@ -104,7 +153,7 @@ class PaymentOut(_Out):
 
 
 class WonIn(BaseModel):
-    expected_reorder_date: date  # D15: stored at WON for the v2 re-order follow-ups
+    expected_reorder_date: date | None = None  # D20: optional; when filled, v2 re-order follow-ups use it
 
 
 class OrderStatusIn(BaseModel):

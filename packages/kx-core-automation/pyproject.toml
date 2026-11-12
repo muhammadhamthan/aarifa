@@ -1,12 +1,11 @@
 [project]
 name = "kx-core-automation"
 version = "0.1.0"
-description = "Kairox automation: channels (WhatsApp, email, voice IVR), outbound gate, webhooks, jobs and timers, price scraping"
+description = "Kairox automation: channels (WhatsApp, email, Postmark, Telnyx, Twilio), opt-out, outbound gate, webhooks, job bodies, price scraping"
 requires-python = ">=3.14,<3.15"
 dependencies = [
     "cryptography==50.0.2",
     "kx-core-db",
-    "procrastinate==3.10.0",
     "psycopg[binary]==3.3.7",
     "psycopg-pool==3.3.3",
     "aioboto3==15.5.0",

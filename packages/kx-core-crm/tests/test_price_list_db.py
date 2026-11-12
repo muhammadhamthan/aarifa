@@ -1,4 +1,4 @@
-"""WP2 on real Postgres: v1 price-list quotes and negotiation (docs/BUSINESS_FLOW_V1.md §10-12, §23).
+"""WP2 on real Postgres: v1 price-list quotes and negotiation (the SRS §10-12, §23).
 
 Done when (V1_CHANGE_PLAN WP2): quotes are built from tiers with FX and VAT, the staleness block is skipped,
 and the negotiation state is no longer built from cost in price-list mode.

@@ -1,4 +1,4 @@
-"""The ten scenarios of docs/BUSINESS_FLOW_V1.md §23, end to end (real CRM + automation on Postgres, the real
+"""The ten scenarios of the SRS §23, end to end (real CRM + automation on Postgres, the real
 router and graphs with the fake model). Each checks the stage changes, who was alerted or notified (§17), which
 quote versions were approved and sent, and that no AI reply contained a price outside `allowed_prices` (the
 World's `ai()` asserts that on every reply).
@@ -446,7 +446,15 @@ async def test_scenario_9_the_buyer_goes_silent(world: World) -> None:
         "%a %d %H:%M"
     ) == "Sun 15 10:00"  # Saturday is a Saudi weekend
     assert (by["followup_d10"] + riyadh).strftime("%a %d %H:%M") == "Thu 19 10:00"
-    w.now = w.now + timedelta(days=25)  # still no reply 14 days after the last follow-up
+    # "sent" = the grant consumed, stamped by the database clock (the grant's security boundary), so
+    # advance from that moment rather than from the fixed test clock (otherwise the test expires).
+    [(sent_at,)] = await w.sql(
+        "SELECT max(g.consumed_at) FROM crm.quote_send_grants g "
+        "JOIN crm.quote_versions v ON v.id = g.quote_version_id "
+        "JOIN crm.quotes q ON q.id = v.quote_id WHERE q.deal_id = :d",
+        d=deal,
+    )
+    w.now = sent_at + timedelta(days=25)  # still no reply 14 days after the last follow-up
     async with w.dbs.transaction(CRM) as s:
         assert await lost_proposals.propose_lost(s, w.deps) >= 1
     assert ("lost_proposal", "open") in await w.sql(

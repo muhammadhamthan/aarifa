@@ -17,9 +17,9 @@ variable "tenants" {
 }
 
 variable "logical_databases" {
-  description = "Logical databases per tenant (T19: one server, four databases)."
+  description = "Logical databases per tenant (T19: one server; phoenix = the self-hosted Arize Phoenix trace store, 11 Nov)."
   type        = list(string)
-  default     = ["cms", "crm", "automation", "agents"]
+  default     = ["cms", "crm", "automation", "agents", "phoenix"]
 }
 
 variable "engine_version" {
@@ -71,7 +71,7 @@ variable "performance_insights_retention_days" {
 }
 
 variable "database_insights_mode" {
-  description = "CloudWatch Database Insights mode: standard (free, includes Performance Insights) or advanced."
+  description = "CloudWatch Database Insights mode: standard (free) or advanced (prod, Recommendation: ~US$18/month; forces 465-day PI retention)."
   type        = string
   default     = "standard"
 }

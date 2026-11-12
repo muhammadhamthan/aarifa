@@ -1,4 +1,4 @@
-"""WP6: what the PDF prints and what the message says (docs/BUSINESS_FLOW_V1.md §10, §11.2, §11.4, §13.3; D9-D11).
+"""WP6: what the PDF prints and what the message says (the SRS §10, §11.2, §11.4, §13.3; D9-D11).
 
 Done when: the PDF renders the new fields, and the guard still passes on the generated message.
 """

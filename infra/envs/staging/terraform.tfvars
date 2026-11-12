@@ -8,14 +8,14 @@ route53_zone_id = null
 companies = {
   pack = {
     db_prefix   = "pack_"
-    valkey_db   = 0
+    redis_db    = 0
     crm_urls    = ["https://pack-crm-staging.vercel.app"] # REPLACE
     ses_domain  = "pack.staging.kairox.ai"
     cost_center = "arifaa-pack"
   }
   auto = {
     db_prefix   = "auto_"
-    valkey_db   = 1
+    redis_db    = 1
     crm_urls    = ["https://auto-crm-staging.vercel.app"] # REPLACE
     ses_domain  = "auto.staging.kairox.ai"
     cost_center = "arifaa-auto"

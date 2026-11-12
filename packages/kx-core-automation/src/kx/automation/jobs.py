@@ -1,55 +1,61 @@
-"""procrastinate tasks for automation, as a Blueprint the app adds under the `automation` namespace.
+"""Automation background work over the PostgreSQL schedule table (11 Nov, D25: Celery replaces procrastinate).
 
-    jobs = build_jobs()
-    app.add_tasks_from(jobs.blueprint, namespace="automation")
-    scheduler = ProcrastinateScheduler(app, jobs)
-    ... build services with `scheduler`, then AutomationRuntime(...)
-    await app.run_worker_async(additional_context={RUNTIME_KEY: runtime})
+    store = JobStore(databases, kicker=<the app's Celery kicker>)
+    scheduler = JobScheduler(store)              # the TaskScheduler every service is built with
+    ... build services, then AutomationRuntime(...)
+    register_jobs(runner, runtime)               # task bodies for `kx.run_job`
+    PERIODIC                                     # what Beat runs, by name (the app maps names to Celery)
 
-Tasks hold no state; they read the `AutomationRuntime` from the job context, so the same
-blueprint works in the API (deferring) and the worker (running).
+Tasks hold no state; each body reads the `AutomationRuntime` it was registered with, so the API (which only
+enqueues) and the worker (which runs) share one wiring.
 
-Ordering: delivery jobs to one thread share the procrastinate `lock` "thread:<id>" (run one at a
-time, in creation order, retries keep their place). `queueing_lock` is used only for de-duplication
-(one pending job per message / approval / deal). Scheduled follow-ups get no thread lock: a job
-waiting until tomorrow 09:00 would otherwise hold back today's replies on the same thread.
+Ordering: delivery jobs to one thread share the lock key "thread:<id>" (one at a time, in creation order;
+retries keep their place). `dedup_key` de-duplicates (one pending job per message / approval / deal).
+Scheduled follow-ups get no thread lock: a job waiting until tomorrow 09:00 would otherwise hold back
+today's replies on the same thread.
 """
 
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Final, Protocol
 
-from procrastinate import App, Blueprint, JobContext, RetryStrategy
-from procrastinate.exceptions import AlreadyEnqueued
-from procrastinate.tasks import Task
 from sqlalchemy import select
 
 from kx.automation import inbound
 from kx.automation.alerts import ApprovalLadder, LadderTicket, PauseAlerts
 from kx.automation.channels.email import parse_inbound
-from kx.automation.handlers import EventHandlers, FollowUps
+from kx.automation.handlers import EventHandlers, FollowUps, stop_after_no_answer
 from kx.automation.models import SCHEMA, OutboundMessage
 from kx.automation.outbound import OutboundService, TransientDeliveryError
 from kx.automation.ports import MediaStore, SweepCallback
 from kx.automation.scraping import PriceScraper
 from kx.automation.settings import AutomationSettings
 from kx.core.db import Databases
-from kx.core.event_payloads import DealNextActionSet, NegotiationPaused
+from kx.core.event_payloads import DealNextActionSet, NegotiationPaused, StopUnclear
 from kx.core.events import Event, Publisher, relay_once
 from kx.core.identity import sha256_hex
+from kx.core.jobs import Job, JobRunner, JobSpec, JobStore
 from kx.core.logging import get_logger
 from kx.core.settings import LogicalDb
 
 log = get_logger(__name__)
 
-RUNTIME_KEY: Final = "kx.automation"
-DELIVERY_RETRY: Final = RetryStrategy(
-    max_attempts=6, exponential_wait=4, retry_exceptions={TransientDeliveryError}
-)
-DEFAULT_RETRY: Final = RetryStrategy(max_attempts=5, exponential_wait=6)
+# task names (stable: they are stored in automation.scheduled_jobs)
+DELIVER: Final = "automation.deliver_outbound"
+LADDER: Final = "automation.run_approval_ladder"
+FOLLOWUP: Final = "automation.send_followup"
+PAUSE_ALERT: Final = "automation.alert_negotiation_paused"
+MEDIA: Final = "automation.ingest_whatsapp_media"
+EMAIL: Final = "automation.ingest_inbound_email"
+EVENT: Final = "automation.handle_event"
+OPTOUT_CHECK: Final = "automation.optout_no_answer"  # §8.1 step 6: the 24-hour timer
+QUOTE_CHECK: Final = "automation.quote_delivery_check"  # D32: WhatsApp quote delivered in 10 min?
+
+DELIVERY_ATTEMPTS: Final = 6
 RELAY_BATCH: Final = 100
 RELAY_MAX_ROUNDS: Final = 20
 _MEDIA_EXT: Final = {
@@ -81,99 +87,95 @@ class AutomationRuntime:
     scraper: PriceScraper
     whatsapp_media: MediaDownloader
     media: MediaStore  # platform bucket (quote PDFs, inbound media)
-    inbound_mail: MediaStore  # SES Mail Manager bucket (raw MIME)
+    inbound_mail: MediaStore  # raw inbound MIME (SES Mail Manager bucket; Postmark posts JSON instead)
     publish: Publisher  # where relayed automation events go (app bus -> other packages)
     approval_sweep: SweepCallback | None = None
+    scraping_enabled: Callable[[], Awaitable[bool]] | None = None  # CRM `features.scraping` (D14)
 
 
-def runtime_of(context: JobContext) -> AutomationRuntime:
-    runtime = context.additional_context.get(RUNTIME_KEY)
-    if not isinstance(runtime, AutomationRuntime):
-        raise TypeError(f"worker started without additional_context[{RUNTIME_KEY!r}]")
-    return runtime
+def register_jobs(runner: JobRunner, rt: AutomationRuntime) -> None:
+    """The automation task set for `kx.run_job` (procrastinate's retries kept: delivery 6 attempts on a
+    transient provider error only, everything else 5 attempts on any error)."""
 
-
-@dataclass(frozen=True, slots=True)
-class AutomationJobs:
-    blueprint: Blueprint
-    deliver: Task[Any, Any, Any]
-    ladder_step: Task[Any, Any, Any]
-    followup: Task[Any, Any, Any]
-    pause_alert: Task[Any, Any, Any]
-    media_ingest: Task[Any, Any, Any]
-    email_ingest: Task[Any, Any, Any]
-    handle_event: Task[Any, Any, Any]
-
-
-def build_jobs(*, scraping: bool = False) -> AutomationJobs:
-    """The automation task set. `scraping` is the CRM setting `features.scraping` (off in v1, D14)."""
-    bp = Blueprint()
-
-    @bp.task(name="deliver_outbound", pass_context=True, retry=DELIVERY_RETRY, queue="outbound")
-    async def deliver_outbound(context: JobContext, message_id: str, template_params: list[str]) -> None:
-        final = context.job.attempts >= (DELIVERY_RETRY.max_attempts or 0)
-        await runtime_of(context).outbound.deliver(
-            uuid.UUID(message_id), tuple(template_params), final_attempt=final
+    async def deliver(job: Job) -> None:
+        await rt.outbound.deliver(
+            uuid.UUID(job.args["message_id"]),
+            tuple(job.args.get("template_params") or ()),
+            final_attempt=job.final_attempt,
         )
 
-    @bp.task(name="run_approval_ladder", pass_context=True, retry=DEFAULT_RETRY, queue="alerts")
-    async def run_approval_ladder(context: JobContext, ticket: dict[str, Any], step: int) -> None:
-        await runtime_of(context).ladder.step(LadderTicket.model_validate(ticket), step)
+    async def ladder(job: Job) -> None:
+        await rt.ladder.step(LadderTicket.model_validate(job.args["ticket"]), int(job.args["step"]))
 
-    @bp.task(name="send_followup", pass_context=True, retry=DEFAULT_RETRY, queue="outbound")
-    async def send_followup(context: JobContext, action: dict[str, Any]) -> None:
-        await runtime_of(context).followups.send(DealNextActionSet.model_validate(action))
+    async def followup(job: Job) -> None:
+        await rt.followups.send(DealNextActionSet.model_validate(job.args["action"]))
 
-    @bp.task(name="alert_negotiation_paused", pass_context=True, retry=DEFAULT_RETRY, queue="alerts")
-    async def alert_negotiation_paused(context: JobContext, paused: dict[str, Any]) -> None:
-        await runtime_of(context).pause_alerts.alert(NegotiationPaused.model_validate(paused))
+    async def pause_alert(job: Job) -> None:
+        await rt.pause_alerts.alert(NegotiationPaused.model_validate(job.args["paused"]))
 
-    @bp.task(name="ingest_whatsapp_media", pass_context=True, retry=DEFAULT_RETRY, queue="inbound")
-    async def ingest_whatsapp_media(context: JobContext, inbound_id: str) -> None:
-        await _ingest_media(runtime_of(context), uuid.UUID(inbound_id))
+    async def media(job: Job) -> None:
+        await _ingest_media(rt, uuid.UUID(job.args["inbound_id"]))
 
-    @bp.task(name="ingest_inbound_email", pass_context=True, retry=DEFAULT_RETRY, queue="inbound")
-    async def ingest_inbound_email(context: JobContext, key: str) -> None:
-        await _ingest_email(runtime_of(context), key)
+    async def email(job: Job) -> None:
+        await _ingest_email(rt, job.args["key"])
 
-    @bp.task(name="handle_event", pass_context=True, retry=DEFAULT_RETRY, queue="events")
-    async def handle_event(context: JobContext, event: dict[str, Any]) -> None:
-        await runtime_of(context).handlers.dispatch(Event.model_validate(event))
+    async def event(job: Job) -> None:
+        await rt.handlers.dispatch(Event.model_validate(job.args["event"]))
 
-    @bp.periodic(cron="* * * * * */5")  # 6th field = seconds: chat replies must not wait a minute
-    @bp.task(name="relay_outbox", pass_context=True, queue="events", queueing_lock="relay_outbox")
-    async def relay_outbox(context: JobContext, timestamp: int) -> None:
-        await relay_all(runtime_of(context))
+    async def optout_check(job: Job) -> None:
+        async with rt.databases.transaction(LogicalDb.AUTOMATION) as s:
+            unclear = StopUnclear.model_validate(job.args["unclear"])
+            await stop_after_no_answer(s, unclear, rt.handlers.clock())
 
-    @bp.periodic(cron="*/5 * * * *")
-    @bp.task(name="approval_sweep", pass_context=True, queue="alerts")
-    async def approval_sweep(context: JobContext, timestamp: int) -> None:
-        """Backstop for the event-driven ladder; the CRM-side callback decides what is overdue."""
-        if (sweep := runtime_of(context).approval_sweep) is not None:
-            await sweep(datetime.fromtimestamp(timestamp, UTC))
+    async def quote_check(job: Job) -> None:
+        await rt.outbound.check_quote_delivery(uuid.UUID(job.args["message_id"]))
 
-    @bp.task(name="run_price_scrapes", pass_context=True, queue="scrape")
-    async def run_price_scrapes(context: JobContext, timestamp: int) -> None:
-        log.info("scrape.done", results=await runtime_of(context).scraper.run_all())
-
-    if scraping:  # v2 (D14): raw-material price scraping; v1 keeps the code but never schedules it
-        bp.periodic(cron="0 2 * * *")(run_price_scrapes)  # 06:00 Dubai, before the manager's day starts
-
-    @bp.periodic(cron="*/5 * * * *")
-    @bp.task(name="requeue_outbound", pass_context=True, queue="outbound")
-    async def requeue_outbound(context: JobContext, timestamp: int) -> None:
-        await requeue_lost(runtime_of(context), datetime.fromtimestamp(timestamp, UTC))
-
-    return AutomationJobs(
-        blueprint=bp,
-        deliver=deliver_outbound,
-        ladder_step=run_approval_ladder,
-        followup=send_followup,
-        pause_alert=alert_negotiation_paused,
-        media_ingest=ingest_whatsapp_media,
-        email_ingest=ingest_inbound_email,
-        handle_event=handle_event,
+    runner.register(
+        DELIVER,
+        JobSpec(
+            deliver, max_attempts=DELIVERY_ATTEMPTS, backoff_seconds=4, retry_on=(TransientDeliveryError,)
+        ),
     )
+    for name, fn in (
+        (LADDER, ladder),
+        (FOLLOWUP, followup),
+        (PAUSE_ALERT, pause_alert),
+        (MEDIA, media),
+        (EMAIL, email),
+        (EVENT, event),
+        (OPTOUT_CHECK, optout_check),
+        (QUOTE_CHECK, quote_check),
+    ):
+        runner.register(name, JobSpec(fn))
+
+
+Periodic = Callable[[datetime], Awaitable[Any]]
+
+
+def periodic_jobs(rt: AutomationRuntime) -> dict[str, Periodic]:
+    """Beat entries by name (schedules live in the app: `arifaa_pack.schedule`)."""
+
+    async def relay(_: datetime) -> int:
+        return await relay_all(rt)
+
+    async def requeue(now: datetime) -> int:
+        return await requeue_lost(rt, now)
+
+    async def scrapes(_: datetime) -> Any:
+        """v2 (D14): raw-material price scraping. v1 keeps the code but `features.scraping` is off, so
+        the job returns without fetching anything."""
+        if rt.scraping_enabled is None or not await rt.scraping_enabled():
+            log.info("scrape.skipped", reason="features.scraping off")
+            return None
+        results = await rt.scraper.run_all()
+        log.info("scrape.done", results=results)
+        return results
+
+    return {
+        "relay.automation": relay,
+        "automation.requeue_outbound": requeue,
+        "automation.price_scrapes": scrapes,
+    }
 
 
 # ---------------------------------------------------------------- task bodies (plain functions: testable)
@@ -190,8 +192,8 @@ async def relay_all(rt: AutomationRuntime) -> int:
 
 async def requeue_lost(rt: AutomationRuntime, now: datetime) -> int:
     """`send()` commits the row, then enqueues; a crash in between leaves a queued row with no job.
-    Re-enqueue those (the queueing lock makes it a no-op when a job exists). Template messages are
-    skipped: their parameters live only in the job (DDL gap, see report) and are logged instead."""
+    Re-enqueue those (the de-duplication key makes it a no-op when a job exists). Template messages are
+    skipped: their parameters live only in the job and are logged instead."""
     async with rt.databases.transaction(LogicalDb.AUTOMATION) as s:
         rows = (
             await s.execute(
@@ -239,13 +241,12 @@ async def _ingest_email(rt: AutomationRuntime, key: str) -> None:
         await inbound.record_email(s, mail, s3_key=key, attachment_keys=tuple(keys))
 
 
-# ---------------------------------------------------------------- TaskScheduler over procrastinate
-class ProcrastinateScheduler:
-    """`kx.automation.ports.TaskScheduler` implementation. Needs the opened App (API and worker)."""
+# ---------------------------------------------------------------- TaskScheduler over the schedule table
+class JobScheduler:
+    """`kx.automation.ports.TaskScheduler` over `kx.core.jobs.JobStore` (API and worker alike)."""
 
-    def __init__(self, app: App, jobs: AutomationJobs) -> None:
-        self._app = app
-        self._jobs = jobs
+    def __init__(self, store: JobStore) -> None:
+        self.store = store
 
     async def enqueue_delivery(
         self,
@@ -255,79 +256,67 @@ class ProcrastinateScheduler:
         at: datetime | None,
         template_params: tuple[str, ...] = (),
     ) -> None:
-        await _defer(
-            self._jobs.deliver,
-            f"deliver:{message_id}",
-            at,
-            lock=lock,
-            message_id=str(message_id),
-            template_params=list(template_params),
+        await self.store.enqueue(
+            DELIVER,
+            {"message_id": str(message_id), "template_params": list(template_params)},
+            dedup_key=f"deliver:{message_id}",
+            lock_key=lock,
+            run_at=at,
+            max_attempts=DELIVERY_ATTEMPTS,
         )
 
     async def schedule_ladder_step(self, ticket: LadderTicket, step: int, at: datetime) -> None:
-        await _defer(
-            self._jobs.ladder_step,
-            f"ladder:{ticket.ref}",
-            at,
-            ticket=ticket.model_dump(mode="json"),
-            step=step,
+        await self.store.enqueue(
+            LADDER,
+            {"ticket": ticket.model_dump(mode="json"), "step": step},
+            dedup_key=f"ladder:{ticket.ref}",
+            run_at=at,
         )
 
     async def pull_ladder_forward(self, ref: uuid.UUID) -> None:
         """Approver pressed 2: run the waiting ladder step now (it escalates to the manager)."""
-        await self._replace(self._jobs.ladder_step, f"ladder:{ref}", None, keep_kwargs=True)
+        await self.store.pull_forward(f"ladder:{ref}")
 
     async def schedule_followup(self, action: DealNextActionSet, at: datetime) -> None:
         """The deal's newest next action replaces a still-pending one (CRM keeps one per deal)."""
-        await self._replace(
-            self._jobs.followup, f"followup:{action.deal_ref}", at, action=action.model_dump(mode="json")
+        await self.store.replace(
+            FOLLOWUP,
+            {"action": action.model_dump(mode="json")},
+            dedup_key=f"followup:{action.deal_ref}",
+            run_at=at,
         )
 
+    async def cancel_followups(self, deal_ref: uuid.UUID) -> int:
+        """§8.1 step 2: an opt-out cancels the buyer's queued follow-ups at once."""
+        return await self.store.cancel(dedup_key=f"followup:{deal_ref}")
+
     async def schedule_pause_alert(self, paused: NegotiationPaused, at: datetime) -> None:
-        await _defer(
-            self._jobs.pause_alert,
-            f"paused:{paused.deal_ref}:{paused.respond_by:%Y%m%d%H%M}",
-            at,
-            paused=paused.model_dump(mode="json"),
+        await self.store.enqueue(
+            PAUSE_ALERT,
+            {"paused": paused.model_dump(mode="json")},
+            dedup_key=f"paused:{paused.deal_ref}:{paused.respond_by:%Y%m%d%H%M}",
+            run_at=at,
         )
 
     async def enqueue_media_ingest(self, inbound_id: uuid.UUID) -> None:
-        await _defer(self._jobs.media_ingest, f"media:{inbound_id}", None, inbound_id=str(inbound_id))
+        await self.store.enqueue(MEDIA, {"inbound_id": str(inbound_id)}, dedup_key=f"media:{inbound_id}")
 
     async def enqueue_email_ingest(self, key: str) -> None:
-        await _defer(self._jobs.email_ingest, f"email:{sha256_hex(key.encode())}", None, key=key)
+        await self.store.enqueue(EMAIL, {"key": key}, dedup_key=f"email:{sha256_hex(key.encode())}")
 
-    async def _replace(
-        self,
-        task: Task[Any, Any, Any],
-        queueing_lock: str,
-        at: datetime | None,
-        *,
-        keep_kwargs: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        manager = self._app.job_manager
-        for job in await manager.list_jobs_async(queueing_lock=queueing_lock, status="todo"):
-            if (
-                job.id is not None
-                and await manager.cancel_job_by_id_async(job.id, delete_job=True)
-                and keep_kwargs
-            ):
-                kwargs = dict(job.task_kwargs)
-        if keep_kwargs and not kwargs:
-            return
-        await _defer(task, queueing_lock, at, **kwargs)
+    async def schedule_optout_check(self, unclear: StopUnclear, at: datetime) -> None:
+        """§8.1 step 6: the "should we stop messaging you?" timer (any buyer message answers it)."""
+        await self.store.replace(
+            OPTOUT_CHECK,
+            {"unclear": unclear.model_dump(mode="json")},
+            dedup_key=f"optout-q:{unclear.deal_ref}",
+            run_at=at,
+        )
 
+    async def schedule_quote_delivery_check(self, message_id: uuid.UUID, at: datetime) -> None:
+        await self.store.enqueue(
+            QUOTE_CHECK, {"message_id": str(message_id)}, dedup_key=f"quote-check:{message_id}", run_at=at
+        )
 
-async def _defer(
-    task: Task[Any, Any, Any],
-    queueing_lock: str,
-    at: datetime | None,
-    *,
-    lock: str | None = None,
-    **kwargs: Any,
-) -> None:
-    try:
-        await task.configure(queueing_lock=queueing_lock, lock=lock, schedule_at=at).defer_async(**kwargs)
-    except AlreadyEnqueued:
-        log.debug("job.already_enqueued", queueing_lock=queueing_lock)
+    async def cancel_optout_check(self, deal_ref: uuid.UUID) -> int:
+        return await self.store.cancel(dedup_key=f"optout-q:{deal_ref}")

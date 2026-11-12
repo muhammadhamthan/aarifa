@@ -1,10 +1,43 @@
 # Arifaa Pack + Arifaa Auto — full handoff context (paste into the next session)
 
-Last updated: Thu 5 Nov 2026. Owner: Hamthan (Team Lead / CTO, Kairox AI Tech, India). Client: Arifa Group (CLIENT-4), UAE.
-This file replaces earlier context notes. Where it conflicts with older documents, this file wins.
+Last updated: Wed 11 Nov 2026. Owner: Hamthan (Team Lead / CTO, Kairox AI Tech, India). Client: Arifa Group (CLIENT-4), UAE.
+This file replaces earlier context notes. Where it conflicts with older documents, this file wins — **except the two
+read-only masters, which win over everything:** the SRS (`docs/Arifaa Pack — Detailed Business Flow v1 (SRS basis) (2).md`)
+and the platform docs (`docs/Arifaa Platform — Platforms, Pricing & Fallbacks/`).
 
 ---------------------------------------------------------------------------------------------------------
-## ⚠ 5 Nov changes. These OVERRIDE sections 5 and 6a below; the code still follows the old rules.
+## ⚠ 11 Nov changes. These OVERRIDE sections 2, 6b, 7 and 8 below.
+- **SRS updated** (same § numbers, new sections): §7 SEO/AEO/GEO in the CMS and the CMS→CRM product mirror by code;
+  §7A the CRM flow per stage and role (AI summary on the deal page, manager reopens LOST, team board, kill switch);
+  §8.1 the final STOP flow (stop everywhere, one plain confirmation, reasons only when volunteered, `optout.ask_reason`
+  off, channel-specific stops, AI adds but never removes a stop); §8.2 silent phone confirmation (Verified / Likely /
+  Reachable / Not reached, no OTP, quotes only to Reachable or better); §11.1 the backend builds the quote, the AI never
+  types a price; §14 the salesperson continues on the same company number from the CRM inbox, click-to-call;
+  §15 payment details and the re-order date optional, WON/LOST mandatory; §16 call-vs-text table; §19 international
+  channels (v1.5 SMS fallback, v2 WeChat/LINE/Telegram/Viber).
+- **Platform (Hamthan, 11 Nov; Recommendation + Fallback plan):**
+  - jobs: **Celery 5.7 + Celery Beat** (Redis broker, exactly one Beat, long waits in a PostgreSQL schedule table swept
+    every 30 s, idempotent tasks with `acks_late`) — replaces procrastinate;
+  - staff login: **in-house** (Argon2, RS256 tokens, TOTP first, email code fallback, lockout, break-glass alerted) —
+    replaces Cognito;
+  - monitoring: **Better Stack** (uptime, status page, errors via the Sentry SDK, logs, on-call); **Phoenix** in the UAE
+    for AI traces (replaces Langfuse);
+  - AI: **Claude API direct** (Sonnet 5.5 money turns, Haiku 5.5 the rest); Bedrock dropped; Gemini backups only after
+    the suite passes and Arifa agrees; last resort = safe reply + hand-over;
+  - embeddings: **Qwen3-Embedding-0.6B** in a UAE container (1,024 dims, no migration), full-text fallback;
+  - cache/broker: **ElastiCache Redis OSS**, `noeviction`; calls **Twilio** (Telnyx planned, OPEN #55); email **SES → Postmark**
+    (Postmark also takes buyer replies) → Gmail API; voice **Deepgram / ElevenLabs** with Soniox / Google Chirp backups;
+    PDFs **headless Chromium → WeasyPrint**; FX **CBUAE** daily + manager override;
+  - every field: primary → backup → last resort, circuit breaker, vendor order in Parameter Store, on-call alert;
+    spend caps per company per day; kill-switch ladder.
+  - Cost: about **US$903 / 1,775 / 3,936 a month** per company at Light / Normal / Heavy (Recommendation).
+- **Code impact:** work list WP13–WP29 in `docs/V1_CHANGE_PLAN.md` (decisions D17–D40); open decisions #40–#60 in
+  `docs/OPEN_QUESTIONS.md`; progress in `docs/V1_PROGRESS.md`.
+- **Frontend hand-offs** (from the code's OpenAPI): `docs/frontend/CRM_API.md`, `docs/frontend/CMS.md`,
+  `docs/frontend/WEBSITE_API.md`.
+
+---------------------------------------------------------------------------------------------------------
+## 5 Nov changes (built 6 Nov, WP1–WP12). These override sections 5 and 6a below.
 - **Approvals:**
   - The **assigned salesperson** approves both the 1st quote and the final quote.
   - The MD is not in the approval path; the MD can take over any deal.
@@ -30,7 +63,7 @@ This file replaces earlier context notes. Where it conflicts with older document
   - New: change request record, deal assignment, salesperson inbox.
   - Scraper and delivery estimate are switched off by flag.
 - **Docs:**
-  - **DETAILED business flow v1 (SRS basis, the master doc):** https://claude.ai/artifact/MbcE3qg4MEGYvcKFybcix5
+  - **DETAILED business flow v1 (SRS basis, the master doc):** https://claude.ai/artifact/MbcE3qg4MEGYvcKFybcix5 — in the repo as `docs/Arifaa Pack — Detailed Business Flow v1 (SRS basis) (2).md` (read-only)
   - Hamthan's 5 Nov answers built into it:
     - no second approval check, but the manager is notified when the buyer pushes below the minimum;
     - there is no "sales manager" role, only a manager;
@@ -125,7 +158,7 @@ Suggested review order (about 1 day per reviewer): CONTRACTS.md → contracts.py
 
 ## 5. Business flow (5 Nov, current)
 
-The full detail, with 26 sections and 10 worked scenarios, is in **`docs/BUSINESS_FLOW_V1.md`**, exported from the Claude Doc https://claude.ai/artifact/MbcE3qg4MEGYvcKFybcix5, which also has 3 diagrams.
+The full detail, with 27 sections (incl. §7A) and 10 worked scenarios, is in **the SRS** (`docs/Arifaa Pack — Detailed Business Flow v1 (SRS basis) (2).md`), exported from the Claude Doc https://claude.ai/artifact/MbcE3qg4MEGYvcKFybcix5, which also has the diagrams.
 
 **In short:**
 1. Enquiry on web voice/chat, WhatsApp or email.
@@ -153,7 +186,11 @@ The full detail, with 26 sections and 10 worked scenarios, is in **`docs/BUSINES
   - a special price needs the manager.
 - **v2:** the cost build-up engine (§6a of the 4 Nov version, still in `kx.crm.pricing.engine`) with daily raw-material feeds sets the ranges automatically.
 
-### 6b. Running cost per company per month (estimates; check the AWS Pricing Calculator before quoting)
+### 6b. Running cost per company per month (4 Nov estimates — superseded)
+
+> **11 Nov:** use the Recommendation in the platform docs instead: about US$903 / 1,775 / 3,936 a month per company at
+> Light / Normal / Heavy, every vendor and AWS included, VAT excluded, from official price pages. The table below is
+> the 4 Nov AWS-only estimate, kept for history.
 | Item | Staging (both companies) | Each prod (pack / auto) |
 |---|---|---|
 | RDS PostgreSQL 18 | t4g.medium single-AZ ≈ $60 | m6g.large Multi-AZ 100 GB ≈ $280 |
@@ -176,6 +213,11 @@ The full detail, with 26 sections and 10 worked scenarios, is in **`docs/BUSINES
 - Self-host LiveKit later if it's cheaper.
 
 ## 7. Architecture (winner A: modular monolith, plus adopted grafts)
+
+> **11 Nov:** the jobs (procrastinate → Celery + Beat), login (Cognito → in-house), tracing (Langfuse → Phoenix),
+> errors (Sentry → Better Stack), AI route (Bedrock → Claude API direct), embeddings (Titan → Qwen3), cache (Valkey →
+> Redis OSS) and voice vendors below are replaced as listed at the top of this file. Package boundaries, the event
+> outbox, the send grant and the deterministic router are unchanged.
 - **Repos:**
   - Backend: `kairox-platform`, a uv workspace with 4 packages and one app per client.
   - Frontend: separate repo, Next.js 16 + React 19 + Payload 3.92.

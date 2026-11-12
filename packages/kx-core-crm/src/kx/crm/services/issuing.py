@@ -11,14 +11,14 @@ pointing at a PDF that does not exist.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Literal
+from typing import Final, Literal, cast
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kx.core import events as ev
-from kx.core.event_payloads import QuoteApproved
+from kx.core.event_payloads import QuoteApproved, QuoteNotDelivered, QuoteResendRequested
 from kx.core.identity import priced_content_sha256, sha256_hex
 from kx.crm.deps import CrmDeps
 from kx.crm.models import (
@@ -36,10 +36,12 @@ from kx.crm.models import (
 )
 from kx.crm.pdf import DocLine, QuoteDocument, SalesContact, pdf_key, quote_message
 from kx.crm.services import deals as deal_svc
-from kx.crm.services import staff
-from kx.crm.services.grants import GrantPolicy, issue_grant
+from kx.crm.services import phone, staff
+from kx.crm.services.grants import GrantPolicy, SendChannel, issue_grant, recipient
 from kx.crm.services.journal import Actor, Emit, Timeline, record
 from kx.crm.services.settings import BusinessSettings
+
+_ISSUED: Final = ("approved", "sent")  # = quotes.ISSUED (quotes imports this module)
 
 
 def local_today(now: datetime, s: BusinessSettings) -> date:
@@ -105,7 +107,32 @@ async def build_document(
     )
 
 
-async def _buyer_country(session: AsyncSession, deal: Deal) -> str | None:
+async def _unconfirmed_number_route(
+    session: AsyncSession, deal: Deal, contact: Contact
+) -> SendChannel | None:
+    """§8.2 step 6: "Quotes go only to numbers that are Reachable or better. For Not reached, the
+    salesperson decides." A WhatsApp number not yet confirmed: the quote goes by email when we have one;
+    otherwise to WhatsApp as the approving salesperson decided (the approval screen shows the status), with a
+    task to check the number (OPEN_QUESTIONS #46)."""
+    preferred, _ = recipient(contact)
+    if preferred != "whatsapp" or phone.reachable(contact):
+        return None
+    if contact.email:
+        await deal_svc.add_note(
+            session,
+            deal,
+            "phone",
+            "WhatsApp number not confirmed yet: this quote goes by email (§8.2)",
+            Actor.system("phone_status"),
+        )
+        return "email"
+    await phone.tell_salesperson(
+        session, deal, "the WhatsApp number is not confirmed; the quote was sent there"
+    )
+    return None
+
+
+async def buyer_country(session: AsyncSession, deal: Deal) -> str | None:
     """§8: the delivery country picks the regional WhatsApp number."""
     return await session.scalar(
         select(DealRequirement.delivery_country)
@@ -158,8 +185,8 @@ async def issue_to_buyer(
         contact=contact,
         sha=sha,
         s=s,
-        now=now,
         actor=actor,
+        channel_override=await _unconfirmed_number_route(session, deal, contact),
     )
     await record(
         session,
@@ -195,7 +222,7 @@ async def issue_to_buyer(
                 subject=subject,
                 content_sha256=sha,
                 buyer_timezone=contact.timezone,
-                buyer_country=await _buyer_country(session, deal),
+                buyer_country=await buyer_country(session, deal),
                 language=contact.language,
                 salesperson=salesperson,
                 manager=manager,
@@ -203,3 +230,71 @@ async def issue_to_buyer(
         ),
     )
     return grant
+
+
+async def resend_by_email(session: AsyncSession, deps: CrmDeps, p: QuoteNotDelivered) -> bool:
+    """D32 "A WhatsApp quote not delivered in 10 minutes goes by email with the same approved quote (its own
+    single-use grant for the email channel) -> the salesperson is told to call". The grant binds the exact
+    content hash automation reported; the email address comes from the contact record. True when re-sent."""
+    old = await session.get(QuoteSendGrant, p.grant_ref)
+    if old is None or old.revoked_at is not None or p.deal_ref is None:
+        return False
+    version = await session.get(QuoteVersion, old.quote_version_id)
+    deal = await session.get(Deal, p.deal_ref)
+    if version is None or deal is None or version.status not in _ISSUED:
+        return False  # superseded meanwhile: the newer version is what the buyer should get
+    contact = await deal_svc.contact_of(session, deal)
+    if not contact.email:
+        await phone.tell_salesperson(
+            session, deal, "the WhatsApp quote was not delivered and there is no email"
+        )
+        return False
+    s = await deps.settings.get(session)
+    actor = Actor.system("quote_delivery")
+    grant, _, address = await issue_grant(
+        session,
+        version=version,
+        approval_id=old.approval_id,
+        policy=cast("GrantPolicy", old.policy),
+        contact=contact,
+        sha=p.content_sha256,
+        s=s,
+        actor=actor,
+        channel_override="email",
+    )
+    await record(
+        session,
+        actor,
+        "quote.resent_by_email",
+        "quote_version",
+        version.id,
+        after={"grant_id": grant.id, "undelivered_message": p.message_ref},
+        timeline=Timeline(
+            "quote_resent",
+            "The WhatsApp quote was not delivered in time; the same quote was sent by email",
+            deal.id,
+            contact.id,
+            ref_type="quote_version",
+            ref_id=str(version.id),
+        ),
+        emit=Emit(
+            ev.QUOTE_RESEND_REQUESTED,
+            "quote_version",
+            version.id,
+            QuoteResendRequested(
+                grant_ref=grant.id,
+                deal_ref=deal.id,
+                contact_ref=contact.id,
+                kind=p.kind,
+                channel="email",
+                to_address=address,
+                body=p.body,
+                subject=p.subject,
+                pdf_s3_key=p.pdf_s3_key,
+                content_sha256=p.content_sha256,
+                buyer_timezone=contact.timezone,
+                language=contact.language,
+            ),
+        ),
+    )
+    return True

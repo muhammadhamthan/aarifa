@@ -8,6 +8,7 @@ app installs) and write nothing.
 
 from __future__ import annotations
 
+import base64
 import uuid
 from dataclasses import dataclass
 from urllib.parse import parse_qsl
@@ -20,12 +21,14 @@ from kx.automation import inbound
 from kx.automation.alerts import VoiceAlerts
 from kx.automation.channels import voice_ivr, whatsapp
 from kx.automation.channels.email import parse_ses_event, s3_objects
+from kx.automation.channels.postmark import parse_inbound as parse_postmark
 from kx.automation.channels.sns import SnsEnvelope, SnsVerifier
-from kx.automation.ports import TaskScheduler
+from kx.automation.ports import MediaStore, TaskScheduler
 from kx.automation.repo import first_receipt
 from kx.automation.settings import AutomationSettings
 from kx.core.db import Databases
 from kx.core.errors import Unauthorized
+from kx.core.identity import constant_time_equals, sha256_hex
 from kx.core.logging import get_logger
 from kx.core.settings import LogicalDb
 
@@ -40,6 +43,7 @@ class WebhookDeps:
     scheduler: TaskScheduler
     voice: VoiceAlerts
     sns: SnsVerifier
+    media: MediaStore | None = None  # Postmark inbound attachments arrive inline (D33)
 
 
 def build_router(deps: WebhookDeps) -> APIRouter:
@@ -47,6 +51,7 @@ def build_router(deps: WebhookDeps) -> APIRouter:
     _whatsapp_routes(router, deps)
     _twilio_routes(router, deps)
     _ses_routes(router, deps)
+    _postmark_routes(router, deps)
     return router
 
 
@@ -74,7 +79,7 @@ def _whatsapp_routes(router: APIRouter, deps: WebhookDeps) -> None:
             raise Unauthorized("bad signature")
         hook = whatsapp.parse_webhook(orjson.loads(raw))
         async with deps.databases.transaction(LogicalDb.AUTOMATION) as s:
-            media_pending = await inbound.record_whatsapp(s, hook, deps.settings.opt_out_keywords)
+            media_pending = await inbound.record_whatsapp(s, hook)
         for inbound_id in media_pending:
             await deps.scheduler.enqueue_media_ingest(inbound_id)
         return Response(status_code=200)
@@ -144,3 +149,38 @@ async def _ses_notification(deps: WebhookDeps, env: SnsEnvelope) -> None:
         async with deps.databases.transaction(LogicalDb.AUTOMATION) as s:
             if await first_receipt(s, "ses", env.MessageId):
                 await inbound.record_ses_event(s, event)
+
+
+def _basic_ok(header: str | None, user: str, password: str) -> bool:
+    if not user or not password or not header or not header.startswith("Basic "):
+        return False
+    try:
+        given = base64.b64decode(header[6:], validate=True).decode()
+    except ValueError:
+        return False
+    return constant_time_equals(given, f"{user}:{password}")
+
+
+def _postmark_routes(router: APIRouter, deps: WebhookDeps) -> None:
+    @router.post("/postmark/inbound")
+    async def postmark_inbound(request: Request) -> Response:
+        """D33 buyer replies through Postmark. Postmark does not sign webhooks; the URL carries Basic auth
+        (https://user:password@api.<domain>/webhooks/postmark/inbound) and the WAF allows Postmark's IPs."""
+        pm = deps.settings.postmark
+        if not _basic_ok(
+            request.headers.get("authorization"), pm.inbound_user, pm.inbound_password.get_secret_value()
+        ):
+            return Response(status_code=403)  # 403 stops Postmark's retries for a misconfigured hook
+        mail = parse_postmark(orjson.loads(await request.body()))
+        if not mail.message_id or not mail.from_address:
+            return Response(status_code=200)  # nothing we can thread; do not make Postmark retry
+        folder = f"email/{sha256_hex(mail.message_id.encode())[:24]}"
+        keys: list[str] = []
+        for i, attachment in enumerate(mail.attachments if deps.media is not None else ()):
+            name = "".join(c if c.isalnum() or c in "._-" else "_" for c in attachment.filename)[:80]
+            keys.append(f"{folder}/{i}-{name}")
+            assert deps.media is not None
+            await deps.media.put(keys[-1], attachment.data, attachment.content_type)
+        async with deps.databases.transaction(LogicalDb.AUTOMATION) as s:
+            await inbound.record_email(s, mail, s3_key=None, attachment_keys=tuple(keys), provider="postmark")
+        return Response(status_code=200)

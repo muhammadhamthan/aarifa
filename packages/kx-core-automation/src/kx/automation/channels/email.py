@@ -12,7 +12,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from email import message_from_bytes, policy
 from email.message import EmailMessage
-from email.utils import format_datetime, getaddresses, make_msgid, parseaddr, parsedate_to_datetime
+from email.utils import (
+    format_datetime,
+    formataddr,
+    getaddresses,
+    make_msgid,
+    parseaddr,
+    parsedate_to_datetime,
+)
 from typing import Any, Final, Literal, Protocol
 from urllib.parse import unquote_plus
 
@@ -58,9 +65,12 @@ def build_mime(
     attachment: Attachment | None = None,
     reply_to: str | None = None,
     in_reply_to: str | None = None,
+    list_unsubscribe: str | None = None,
+    from_name: str | None = None,
 ) -> EmailMessage:
     msg = EmailMessage(policy=policy.SMTP)
-    msg["From"] = from_address
+    # §14: the salesperson's name as sender, always on the company address (replies land in the deal)
+    msg["From"] = formataddr((from_name, from_address)) if from_name else from_address
     msg["To"] = to_address
     msg["Subject"] = subject
     msg["Date"] = format_datetime(datetime.now(UTC))
@@ -70,6 +80,9 @@ def build_mime(
     if in_reply_to:  # keeps the buyer's mail client threading our reply under theirs
         msg["In-Reply-To"] = in_reply_to
         msg["References"] = in_reply_to
+    if list_unsubscribe:  # §8.1 step 10 / RFC 8058 one-click: outside the body, so grant hashes are untouched
+        msg["List-Unsubscribe"] = f"<{list_unsubscribe}>"
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
     msg.set_content(body)
     if attachment is not None:
         maintype, _, subtype = attachment.content_type.partition("/")
@@ -95,6 +108,8 @@ class EmailSender:
         body: str,
         attachment: Attachment | None = None,
         in_reply_to: str | None = None,
+        list_unsubscribe: str | None = None,
+        from_name: str | None = None,
     ) -> str:
         """Send a raw MIME message; returns the SES MessageId (later events reference it)."""
         msg = build_mime(
@@ -104,6 +119,8 @@ class EmailSender:
             body=body,
             attachment=attachment,
             in_reply_to=in_reply_to,
+            list_unsubscribe=list_unsubscribe,
+            from_name=from_name,
         )
         request: dict[str, Any] = {
             "FromEmailAddress": self._settings.from_address,

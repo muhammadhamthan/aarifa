@@ -1,4 +1,4 @@
-"""WP4 (agents): anything that is not price becomes a change request (docs/BUSINESS_FLOW_V1.md §13, D12).
+"""WP4 (agents): anything that is not price becomes a change request (the SRS §13, D12).
 
 Done when: "Can you deliver in 5 days?" creates a change request, with no promise in the reply.
 """

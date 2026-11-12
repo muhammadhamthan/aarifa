@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -278,6 +279,65 @@ async def test_staff_alert_waits_for_alert_window(env: Env) -> None:
     assert account == [("internal_alerts",)]
 
 
+class FakeSpend:
+    """D34 WhatsApp-template budget: `left` gates buyer templates, `add` counts each one sent."""
+
+    def __init__(self, has_budget: bool = True) -> None:
+        self.has_budget = has_budget
+        self.added: list[Decimal] = []
+
+    async def left(self, kind: str) -> bool:
+        assert kind == "wa_templates"
+        return self.has_budget
+
+    async def add(self, kind: str, amount: Decimal) -> Decimal:
+        assert kind == "wa_templates"
+        self.added.append(amount)
+        return Decimal(len(self.added))
+
+
+def _service_with_spend(env: Env, spend: FakeSpend) -> OutboundService:
+    return OutboundService(
+        databases=env.db,
+        settings=AutomationSettings(),
+        grants=env.grants,
+        kill_switch=env.kill,
+        limiter=env.limiter,
+        scheduler=env.scheduler,
+        media=env.media,
+        whatsapp=env.whatsapp,
+        email=env.email,
+        clock=env.clock,
+        template_spend=spend,
+    )
+
+
+async def test_buyer_template_held_when_the_daily_budget_is_used_up(env: Env) -> None:
+    service = _service_with_spend(env, FakeSpend(has_budget=False))
+    followup = {"body": None, "template_name": "followup_1", "buyer_timezone": "Asia/Dubai"}
+    with pytest.raises(RuleViolation) as info:
+        await service.send(req(OutboundKind.FOLLOWUP, **followup))
+    assert info.value.extra["reason"] == "spend_cap"
+    assert await env.rows() == []  # held, not stored: the caller retries when the cap resets
+
+
+async def test_staff_alert_template_bypasses_the_budget_and_a_sent_template_is_counted(env: Env) -> None:
+    spend = FakeSpend(has_budget=False)
+    service = _service_with_spend(env, spend)
+    env.clock.now = env.clock.now.replace(hour=10)  # inside alert hours: the alert goes now
+    await service.send(
+        req(
+            OutboundKind.APPROVAL_ALERT,
+            body=None,
+            template_name="approval_escalation",
+            template_params=("Q-1", "AED 1", "Sara"),
+        )
+    )
+    (row,) = await env.rows()
+    await service.deliver(row.id)
+    assert spend.added == [Decimal(1)]  # the template that actually went out was counted (D34)
+
+
 async def test_immediate_reply_locks_thread(env: Env) -> None:
     await open_session(env)
     await env.service.send(req())
@@ -361,21 +421,46 @@ async def test_opt_out_confirmation_is_the_one_message_after_stop(env: Env) -> N
     """§17 "Buyer opts out -> Confirmation": everything else stays blocked by the suppression."""
     await open_session(env)
     await env.sql(
-        "INSERT INTO message_templates (channel, name, language, category, provider_status, body) "
-        "VALUES ('whatsapp', 'opt_out_confirmation', 'en', 'utility', 'approved', 'You will not receive more messages.')"
-    )
-    await env.sql(
-        "INSERT INTO suppressions VALUES ('whatsapp', :h, 'stop_keyword', now())",
+        "INSERT INTO suppressions VALUES ('all', :h, 'rule:all', now())",
         h=recipient_hash("whatsapp", BUYER),
     )
     with pytest.raises(RuleViolation) as info:
         await env.service.send(req())
     assert info.value.extra["reason"] == "opt_out"
-    confirm = req(
-        OutboundKind.NOTIFICATION, key="opt-out:abc", body=None, template_name="opt_out_confirmation"
-    )
+    confirm = req(OutboundKind.OPT_OUT_CONFIRMATION, key="opt-out:abc", body="You're unsubscribed.")
     assert await env.service.send(confirm)
-    with pytest.raises(RuleViolation):  # the template alone does not open the door
-        await env.service.send(
-            req(OutboundKind.NOTIFICATION, body=None, template_name="opt_out_confirmation")
+    with pytest.raises(RuleViolation):  # the kind alone does not open the door: the key does too
+        await env.service.send(req(OutboundKind.OPT_OUT_CONFIRMATION, body="again"))
+
+
+async def test_staff_reply_email_carries_the_salespersons_name(env: Env) -> None:
+    """§14: "Email: from the same company address, with the salesperson's name as sender"."""
+    message_id = await env.service.send(
+        req(
+            OutboundKind.STAFF_REPLY,
+            channel="email",
+            to_address="buyer@example.com",
+            subject="Arifaa Pack - D-1",
+            sender_name="Sara, Arifaa Pack",
         )
+    )
+    await env.service.deliver(message_id)
+    (mail,) = env.email.sent
+    assert mail["from_name"] == "Sara, Arifaa Pack" and mail["body"] == "Hello"
+    assert (await env.rows())[0].sender_name == "Sara, Arifaa Pack"
+
+
+async def test_whatsapp_quote_not_delivered_in_time_is_reported_with_its_content(env: Env) -> None:
+    """D32: 10 minutes after a priced WhatsApp message is sent, undelivered -> quote.not_delivered.v1."""
+    await open_session(env)
+    message_id = await env.service.send(priced(env, deal_ref=uuid.uuid4()))
+    await env.service.deliver(message_id)
+    (check,) = [c for c in env.scheduler.calls if c[0] == "quote_check"]
+    assert check[1]["message_id"] == message_id and check[1]["at"] == env.clock.now + timedelta(minutes=10)
+    assert await env.service.check_quote_delivery(message_id)
+    (row,) = await env.sql(
+        "SELECT event_type, payload FROM outbox_events WHERE event_type = 'quote.not_delivered.v1'"
+    )
+    assert row[1]["message_ref"] == str(message_id) and row[1]["body"] == "Quote Q-1045 total AED 11,390.20"
+    await env.sql("UPDATE outbound_messages SET status = 'delivered' WHERE id = :i", i=message_id)
+    assert not await env.service.check_quote_delivery(message_id)  # delivered: nothing more to do

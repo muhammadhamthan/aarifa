@@ -28,7 +28,15 @@ from kx.crm.models.fulfilment import (
     StockMovement,
     VisitSlot,
 )
-from kx.crm.models.people import FeatureFlag, Setting, SettingHistory, User
+from kx.crm.models.people import (
+    AuthChallenge,
+    AuthSession,
+    FeatureFlag,
+    Setting,
+    SettingHistory,
+    StaffCredential,
+    User,
+)
 from kx.crm.models.plumbing import AuditEvent, IdempotencyKey, InboxEvent, OutboxEvent, RptDailyMetric
 from kx.crm.models.quotes import (
     Approval,
@@ -49,6 +57,8 @@ __all__ = [
     "Approval",
     "ApprovalEvent",
     "AuditEvent",
+    "AuthChallenge",
+    "AuthSession",
     "Base",
     "ChangeRequest",
     "Company",
@@ -87,6 +97,7 @@ __all__ = [
     "RptDailyMetric",
     "Setting",
     "SettingHistory",
+    "StaffCredential",
     "StageHistory",
     "StockItem",
     "StockMovement",

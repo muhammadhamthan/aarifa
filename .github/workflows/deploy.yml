@@ -2,6 +2,9 @@ name: deploy
 
 # Tag v* -> build arm64 image -> staging (pack + auto) -> pack-prod (required reviewers).
 # Manual run: choose the target; staging always goes first. auto-prod is manual only.
+# Each deploy (infra/scripts/deploy_company.sh) rolls api, worker (Celery), beat (the one Celery Beat,
+# rolled stop-then-start) and voice on the new image, then waits for the private services embeddings,
+# phoenix and otel-collector (third-party images pinned in Terraform) to be stable.
 #
 # GitHub Environments (Settings > Environments), each with variables:
 #   staging   : AWS_DEPLOY_ROLE_ARN, AWS_ACCOUNT_ID

@@ -178,8 +178,9 @@ resource "aws_ecs_service" "this" {
     weight            = 1
   }
 
-  deployment_minimum_healthy_percent = 100
-  deployment_maximum_percent         = 200
+  # Celery Beat runs 0/100 (stop the old task before starting the new one): two Beats must never overlap.
+  deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
+  deployment_maximum_percent         = var.deployment_maximum_percent
   deployment_circuit_breaker {
     enable   = true
     rollback = true
@@ -189,6 +190,13 @@ resource "aws_ecs_service" "this" {
     subnets          = var.subnet_ids
     security_groups  = var.security_group_ids
     assign_public_ip = false
+  }
+
+  dynamic "service_registries" {
+    for_each = var.service_discovery_namespace_id == null ? [] : [1]
+    content {
+      registry_arn = aws_service_discovery_service.this[0].arn
+    }
   }
 
   dynamic "load_balancer" {
@@ -207,6 +215,23 @@ resource "aws_ecs_service" "this" {
   lifecycle {
     ignore_changes = [desired_count]
   }
+}
+
+# ---- optional private DNS name (<discovery_name>.<namespace>) for services reached inside the VPC ----
+resource "aws_service_discovery_service" "this" {
+  count = var.create_service && var.service_discovery_namespace_id != null ? 1 : 0
+  name  = coalesce(var.discovery_name, var.container_name)
+
+  dns_config {
+    namespace_id   = var.service_discovery_namespace_id
+    routing_policy = "MULTIVALUE"
+    dns_records {
+      type = "A"
+      ttl  = 10
+    }
+  }
+
+  tags = var.tags
 }
 
 resource "aws_appautoscaling_target" "this" {

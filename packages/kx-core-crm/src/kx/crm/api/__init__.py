@@ -10,7 +10,20 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from kx.core.db import Databases
-from kx.crm.api import admin, assignment, change_requests, deals, quotes, screens
+from kx.crm.api import (
+    admin,
+    assignment,
+    auth,
+    change_requests,
+    deal_actions,
+    deals,
+    operations,
+    quotes,
+    records,
+    reports,
+    screens,
+    users,
+)
 from kx.crm.api.context import ApiContext
 from kx.crm.deps import CrmDeps
 
@@ -18,7 +31,20 @@ from kx.crm.deps import CrmDeps
 def build_router(databases: Databases, deps: CrmDeps) -> APIRouter:
     ctx = ApiContext(databases, deps)
     root = APIRouter()
-    for module in (deals, assignment, quotes, change_requests, screens, admin):
+    for module in (
+        auth,
+        users,
+        deals,
+        deal_actions,
+        assignment,
+        quotes,
+        change_requests,
+        screens,
+        admin,
+        operations,
+        records,
+        reports,
+    ):
         root.include_router(module.router(ctx))
     return root
 

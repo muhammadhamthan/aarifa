@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="{{ doc.lang }}" dir="{{ doc.direction }}">
+<head>
+<meta charset="utf-8">
+<title>{{ t.title }} {{ doc.reference }}</title>
+<style>{{ css }}</style>
+</head>
+<body>
+<header class="letterhead">
+  <div class="company">{{ doc.letterhead.name }}</div>
+  <div class="address">{{ doc.letterhead.address }}</div>
+</header>
+<h1>{{ t.title }}</h1>
+<table class="meta">
+  <tr><th>{{ t.to }}</th><td>{{ doc.buyer_name }}{% if doc.buyer_company %}, {{ doc.buyer_company }}{% endif %}</td></tr>
+  <tr><th>{{ t.ref }}</th><td>{{ doc.reference }}</td></tr>
+  <tr><th>{{ t.date }}</th><td>{{ doc.issued_on.isoformat() }}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>{{ t.item }}</th><th>{{ t.qty }}</th><th>{{ t.spec }}</th></tr></thead>
+  <tbody>
+  {% for line in doc.lines %}
+    <tr>
+      <td>{{ line.description }}{% if line.code %} ({{ line.code }}){% endif %}</td>
+      <td>{% if line.quantity %}{{ line.quantity | qty }} {{ line.unit }}{% endif %}</td>
+      <td>{% for k, v in line.spec %}{{ k }}: {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<table class="meta">
+  {% if doc.delivery_country or doc.delivery_city %}
+  <tr><th>{{ t.delivery }}</th><td>{{ [doc.delivery_city, doc.delivery_country] | select | join(", ") }}</td></tr>
+  {% endif %}
+  {% if doc.needed_by %}<tr><th>{{ t.needed_by }}</th><td>{{ doc.needed_by.isoformat() }}</td></tr>{% endif %}
+</table>
+<h2>{{ t.next }}</h2>
+<p>{{ t.next_text }}</p>
+<p class="note">{{ t.no_prices }}</p>
+</body>
+</html>

@@ -11,14 +11,15 @@ route53_zone_id       = null
 ses_domain            = "autotec.ae"
 inbound_mail_enabled  = false
 crm_urls              = ["https://crm.autotec.ae"]
-cognito_domain_prefix = "kx-arifaa-auto"
+website_urls          = ["https://www.autotec.ae"] # REPLACE
+email_from_address    = "sales@autotec.ae"         # REPLACE
 
 db_instance_class       = "db.m6g.large"
 db_engine_version       = "18"
 db_allocated_storage_gb = 100
 dr_copy_region          = null
 cache_node_type         = "cache.t4g.small"
-bedrock_region          = null
+database_insights_mode  = "advanced"
 
 alarm_emails       = ["ops@kairox.ai"] # REPLACE
 monthly_budget_usd = 1570

@@ -32,6 +32,21 @@ variable "interface_endpoints" {
   default     = []
 }
 
+variable "internal_service_ports" {
+  description = "Private service name => TCP port range opened from the app security group to itself."
+  type = map(object({
+    from = number
+    to   = number
+  }))
+  # embeddings: Text Embeddings Inference (Qwen3-Embedding-0.6B); phoenix: UI + OTLP/HTTP /v1/traces;
+  # otlp: OTLP gRPC/HTTP (Phoenix gRPC, otel-collector)
+  default = {
+    embeddings = { from = 80, to = 80 }
+    phoenix    = { from = 6006, to = 6006 }
+    otlp       = { from = 4317, to = 4318 }
+  }
+}
+
 variable "flow_log_retention_days" {
   type    = number
   default = 30

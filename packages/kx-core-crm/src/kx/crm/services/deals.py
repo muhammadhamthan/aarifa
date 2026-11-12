@@ -126,6 +126,9 @@ async def _insert_contact(
         "preferred_channel": "whatsapp" if channel == "whatsapp" else "email" if kind == "email" else None,
         "language": "en",
         "timezone": "Asia/Dubai",
+        # §8.2: "The buyer replies from that number -> Verified": a WhatsApp first message is such a reply
+        "phone_status": "verified" if channel == "whatsapp" and phone else "unknown",
+        "phone_status_at": func.now() if channel == "whatsapp" and phone else None,
     }
     stmt = pg_insert(Contact).values(**values).on_conflict_do_nothing().returning(Contact.id)
     inserted = (await session.execute(stmt)).scalar_one_or_none()
@@ -435,6 +438,84 @@ async def move_stage(
             DealStageChanged(
                 deal_ref=deal.id, from_stage=current, to_stage=target, reason=reason or lost_reason or ""
             ),
+        ),
+    )
+    return deal
+
+
+async def reopen(session: AsyncSession, deal: Deal, actor: Actor, *, now: datetime, reason: str) -> Deal:
+    """§7A.1 "LOST: ... reopen (manager)" (D24): back to the stage the deal was lost from. The AI stays
+    paused until a person resumes it (OPEN_QUESTIONS #47): a reopened deal needs a human first."""
+    if DealStage(deal.stage) is not DealStage.LOST:
+        raise RuleViolation("only a LOST deal can be reopened", stage=deal.stage)
+    if not reason.strip():
+        raise RuleViolation("give the reason for reopening the deal")
+    back = await session.scalar(
+        select(StageHistory.from_stage)
+        .where(StageHistory.deal_id == deal.id, StageHistory.to_stage == DealStage.LOST.value)
+        .order_by(StageHistory.id.desc())
+        .limit(1)
+    )
+    target = DealStage(back) if back else DealStage.QUALIFIED
+    lost = {"lost_reason": deal.lost_reason, "lost_note": deal.lost_note}
+    deal.stage = target.value
+    deal.lost_reason = deal.lost_note = deal.lost_at = None
+    if deal.ai_enabled:
+        deal.ai_enabled, deal.ai_paused_reason, deal.ai_paused_at = False, "human_takeover", now
+    try:
+        await session.flush()
+    except StaleDataError as exc:
+        raise Conflict("deal was changed concurrently; reload") from exc
+    session.add(
+        StageHistory(
+            deal_id=deal.id,
+            from_stage=DealStage.LOST.value,
+            to_stage=target.value,
+            actor_type=actor.type,
+            actor_id=actor.id,
+            reason=f"reopened: {reason}"[:500],
+        )
+    )
+    await record(
+        session,
+        actor,
+        "deal.reopened",
+        "deal",
+        deal.id,
+        before={"stage": DealStage.LOST.value, **lost},
+        after={"stage": target.value},
+        timeline=Timeline(
+            "stage", f"LOST → {target.value} (reopened: {reason})"[:2000], deal.id, deal.primary_contact_id
+        ),
+        emit=Emit(
+            ev.DEAL_STAGE_CHANGED,
+            "deal",
+            deal.id,
+            DealStageChanged(
+                deal_ref=deal.id, from_stage=DealStage.LOST, to_stage=target, reason=f"reopened: {reason}"
+            ),
+        ),
+    )
+    return deal
+
+
+async def personal_contact_shared(session: AsyncSession, deal: Deal, actor: Actor, now: datetime) -> Deal:
+    """§14 practical notes: a salesperson may share a personal number when the buyer insists; the CRM
+    records that it happened (and the deal must still be updated in the CRM)."""
+    deal.personal_contact_shared_at, deal.personal_contact_shared_by = now, actor.user_id
+    await session.flush()
+    await record(
+        session,
+        actor,
+        "deal.personal_contact_shared",
+        "deal",
+        deal.id,
+        after={"personal_contact_shared_at": now},
+        timeline=Timeline(
+            "note",
+            "The salesperson shared a personal contact with the buyer (keep the deal updated in the CRM)",
+            deal.id,
+            deal.primary_contact_id,
         ),
     )
     return deal

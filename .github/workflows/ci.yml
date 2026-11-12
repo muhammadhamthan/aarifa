@@ -87,6 +87,7 @@ jobs:
           docker run --rm --entrypoint python kairox/app:ci -c "import kx.core, kx.crm, kx.automation, kx.agents, arifaa_pack, weasyprint; print('ok')"
           docker run --rm --entrypoint fc-list kairox/app:ci :lang=ar family | head -3
           docker run --rm --entrypoint psql kairox/app:ci --version
+          docker run --rm --entrypoint chromium kairox/app:ci --version
 
   infra:
     name: terraform (fmt, validate, tflint, checkov)

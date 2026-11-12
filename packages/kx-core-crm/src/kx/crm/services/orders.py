@@ -1,9 +1,10 @@
-"""After the deal (docs/BUSINESS_FLOW_V1.md §15; D13, D15): advance -> PAYMENT, WON + order, order status.
+"""After the deal (the SRS §15; D13, D15, D20): advance -> PAYMENT, WON + order, order status.
 
-1. Payment (human only): the salesperson agrees the method with the buyer and records the advance (amount,
-   currency, method, reference, date, proof file). The advance is always required. The deal moves to PAYMENT.
-2. WON: once the advance is confirmed the salesperson marks the deal WON and enters the expected re-order
-   date (stored now for the v2 re-order follow-ups). An order record is created.
+1. Payment (human only): the salesperson agrees the method with the buyer and **confirms** the advance was
+   received. The advance is always required; recording its amount, currency, method, reference, date and
+   proof file is optional (§15.1, D20). The deal moves to PAYMENT.
+2. WON: once the advance is confirmed the salesperson marks the deal WON (mandatory, §15.2). The expected
+   re-order date is optional; when filled, the v2 re-order follow-ups use it. An order record is created.
 3. Order statuses: in production -> ready -> shipped -> delivered, updated by hand.
 The stage machine refuses WON without a payment row. The `source` columns ('manual' | 'erp') are the seam for
 the v2 ERP plugin.
@@ -61,11 +62,12 @@ async def record_payment(
     note: str | None = None,
     proof_s3_key: str | None = None,
 ) -> Payment:
-    """§15.1: the salesperson records the advance received outside the system: READY_TO_CLOSE -> PAYMENT."""
+    """§15.1: the salesperson confirms the advance received outside the system: READY_TO_CLOSE -> PAYMENT.
+    Every detail is optional (D20); an amount without a currency is refused (it could not be read back)."""
     if actor.user_id is None:
         raise RuleViolation("a payment is confirmed by a CRM user")
-    if amount is None or currency is None or not method:
-        raise RuleViolation("record the advance with its amount, currency and method (§15.1)")
+    if amount is not None and not currency:
+        raise RuleViolation("give the currency of the advance amount (or leave the amount empty)")
     now = deps.now()
     deal = await deal_svc.get_deal(session, deal_id, lock=True)
     final = await latest_version(session, deal.id, ISSUED)
@@ -77,8 +79,8 @@ async def record_payment(
         deal_id=deal.id,
         confirmed_by=actor.user_id,
         amount=amount,
-        currency=currency.upper(),
-        method=method,
+        currency=currency.upper() if currency else None,
+        method=method or None,
         reference=reference,
         paid_on=paid_on or now.date(),
         note=note,
@@ -92,15 +94,17 @@ async def record_payment(
         "payment.recorded",
         "deal",
         deal.id,
-        after={"amount": amount, "currency": currency, "method": method, "reference": reference},
-        timeline=Timeline(
-            "payment",
-            f"Advance recorded: {currency.upper()} {amount} by {method}",
-            deal.id,
-            deal.primary_contact_id,
-        ),
+        after={"amount": amount, "currency": payment.currency, "method": method, "reference": reference},
+        timeline=Timeline("payment", _payment_summary(payment), deal.id, deal.primary_contact_id),
     )
     return payment
+
+
+def _payment_summary(p: Payment) -> str:
+    """Timeline line: what was confirmed, with whatever details the salesperson chose to record."""
+    details = " ".join(x for x in (p.currency, str(p.amount) if p.amount is not None else None) if x)
+    by = f" by {p.method}" if p.method else ""
+    return f"Advance confirmed: {details}{by}" if details else f"Advance confirmed{by}"
 
 
 async def mark_won(
@@ -109,14 +113,13 @@ async def mark_won(
     deal_id: uuid.UUID,
     actor: Actor,
     *,
-    expected_reorder_date: date | None,
+    expected_reorder_date: date | None = None,
 ) -> Order:
-    """§15.2: WON needs the recorded advance and the expected re-order date (D15); the order is created."""
+    """§15.2: WON needs the confirmed advance; the expected re-order date is optional (D20). The order is
+    created."""
     now = deps.now()
     deal = await deal_svc.get_deal(session, deal_id, lock=True)
-    if expected_reorder_date is None:
-        raise RuleViolation("enter the expected re-order date to mark the deal WON (§15.2)")
-    if expected_reorder_date < now.date():
+    if expected_reorder_date is not None and expected_reorder_date < now.date():
         raise RuleViolation("the expected re-order date is in the past")
     final = await latest_version(session, deal.id, ISSUED)
     if final is None:

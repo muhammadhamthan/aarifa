@@ -34,7 +34,7 @@ OPEN_STAGES: Final = frozenset(s for s, nxt in TRANSITIONS.items() if nxt)
 QUOTABLE_STAGES: Final = frozenset({S.QUALIFIED, S.QUOTATION, S.NEGOTIATION})
 
 # §15.4: price, delivery time, specification not available, chose a competitor, no response, budget,
-# duplicate, other (the first five keep their 4 Nov codes)
+# duplicate, other (the first five keep their 4 Nov codes); §8.1 step 8 adds *Opted out*
 LostReason = Literal[
     "price_too_high",
     "delivery_not_suitable",
@@ -44,6 +44,7 @@ LostReason = Literal[
     "budget",
     "duplicate",
     "other",
+    "opted_out",
 ]
 LOST_REASONS: Final[frozenset[str]] = frozenset(get_args(LostReason))
 

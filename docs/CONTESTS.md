@@ -54,3 +54,20 @@ quantity right after "price" with an unlisted noun ("price for 2 crates") is che
 - **Pricing engine A stays.** Its cost functions (`unit_cost_per_1000`, `freight_per_1000`, `resolve_band`, the cost-based ladder) are kept for **v2** automatic pricing.
 - v1 adds a pure price-list layer (`resolve_tier`, `ladder_between`, a ladder-based `evaluate_counter` with `low_ask_count`) in WP2. Re-run `candidates/judge_pricing.py`-style exactness checks on the new functions, and add the §11–12 numbers as spec tests.
 - **Price guard C is unchanged.** `allowed_prices` becomes the approved quote prices plus the ladder steps from the price list.
+
+## 5. Platform contest (7–11 Nov)
+
+The vendor and platform contest (rounds 1–4: AI brain, voice, telephony, WhatsApp, email, database, cache,
+embeddings, monitoring, login, background jobs) is recorded in the read-only platform docs:
+`docs/Arifaa Platform — Platforms, Pricing & Fallbacks/Platform contest.md`, with the prices it used in
+`Official sources.md`. Outcomes that change this code base (11 Nov):
+
+| Field | Winner | Runner-up / backup | Code |
+|---|---|---|---|
+| Embeddings | Qwen3-Embedding-0.6B in a UAE container (28/30) | BAAI/bge-m3 (26/30) | `arifaa_pack.adapters.HttpEmbedder` (WP23) |
+| Background jobs | Celery 5.7 + Celery Beat (accepted with conditions) | Procrastinate (previous) | `kx.core.jobs`, `arifaa_pack.celery_app` (WP20) |
+| Staff login | In-house, TOTP first (accepted with conditions) | Amazon Cognito (previous) | `kx.crm.services.auth`, `kx.core.auth` (WP21) |
+| Monitoring | Better Stack for uptime, errors, logs, on-call | CloudWatch alarms + SNS email | `arifaa_pack.observability` (WP24) |
+| AI brain | Claude mix: Sonnet 5.5 on money turns, Haiku 5.5 on the rest (24/30) | Gemini backups only after the suite passes and Arifa agrees | `kx.agents.models` (WP22) |
+| Alert calls | Telnyx after live du/Etisalat tests (2–1) | Twilio | `kx.automation.channels.telnyx` (WP25) |
+| AI tracing | Arize Phoenix self-hosted in the UAE (3–0) | CloudWatch logs | `kx.agents.tracing` (WP24) |

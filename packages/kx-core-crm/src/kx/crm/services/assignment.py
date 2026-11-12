@@ -1,4 +1,4 @@
-"""Deal assignment (docs/BUSINESS_FLOW_V1.md §9, §3, §24; D5).
+"""Deal assignment (the SRS §9, §3, §24; D5).
 
 1. Default: round-robin across active salespersons.
 2. Optional rules (setting `assignment.rules`, off by default), checked in the order listed: the

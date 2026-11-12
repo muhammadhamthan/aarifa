@@ -1,7 +1,8 @@
 """Container health check (Docker HEALTHCHECK and the ECS api container health check).
 
-api: GET http://127.0.0.1:$KX_API_PORT$KX_HEALTH_PATH must return 2xx.
-worker / voice / migrate: no HTTP port; the process being alive is the signal (ECS restarts on exit).
+api: GET http://127.0.0.1:$KX_API_PORT$KX_HEALTH_PATH must return 2xx (port falls back to KX_APP_API_PORT,
+the one uvicorn binds, then 8000).
+worker / beat / voice / migrate: no HTTP port; the process being alive is the signal (ECS restarts on exit).
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import urllib.request
 def main() -> int:
     if os.environ.get("KX_PROCESS", "api") != "api":
         return 0
-    port = os.environ.get("KX_API_PORT", "8000")
+    port = os.environ.get("KX_API_PORT") or os.environ.get("KX_APP_API_PORT") or "8000"
     path = os.environ.get("KX_HEALTH_PATH", "/healthz")
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=3) as resp:

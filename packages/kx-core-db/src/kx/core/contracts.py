@@ -84,6 +84,9 @@ class ContactView(_Frozen):
     has_phone: bool
     has_email: bool
     phone_verified: bool
+    # §8.2: unknown | not_reached | reachable | likely | verified, and mobile | landline | invalid | unknown
+    phone_status: str = "unknown"
+    phone_kind: str | None = None
 
 
 class RequirementView(_Frozen):
@@ -210,9 +213,16 @@ class DeliveryEstimateView(_Frozen):
 
 
 # ---------------- protocols implemented by packages, wired by the app -----------------------------
+OptOutScope = Literal["all", "whatsapp", "email", "phone"]
+
+
 @runtime_checkable
 class CrmGateway(Protocol):
-    """What agents may ask of the CRM. Implemented by kx.crm."""
+    """What agents may ask of the CRM. Implemented by kx.crm.
+
+    §8.1: `record_opt_out` may only ADD a stop (the AI may add a stop, never remove one); there is no method
+    that lifts one. `flag_unclear_stop` pauses follow-ups and either lets the AI ask one question (`live`)
+    or puts the message in front of the salesperson."""
 
     async def resolve_deal(
         self, channel: Channel, address: str | None, visitor_ref: uuid.UUID | None
@@ -241,6 +251,19 @@ class CrmGateway(Protocol):
         actor: AiRole,
     ) -> uuid.UUID: ...
     async def set_cover_note(self, deal_id: uuid.UUID, note: str, actor: AiRole) -> None: ...
+    async def record_opt_out(
+        self,
+        deal_id: uuid.UUID,
+        *,
+        scope: OptOutScope,
+        exact_words: str,
+        reason: str | None,
+        decided_by: str,
+        actor: AiRole,
+    ) -> None: ...
+    async def flag_unclear_stop(
+        self, deal_id: uuid.UUID, *, exact_words: str, live: bool, actor: AiRole
+    ) -> None: ...
 
 
 @runtime_checkable
@@ -264,6 +287,8 @@ class OutboundKind(StrEnum):
     ORDER_UPDATE = "order_update"
     REORDER = "reorder"
     NOTIFICATION = "notification"
+    OPT_OUT_CONFIRMATION = "opt_out_confirmation"  # §8.1 step 3: the one message after a stop
+    STAFF_REPLY = "staff_reply"  # §14: the salesperson writes from the CRM inbox on the company number
 
 
 PRICED_KINDS = frozenset({OutboundKind.QUOTE, OutboundKind.FINAL_QUOTE, OutboundKind.COUNTER_OFFER})
@@ -286,6 +311,7 @@ class OutboundRequest(BaseModel):
     buyer_country: str | None = None  # ISO-2; picks the regional WhatsApp number (§11.4, D11)
     language: str | None = None  # BCP-47; picks the WhatsApp template language
     not_before: datetime | None = None  # earliest send time (aware, UTC); automation may push it later
+    sender_name: str | None = None  # §14: email From display name ("Sara, Arifa Pack"), company address
     requested_by: str
     idempotency_key: str
 
@@ -295,3 +321,31 @@ class MessageSender(Protocol):
     """Implemented by kx.automation (OutboundService). The only way anything leaves the platform."""
 
     async def send(self, request: OutboundRequest) -> uuid.UUID: ...
+
+
+@runtime_checkable
+class ClickToCall(Protocol):
+    """§14 (D21): "click-to-call from the CRM through the company number". Implemented by kx.automation:
+    rings the salesperson's own phone first, then bridges to the buyer with the company number as caller ID
+    (the buyer never sees a personal number). Checks the §8.1 suppression list for calls before dialing and
+    raises `RuleViolation(reason="opt_out")` when the buyer asked not to be called. Returns the call attempt
+    id (idempotent per `idempotency_key`)."""
+
+    async def bridge(
+        self,
+        *,
+        deal_ref: uuid.UUID,
+        contact_ref: uuid.UUID | None,
+        staff_e164: str,
+        buyer_e164: str,
+        idempotency_key: str,
+    ) -> uuid.UUID: ...
+
+
+@runtime_checkable
+class StaffMailer(Protocol):
+    """Sends a one-time login or recovery code to a staff member's work address (D26). Implemented by the app
+    over the email field's vendors (SES, then Postmark). Never through the buyer queue: a code must not be
+    stored in a message table."""
+
+    async def send_code(self, to_email: str, subject: str, body: str) -> None: ...

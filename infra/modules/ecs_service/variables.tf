@@ -135,13 +135,37 @@ variable "stop_timeout_seconds" {
   default     = 60
 }
 
+variable "deployment_minimum_healthy_percent" {
+  description = "100 for request-serving services; 0 for the single Celery Beat (no overlap during a deploy)."
+  type        = number
+  default     = 100
+}
+
+variable "deployment_maximum_percent" {
+  description = "200 for most services; 100 for the single Celery Beat."
+  type        = number
+  default     = 200
+}
+
+variable "service_discovery_namespace_id" {
+  description = "Cloud Map private DNS namespace id; set to register the tasks as <discovery_name>.<namespace> (private services)."
+  type        = string
+  default     = null
+}
+
+variable "discovery_name" {
+  description = "DNS label in the namespace (default: container_name)."
+  type        = string
+  default     = null
+}
+
 variable "enable_execute_command" {
   type    = bool
   default = true
 }
 
 variable "task_role_policy_json" {
-  description = "Extra IAM policy for the task role (S3, SES, Bedrock ...)."
+  description = "Extra IAM policy for the task role (S3, SES, SSM vendor order ...)."
   type        = string
   default     = null
 }

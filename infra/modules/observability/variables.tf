@@ -8,7 +8,7 @@ variable "alarm_emails" {
 }
 
 variable "alarm_webhook_url" {
-  description = "Optional HTTPS endpoint (the API's /v1/webhooks/alarms) that relays alarms to WhatsApp."
+  description = "Optional HTTPS endpoint subscribed to the alarm topic: Better Stack's CloudWatch integration URL."
   type        = string
   default     = null
 }
@@ -41,12 +41,12 @@ variable "ecs_services" {
 }
 
 variable "companies" {
-  description = "Companies emitting the custom queue-lag metric."
+  description = "Companies emitting the custom Kairox/QueueLagSeconds and Kairox/VendorSwitch metrics."
   type        = list(string)
 }
 
 variable "queue_lag_threshold_seconds" {
-  description = "procrastinate oldest-todo-job age (emitted by the worker as Kairox/QueueLagSeconds)."
+  description = "Age of the oldest due row in automation.scheduled_jobs (emitted as Kairox/QueueLagSeconds)."
   type        = number
   default     = 120
 }

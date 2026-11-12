@@ -44,6 +44,18 @@ CHANGE_REQUESTED: Final = "change_request.raised.v1"  # §13 / D12: a buyer chan
 CHANGE_REQUEST_CLOSED: Final = "change_request.closed.v1"  # resolved (new version) or declined
 DEAL_ASSIGNED: Final = "deal.assigned.v1"  # §9 assignment, reassignment, MD takeover and hand-back
 DEAL_WON: Final = "deal.won.v1"  # §17 "Payment recorded / WON": manager + MD notified, buyer thanked
+# ---- 11 Nov SRS (docs/V1_CHANGE_PLAN.md WP14-WP18)
+CONSENT_OPTED_OUT: Final = "consent.opted_out.v1"  # §8.1: a stop (all channels or one), from any source
+CONSENT_STOP_UNCLEAR: Final = "consent.stop_unclear.v1"  # §8.1 step 6: follow-ups pause; ask or review
+STAFF_NOTICE: Final = "staff.notice_requested.v1"  # a one-line notice to named staff (alert hours)
+DEAL_REQUIREMENT_SUMMARY: Final = (
+    "deal.requirement_summary.v1"  # §6.5 / §8.2: the PDF that confirms the number
+)
+# D32: a WhatsApp quote not delivered in 10 minutes goes by email (its own grant)
+QUOTE_NOT_DELIVERED: Final = "quote.not_delivered.v1"
+QUOTE_RESEND_REQUESTED: Final = "quote.resend_requested.v1"
+CATALOGUE_PRODUCT_PUBLISHED: Final = "catalogue.product_published.v1"  # §7: CMS product -> CRM by code
+CONVERSATION_SUMMARY_UPDATED: Final = "conversation.summary_updated.v1"  # §7A.2: AI summary on the deal
 
 
 class Event(BaseModel):

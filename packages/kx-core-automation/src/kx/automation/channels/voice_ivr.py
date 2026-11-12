@@ -124,6 +124,17 @@ def gather_reply_twiml(digit: str | None, settings: TwilioSettings) -> str:
     return str(response)
 
 
+def bridge_twiml(intro: str, buyer_e164: str, settings: TwilioSettings) -> str:
+    """§14 click-to-call, leg 2: the salesperson answered; dial the buyer from the company number."""
+    response = VoiceResponse()
+    response.say(intro, voice=settings.voice, language=settings.language)
+    dial = response.dial(
+        caller_id=settings.from_number, timeout=settings.ring_timeout_seconds, answer_on_bridge=True
+    )
+    dial.number(buyer_e164)
+    return str(response)
+
+
 def validate_signature(auth_token: str, url: str, params: Mapping[str, str], signature: str | None) -> bool:
     """X-Twilio-Signature: HMAC-SHA1 over the public URL + sorted POST params (SDK implementation)."""
     if not auth_token or not signature:

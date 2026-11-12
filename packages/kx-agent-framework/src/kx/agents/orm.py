@@ -61,6 +61,7 @@ class Visitor(Base):
     language: Mapped[str | None] = mapped_column(Text)
     contact_ref: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     expires_at: Mapped[datetime] = mapped_column(TS, server_default=sql("now() + interval '90 days'"))
+    voice_consent_at: Mapped[datetime | None] = mapped_column(TS)  # §6.1 "Enter the factory" pressed
 
 
 class Conversation(Base):

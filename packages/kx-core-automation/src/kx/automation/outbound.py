@@ -9,7 +9,7 @@
    (when the DDL allows) plus a MESSAGE_STATUS event the CRM writes to its audit log;
 4. contact hours: alerts to staff wait for 08:00-22:00 Dubai, follow-ups for 09:00-18:00 buyer time
    and the weekly cap;
-5. insert `queued` row, commit, enqueue delivery (ordered per thread via the procrastinate `lock`).
+5. insert `queued` row, commit, enqueue delivery (ordered per thread via the job store's lock key).
 
 Priced content hash (must match what the CRM froze when it issued the grant):
     no PDF:   sha256_hex(text.encode())
@@ -22,9 +22,11 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Final, Protocol
+from decimal import Decimal
+from typing import Any, Final, Literal, Protocol
 
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -43,7 +45,7 @@ from kx.automation.settings import AutomationSettings
 from kx.core.contracts import PRICED_KINDS, GrantConsumer, OutboundKind, OutboundRequest
 from kx.core.db import Databases
 from kx.core.errors import RuleViolation
-from kx.core.event_payloads import MessageStatus
+from kx.core.event_payloads import MessageStatus, QuoteNotDelivered
 from kx.core.identity import new_id, normalise_address, priced_content_sha256, recipient_hash, sha256_hex
 from kx.core.logging import get_logger
 from kx.core.settings import LogicalDb
@@ -55,7 +57,7 @@ STAFF_KINDS: Final = frozenset({OutboundKind.APPROVAL_ALERT, OutboundKind.MD_NOT
 PROACTIVE_KINDS: Final = frozenset({OutboundKind.FOLLOWUP, OutboundKind.REORDER})
 _INACTIVE: Final = ("blocked", "cancelled", "failed")
 # Refusals that clear by themselves (switch turned back on, bucket refilled): callers may retry.
-TRANSIENT_REASONS: Final = frozenset({"kill_switch", "rate_limited"})
+TRANSIENT_REASONS: Final = frozenset({"kill_switch", "rate_limited", "spend_cap"})
 _PLACEHOLDER: Final = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 
@@ -68,10 +70,22 @@ class RateLimiter(Protocol):
     async def take(self, scope: str, key: str, bucket: Bucket, cost: int = 1) -> Decision: ...
 
 
+class TemplateSpend(Protocol):
+    """D34 daily cap on WhatsApp templates (`kx.core.spend.SpendMeter`)."""
+
+    async def left(self, kind: Literal["wa_templates"]) -> bool: ...
+    async def add(self, kind: Literal["wa_templates"], amount: Decimal) -> Decimal: ...
+
+
 class WhatsAppTransport(Protocol):
     async def send_text(self, to_e164: str, body: str, *, preview_url: bool = False) -> str: ...
     async def send_template(
-        self, to_e164: str, name: str, language: str, params: tuple[str, ...] = ()
+        self,
+        to_e164: str,
+        name: str,
+        language: str,
+        params: tuple[str, ...] = (),
+        document: DocumentRef | None = None,
     ) -> str: ...
     async def send_document(self, to_e164: str, document: DocumentRef, caption: str | None = None) -> str: ...
     async def upload_media(self, data: bytes, mime_type: str, filename: str) -> str: ...
@@ -86,11 +100,13 @@ class EmailTransport(Protocol):
         body: str,
         attachment: Attachment | None = None,
         in_reply_to: str | None = None,
+        list_unsubscribe: str | None = None,
+        from_name: str | None = None,
     ) -> str: ...
 
 
 class TransientDeliveryError(Exception):
-    """Raised by `deliver()` so the job queue retries later (same job id keeps per-thread order)."""
+    """Raised by `deliver()` so the job store retries later (the same job keeps per-thread order)."""
 
 
 # ---------------------------------------------------------------- pure helpers
@@ -138,6 +154,8 @@ class OutboundService:
         whatsapp: WhatsAppTransport,
         email: EmailTransport,
         clock: Clock = utc_now,
+        unsubscribe_link: Callable[[str], str] | None = None,
+        template_spend: TemplateSpend | None = None,
     ) -> None:
         self._db = databases
         self._settings = settings
@@ -149,16 +167,18 @@ class OutboundService:
         self._whatsapp = whatsapp
         self._email = email
         self._now = clock
+        self._unsubscribe_link = unsubscribe_link  # §8.1 step 10: on every buyer email
+        self._spend = template_spend
         rl = settings.rate_limit
         self._recipient_bucket = Bucket(rl.recipient_capacity, rl.recipient_refill_per_minute)
         self._channel_bucket = Bucket(rl.channel_capacity, rl.channel_refill_per_minute)
 
-    def _opt_out_confirmation(self, request: OutboundRequest) -> bool:
-        """§17 "Buyer opts out -> Confirmation": the single message allowed after STOP (approved template)."""
-        return (
-            request.kind is OutboundKind.NOTIFICATION
-            and request.template_name == self._settings.alerts.opt_out_confirmation_template
-            and request.idempotency_key.startswith("opt-out:")
+    @staticmethod
+    def _opt_out_confirmation(request: OutboundRequest) -> bool:
+        """§8.1 step 3 / §17 "Buyer opts out -> Confirmation": the single message allowed after a stop. Its
+        idempotency key is per address, so a second STOP never sends a second confirmation."""
+        return request.kind is OutboundKind.OPT_OUT_CONFIRMATION and request.idempotency_key.startswith(
+            "opt-out:"
         )
 
     # ============================================================ send
@@ -167,6 +187,8 @@ class OutboundService:
             return existing
         address, rhash = _recipient(request)
         await self._transient_checks(request.channel, rhash)
+        if request.kind in PROACTIVE_KINDS and await self._kill.engaged("marketing"):  # D35 step 1
+            raise RuleViolation("marketing sends are switched off", reason="kill_switch")
 
         message_id = new_id()
         async with self._db.transaction(LogicalDb.AUTOMATION) as s:
@@ -181,6 +203,7 @@ class OutboundService:
                 s, account, address, contact_ref=request.contact_ref, deal_ref=request.deal_ref
             )
             template = await self._template(s, request)
+            await self._template_cap(request, template)
             prepared = await self._prepare(request, address, rhash, template)
             reason = await self._block_reason(
                 s, request=request, p=prepared, thread=thread, template=template, message_id=message_id
@@ -243,6 +266,19 @@ class OutboundService:
                 retry_after_seconds=decision.retry_after_seconds,
             )
 
+    async def _template_cap(self, request: OutboundRequest, template: MessageTemplate | None) -> None:
+        """D34: at 100 % of the day's WhatsApp-template budget, buyer templates are held (the caller retries
+        later; staff see the alert). Staff alerts are never held: the approval ladder depends on them."""
+        if (
+            template is None
+            or request.channel != "whatsapp"
+            or request.kind in STAFF_KINDS
+            or self._spend is None
+        ):
+            return
+        if not await self._spend.left("wa_templates"):
+            raise RuleViolation("the daily WhatsApp template budget is used up", reason="spend_cap")
+
     async def _template(self, s: AsyncSession, request: OutboundRequest) -> MessageTemplate | None:
         if request.template_name is None:
             return None
@@ -285,7 +321,8 @@ class OutboundService:
     ) -> str | None:
         if p.text is None and request.media_s3_key is None:
             raise RuleViolation("message has no content", reason="empty")
-        if await is_suppressed(s, request.channel, p.rhash) and not self._opt_out_confirmation(request):
+        suppressed = await is_suppressed(s, request.channel, p.rhash, request.contact_ref)
+        if suppressed and not self._opt_out_confirmation(request):
             return "opt_out"
         if request.channel == "whatsapp" and template is None and not self._session_open(thread):
             return "window_closed"
@@ -370,6 +407,9 @@ class OutboundService:
                 content_sha256=request.content_sha256,
                 grant_ref=request.grant_id,
                 deal_ref=request.deal_ref,
+                contact_ref=request.contact_ref,
+                recipient_hash=p.rhash,
+                sender_name=request.sender_name,
                 requested_by=request.requested_by,
                 idempotency_key=request.idempotency_key,
                 status=status,
@@ -412,6 +452,11 @@ class OutboundService:
             await self._finish(message_id, "failed", None, type(exc).__name__)
             raise
         await self._finish(message_id, "sent", provider_id, None)
+        if template is not None and channel == "whatsapp" and self._spend is not None:
+            await self._spend.add("wa_templates", Decimal(1))  # D34: every template sent costs money
+        if channel == "whatsapp" and row.kind in {k.value for k in PRICED_KINDS} and row.grant_ref:
+            wait = timedelta(minutes=self._settings.whatsapp.quote_delivery_minutes)
+            await self._scheduler.schedule_quote_delivery_check(message_id, self._now() + wait)
 
     async def _claim(
         self, message_id: uuid.UUID
@@ -454,15 +499,25 @@ class OutboundService:
         filename = (row.media_s3_key or "document.pdf").rsplit("/", 1)[-1]
         if channel == "email":
             attachment = Attachment(filename, "application/pdf", pdf) if pdf is not None else None
+            link = self._unsubscribe_link
+            unsubscribe = (
+                link(row.to_address) if link and row.kind not in {k.value for k in STAFF_KINDS} else None
+            )
             return await self._email.send(
                 to_address=row.to_address,
-                subject=row.subject or "Arifaa Pack",
+                subject=row.subject or self._settings.company_name or "Message",
                 body=row.body or "",
                 attachment=attachment,
+                list_unsubscribe=unsubscribe,
+                from_name=row.sender_name,
             )
         if template is not None:
+            document = None
+            if pdf is not None:  # a template with a DOCUMENT header (§8.2 Requirement Summary)
+                media_id = await self._whatsapp.upload_media(pdf, "application/pdf", filename)
+                document = DocumentRef(filename, media_id=media_id)
             return await self._whatsapp.send_template(
-                row.to_address, template.name, template.language, params
+                row.to_address, template.name, template.language, params, document
             )
         if pdf is not None:
             media_id = await self._whatsapp.upload_media(pdf, "application/pdf", filename)
@@ -470,6 +525,33 @@ class OutboundService:
                 row.to_address, DocumentRef(filename, media_id=media_id), caption=row.body
             )
         return await self._whatsapp.send_text(row.to_address, row.body or "")
+
+    async def check_quote_delivery(self, message_id: uuid.UUID) -> bool:
+        """D32: the priced WhatsApp message has had its wait. Delivered or read: nothing to do. Otherwise
+        the CRM is told (with the exact content) so it can grant the same quote on email. True when told."""
+        async with self._db.transaction(LogicalDb.AUTOMATION) as s:
+            row = await s.get(OutboundMessage, message_id)
+            if row is None or row.grant_ref is None or row.content_sha256 is None:
+                return False
+            if row.status in ("delivered", "read") or row.delivered_at is not None or row.read_at is not None:
+                return False
+            await emit(
+                s,
+                QuoteNotDelivered(
+                    message_ref=row.id,
+                    grant_ref=row.grant_ref,
+                    deal_ref=row.deal_ref,
+                    contact_ref=row.contact_ref,
+                    kind=row.kind,
+                    status=row.status,
+                    body=row.body,
+                    subject=row.subject,
+                    pdf_s3_key=row.media_s3_key,
+                    content_sha256=row.content_sha256,
+                ),
+            )
+        log.warning("outbound.quote_not_delivered", message_id=str(message_id))
+        return True
 
     async def _set_status(self, message_id: uuid.UUID, status: OutboundStatus, *, error: str | None) -> None:
         async with self._db.transaction(LogicalDb.AUTOMATION) as s:

@@ -45,6 +45,28 @@ def normalise_phone(raw: str, default_region: str = "AE") -> str:
     return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
 
 
+PhoneKind = Literal["mobile", "landline", "invalid", "unknown"]
+_MOBILE_TYPES = (phonenumbers.PhoneNumberType.MOBILE, phonenumbers.PhoneNumberType.FIXED_LINE_OR_MOBILE)
+
+
+def phone_kind(raw: str, default_region: str = "AE") -> PhoneKind:
+    """§8.2 step 1, the silent format check: mobile (can be on WhatsApp), landline, invalid, or unknown
+    (valid but the numbering plan does not say). A landline or invalid number makes the AI ask, naturally,
+    "Is that a mobile number on WhatsApp? I'd like to send you the summary there."."""
+    try:
+        parsed = phonenumbers.parse(raw, default_region)
+    except phonenumbers.NumberParseException:
+        return "invalid"
+    if not phonenumbers.is_valid_number(parsed):
+        return "invalid"
+    kind = phonenumbers.number_type(parsed)
+    if kind in _MOBILE_TYPES:
+        return "mobile"
+    if kind == phonenumbers.PhoneNumberType.FIXED_LINE:
+        return "landline"
+    return "unknown"
+
+
 def normalise_email(raw: str) -> str:
     email = raw.strip().lower()
     local, sep, domain = email.partition("@")

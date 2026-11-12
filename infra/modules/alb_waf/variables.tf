@@ -65,8 +65,9 @@ variable "ai_rate_limit_per_5min" {
 }
 
 variable "ai_path_prefixes" {
-  type    = list(string)
-  default = ["/v1/voice/token", "/v1/conversations"]
+  description = "Paths with the tight per-IP limit: the public website API (chat turns, voice tokens, unsubscribe) and staff login (brute force)."
+  type        = list(string)
+  default     = ["/v1/public/", "/v1/auth/"]
 }
 
 variable "blocked_country_codes" {

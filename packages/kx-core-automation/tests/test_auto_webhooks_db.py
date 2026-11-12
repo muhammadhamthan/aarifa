@@ -133,8 +133,31 @@ async def test_media_message_waits_for_fetch(hook: Hook) -> None:
 
 
 async def test_stop_keyword_suppresses(hook: Hook) -> None:
+    """§8.1 steps 1-2 and 9: the whole-message word stops every channel at once and is logged for good."""
     await hook.whatsapp(meta_payload([text_message(body=" STOP ")]))
-    assert await hook.sql("SELECT channel, reason FROM suppressions") == [("whatsapp", "stop_keyword")]
+    assert await hook.sql("SELECT channel, reason FROM suppressions") == [("all", "rule:all")]
+    assert await hook.sql("SELECT scope, source, decided_by, exact_words FROM opt_out_log") == [
+        ("all", "rule", "word:stop", " STOP ")
+    ]
+    events = await hook.sql("SELECT event_type, payload->>'opted_out' FROM outbox_events ORDER BY sequence")
+    assert events == [("consent.opted_out.v1", None), ("message.received.v1", "true")]
+
+
+async def test_channel_phrase_stops_one_channel_and_a_sentence_goes_to_the_ai(hook: Hook) -> None:
+    """§8.1 step 6: "use email instead" stops WhatsApp only; "stop, let me check" is read by the AI."""
+    await hook.whatsapp(meta_payload([text_message(body="Please use email instead")]))
+    assert await hook.sql("SELECT channel FROM suppressions") == [("whatsapp",)]
+    await hook.whatsapp(meta_payload([text_message(wamid="wamid.IN2", body="stop, let me check")]))
+    rows = await hook.sql(
+        "SELECT payload->>'stop_in_sentence' FROM outbox_events WHERE event_type = 'message.received.v1' "
+        "ORDER BY sequence"
+    )
+    assert rows == [("false",), ("true",)]
+    logged = await hook.sql(
+        "SELECT scope, decided_by FROM opt_out_log WHERE exact_words IN ('Please use email instead', "
+        "'stop, let me check')"
+    )
+    assert logged == [("whatsapp", "channel:use email instead")]  # the sentence stopped nothing by itself
 
 
 async def test_statuses_move_forward_only(hook: Hook) -> None:

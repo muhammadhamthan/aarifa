@@ -221,3 +221,17 @@ def test_s3_objects_decodes_keys() -> None:
         ]
     }
     assert s3_objects(message) == (("kx-mail", "inbound/a b@c"),)
+
+
+def test_from_display_name_keeps_the_company_address() -> None:
+    """§14: the salesperson's name as sender, always on the company address."""
+    msg = build_mime(
+        from_address="sales@arifapack.com",
+        to_address="buyer@example.com",
+        subject="D-1",
+        body="Hello",
+        from_name="Sara, Arifa Pack",
+    )
+    parsed = message_from_bytes(msg.as_bytes(), policy=policy.default)
+    assert parsed["From"].addresses[0].display_name == "Sara, Arifa Pack"
+    assert parsed["From"].addresses[0].addr_spec == "sales@arifapack.com"

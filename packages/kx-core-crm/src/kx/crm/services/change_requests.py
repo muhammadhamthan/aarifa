@@ -1,4 +1,4 @@
-"""Change requests (docs/BUSINESS_FLOW_V1.md §13, D12): anything the buyer asks that the AI may not decide.
+"""Change requests (the SRS §13, D12): anything the buyer asks that the AI may not decide.
 
 Types: product/variant, specification, printing/branding, quantity (below the MOQ or outside the tiers),
 delivery, samples, payment (always a person, never the AI) and other.

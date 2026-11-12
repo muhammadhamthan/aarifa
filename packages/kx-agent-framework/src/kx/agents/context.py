@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any, Literal
 
 from kx.agents.knowledge import KnowledgeSearch
@@ -44,6 +45,7 @@ class RunLog:
     cached_tokens: int = 0
     regenerations: int = 0  # the price guard regenerates at most once per run
     handoff: bool = False
+    cost_usd: Decimal = Decimal(0)  # D34: summed per model call from the official price table
 
     @property
     def blocked(self) -> bool:

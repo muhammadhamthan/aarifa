@@ -1,5 +1,3 @@
-<!-- Exported from the Claude Doc 'Arifaa Pack — Detailed Business Flow v1 (SRS basis)', https://claude.ai/artifact/MbcE3qg4MEGYvcKFybcix5, on 5 Nov 2026. The Doc is the master; re-export after edits. Diagrams are not exported: see the Doc. -->
-
 # Arifaa Pack — Detailed Business Flow v1 (SRS basis)
 
 Nov 5, 2026 · @Hamthan · Kairox AI Tech for Arifa Packing & Packaging LLC
@@ -110,7 +108,7 @@ The buyer reaches us through the channels. The AI drafts in the CRM, staff appro
 | Part | Built with | Job |
 | --- | --- | --- |
 | **Website** | Next.js + 3D, on Vercel | "Enter the factory" experience, product pages, AI voice and chat, Requirement Summary |
-| **CMS** | Payload CMS, in the UAE | The website's admin panel: text, photos, videos, products, 3D labels, SEO. It also feeds the AI's knowledge |
+| **CMS** | Payload CMS, in the UAE | The website's admin panel: text, photos, videos, products, 3D labels, SEO, AEO and GEO. It also feeds the AI's knowledge |
 | **CRM** | FastAPI + PostgreSQL in the UAE; screens in Next.js | Deals, contacts, catalogue, price list, quotes, approvals, change requests, orders, dashboards |
 | **AI agents** | LangGraph + Claude | Conversation, qualification, quote drafting, price negotiation, follow-up, alerts |
 | **Automation** | WhatsApp Cloud API, Amazon SES email, Twilio alert calls, job scheduler | Sends and receives messages, alerts staff, runs follow-ups and reminders |
@@ -138,8 +136,8 @@ A change request leads to a revised quote, which goes back through Approval 1 be
 | 9 | Revised quote | Salesperson | Approves the revised version (same approval screen) and it is sent | NEGOTIATION |
 | 10 | Buyer agrees | AI | Confirms the agreed terms and prepares the final quote | READY\_TO\_CLOSE |
 | 11 | **Approval 2** | Salesperson | Approves the final quote. It is sent, the **salesperson is alerted and the manager notified**, and the AI steps back | READY\_TO\_CLOSE |
-| 12 | Payment | Salesperson (human only) | Agrees payment details with the buyer, confirms the advance and records it | PAYMENT |
-| 13 | Won | Salesperson | Marks WON and enters the expected re-order date. An order record is created | WON |
+| 12 | Payment | Salesperson (human only) | Agrees payment details with the buyer, confirms the advance (recording the amount is optional) | PAYMENT |
+| 13 | Won | Salesperson | Marks WON (required); the expected re-order date is optional. An order record is created | WON |
 | 14 | Order tracking | Salesperson | In production → Ready → Shipped → Delivered | WON |
 | 15 | Lost | Salesperson / system | Lost reason required. No reply after the last follow-up: the system proposes LOST and the salesperson confirms | LOST |
 
@@ -196,6 +194,105 @@ The CMS is where the client team changes the website, without a developer.
 - **Videos:** upload an MP4 or paste a YouTube/Vimeo link. Large factory films should be links.
 - **Limit:** new 3D scenes or camera moves need a developer. Text, images, products and hotspot labels do not.
 
+**SEO, AEO and GEO, all editable in the CMS** (no developer needed):
+
+| Type | What it is for | What editors can change |
+| --- | --- | --- |
+| **SEO** (search engines) | Rank on Google and Bing | Page title, meta description, URL slug, headings, image alt text, canonical link, share image, include or exclude from the sitemap, hide from search |
+| **AEO** (answer engines: Google featured answers, voice assistants) | Be the direct answer to a buyer's question | FAQ blocks per page and product with short, direct answers (published as FAQ structured data), "how to order" steps, a key-facts box |
+| **GEO** (generative engines: ChatGPT, Gemini, Perplexity, Claude) | Be described and quoted correctly by AI assistants | Company facts (name, location, capabilities, certifications, markets), product fact tables, Organization and Product structured data, a plain-text summary page for AI crawlers (llms.txt), citation-friendly summaries |
+
+- Structured data is generated automatically from these fields. Editors fill in fields, never code.
+- Product structured data **never includes prices**.
+- The website's AI agent uses the same approved facts, so the website, search engines and AI assistants all say the same thing.
+
+**Product and production information: public in the CMS, mirrored in the CRM**
+
+- **Product information** (name, specs, materials, sizes, photos, videos, certifications) and **production information** (processes, quality checks, capacity statements, typical lead times as text) are edited in the CMS and shown publicly. Editors choose what is public.
+- The same records reach the **CRM by product code** when published, so the quote builder and salespersons see the same data.
+- **Pricing tiers, list prices and minimum prices stay private in the CRM.** They never appear in the CMS, on the website, in the AI's knowledge or in structured data.
+- **Which system is the master copy:**
+  - **CMS** for descriptive content;
+  - **CRM** for prices, MOQ and the default delivery time.
+
+## 7A. CRM flow (how the client team works in the CRM)
+
+The CRM is where Arifa Pack's staff run every deal. This section walks through the CRM end to end: first a deal's life inside it, then each role's daily flow. The detailed rules are in sections 8–17, and the list of screens is in section 20.
+
+### 7A.1 A deal's life inside the CRM
+
+| Stage | What the CRM shows | Who acts | Actions available |
+| --- | --- | --- | --- |
+| NEW | Deal card created from the conversation. Live timeline of the chat; fields the AI has collected so far | AI | Salesperson and manager can view and add notes |
+| QUALIFIED | Requirement summary, contact, assigned salesperson, the Requirement Summary PDF sent | System / manager | Reassign (manager, MD); take over (MD) |
+| QUOTATION | Draft quote on the approval screen, the AI's notes, reminder timer (30 / 60 / 120 min) | Salesperson | Approve and send; edit then approve; return to AI with a note |
+| NEGOTIATION | Negotiation history (each offer, steps used), change request cards, below-minimum alerts, quote versions side by side | AI (price) + salesperson (everything else) | Revise quote; approve revision; propose a special price (manager approves); reply via AI; call the buyer |
+| READY\_TO\_CLOSE | Final quote waiting for Approval 2, then a "Handed over" badge (the AI stops replying) | Salesperson | Approve final quote; message the buyer directly |
+| PAYMENT | Payment form | Salesperson | Confirm the advance; amount, method, reference and proof are optional |
+| WON | Order record and status | Salesperson | Update order status (In production → Ready → Shipped → Delivered); optionally set the expected re-order date |
+| LOST | Lost reason and note | Salesperson / system | Confirm a proposed LOST; reopen (manager) |
+
+### 7A.2 Salesperson's daily flow
+
+1. **Log in** with two-step login. **My inbox** opens, sorted by SLA timer:
+   - quotes to approve (1st, revised, final);
+   - change requests;
+   - below-minimum alerts;
+   - buyer messages on deals already handed over.
+2. **Open an item.** The deal page shows a short AI summary of the conversation at the top, so the salesperson doesn't need to read the whole chat. The full timeline is below.
+3. **Approve quotes** (§11.3): check the fields, edit if needed, approve. The system sends it.
+4. **Resolve change requests** (§13): press **Revise quote**, which opens a new version pre-filled with what the buyer asked. Edit, approve, sent.
+5. **Handle below-minimum alerts** (§12): propose a special price (the manager approves it), counter, decline or take over.
+6. **After the final quote:**
+   - contact the buyer for the PO and payment;
+   - mark WON (required); recording the advance details is optional;
+   - optionally set the expected re-order date;
+   - update the order status until Delivered.
+7. **Going on leave:** set status to *Away*. The backup person receives new deals and approvals.
+
+### 7A.3 Manager's flow
+
+1. **Catalogue and price list:** add and update products, quantity tiers, list price, minimum price, MOQ and default delivery time, on screen or by Excel import. Every change is logged.
+2. **Team board:** see every salesperson's open items, SLA breaches and unassigned or escalated deals.
+3. **Escalations at 2 hours:** approve on the salesperson's behalf, or reassign the deal.
+4. **Special prices:** approve or decline any price below the minimum.
+5. **Notifications:** final quotes sent, WON deals, below-minimum requests.
+6. **Stock table:** update raw materials and finished goods by hand (v1).
+7. **Settings:**
+   - timers, follow-up days, assignment rules;
+   - VAT, Incoterm, validity;
+   - FX overrides;
+   - message templates.
+
+### 7A.4 MD's flow
+
+1. **Dashboard:**
+   - pipeline value by stage;
+   - win rate and average discount from list;
+   - deals by country, product category and channel;
+   - response times.
+2. **Take over** any deal. The MD becomes its approver and the salesperson is read-only. **Hand back** when done.
+3. **Reassign** deals between salespersons.
+4. **Daily and weekly summary report** by WhatsApp or email.
+
+### 7A.5 Admin flow
+
+- staff users and roles;
+- each person's alert channels (WhatsApp, email, call, CRM notification);
+- WhatsApp numbers per region;
+- message templates;
+- Excel import of the price list;
+- the **kill switch** that pauses outbound messages.
+
+### 7A.6 What the CRM records automatically
+
+- Every message, call transcript and AI action, on the deal timeline.
+- Every quote version, locked at approval, with who approved it and when.
+- Every price-list and settings change: who, when, old value and new value.
+- Every stage change, reassignment and takeover.
+
+These feed the dashboards and the audit trail.
+
 ## 8. Lead capture and qualification
 
 **Entry points:** website voice, website chat, WhatsApp (each regional number), email, and manual entry by a salesperson (walk-in, phone, exhibition).
@@ -224,7 +321,99 @@ The CMS is where the client team changes the website, without a developer.
 - **Duplicates:** an existing phone or email links the new enquiry to the existing contact. If that contact has an open deal, the message joins that deal, and its salesperson is alerted.
 - **Several products** in one enquiry become one deal with several quote lines.
 - **Not a buyer** (job seekers, suppliers, spam): the AI answers politely, tags the contact and creates no deal.
-- **Consent:** the AI only contacts buyers who contacted us first. Opt-out words (STOP, unsubscribe, إيقاف) stop all messages immediately.
+- **Consent:** the AI only contacts buyers who contacted us first. Opt-out words (STOP, unsubscribe, إيقاف) start the opt-out flow in section 8.1: messages stop at once, and the buyer gets one plain confirmation.
+
+### 8.1 When the buyer says STOP (final, after a 3-agent review on 6 Nov)
+
+Three agents reviewed the question: one argued for the first draft, one argued against it, and a judge checked the deciding sources. The verdict was to **stop at once, send one plain confirmation, and collect reasons only when the buyer offers them.**
+
+**Why the first draft was dropped.** The first draft sent a closing message that asked the reason and offered "pause for 30 days" or "order updates only" buttons. That was dropped for two reasons:
+
+- In the UK, the regulator penalised Moneysupermarket for messages asking people who had opted out to reconsider: "asking people to consent to future marketing messages when they have already opted out is against the law." ([Pinsent Masons summary](https://www.pinsentmasons.com/out-law/news/businesses-warned-against-dressing-up-marketing-emails-that-customers-have-opted-out-of-))
+- The US FCC allows one confirmation text after an opt-out only if it "contains no marketing or promotional information", and treats a confirmation sent within 5 minutes as covered. ([summary](https://www.privacyworld.blog/2024/02/fcc-clarifies-and-codifies-tcpa-consent-revocation-rules/))
+
+A buyer who has just said stop is also the most likely to block or report the number, which hurts its WhatsApp quality rating.
+
+**Final flow**
+
+1. **Match first (rules, not AI).**
+   - Exact words such as STOP, UNSUBSCRIBE, CANCEL, END and QUIT, the Arabic and Hindi equivalents (e.g. إيقاف), and clear phrases ("don't message me", "remove me") are an opt-out.
+   - Context decides. When the word is the whole message ("STOP", "Stop.", "unsubscribe"), it is always an opt-out, because there is no other context to read. When it sits inside a sentence, the meaning of the sentence decides (step 6): "stop sending me messages" is an opt-out; "stop, let me check", "stop, I meant 5,000 not 50,000" and "stop, that's too expensive" are not.
+2. **Stop at once, everywhere.**
+   - The contact goes on one shared **suppression list**. The sending service checks it before every WhatsApp message, email and call, so the AI can't bypass it.
+   - All queued follow-ups, reminders and templates are cancelled.
+3. **One plain confirmation, within 5 minutes,** inside WhatsApp's 24-hour window and in the buyer's language.
+   - **May contain:** that the stop is done, what stops, and how to restart if the buyer wants to.
+   - **May not contain:** an apology, buttons, a question, a pause offer, a discount, or anything promotional.
+   - **Example:** "You're unsubscribed from Arifa Pack messages. You won't hear from us again. To restart, message us any time."
+4. **Reasons, collected only when the buyer gives them:**
+   - free text the buyer writes on their own (e.g. "stop, found cheaper") is saved as the reason;
+   - the optional reason field on the email unsubscribe page;
+   - a reason the salesperson records after a conversation the buyer started.
+   - **Not in v1:** a "reply to tell us why" line in the confirmation. It is a setting, `optout.ask_reason`, off by default, until a lawyer confirms it isn't marketing in the UAE, GCC, EU and India.
+5. **Pause or order updates only** when the buyer asks for it themselves ("just send my order updates"). That is a fresh, logged consent. We never offer it after a stop.
+6. **The AI's role is limited.**
+   - Messages **without** an opt-out word are read by the AI as usual:
+     - "too expensive" is negotiation (§12);
+     - "use email instead" switches channel and stops WhatsApp only;
+     - "don't call me" stops calls only.
+   - The AI may **add** a stop, never remove one.
+   - Unclear message: automated follow-ups pause at once. If the buyer is in a live conversation (replied in the last 10 minutes), the AI asks one short question: "Just to check, should we stop messaging you?" No answer within 24 hours is treated as an opt-out. If the buyer is not in a live conversation, the salesperson reviews it instead.
+7. **The buyer writes again later** → a normal conversation restarts, because the buyer started it. Follow-ups resume only after the buyer agrees again, and that consent is logged.
+8. **In the CRM:**
+   - The deal shows an **Opted out** badge, and the salesperson and manager are notified.
+   - If the deal is open, the CRM proposes LOST with reason *Opted out*, or with the buyer's own reason if they gave one. The salesperson confirms.
+   - Opt-out counts and the volunteered reasons appear on the manager and MD dashboards.
+9. **Logging (permanent):**
+   - the buyer's exact words, time (UTC) and channel;
+   - the rule or AI version that decided;
+   - what was stopped;
+   - the confirmation text and when it was sent.
+10. **Email and voice.**
+    - Every email has a one-click unsubscribe link; the reason field on that page is optional.
+    - On voice, "stop" usually means "wait". The AI stops talking at once and listens ("stop, let me talk"). It ends the call only when the buyer clearly wants to end it ("stop calling me", "I don't want this call", "goodbye"). If it's unclear, it asks: "Sure, shall I wait, or would you like to end the call?" Calls are suppressed only after a clear request not to be called.
+
+**Still to confirm with a lawyer before go-live:**
+
+- whether any "tell us why" line is allowed;
+- the UAE PDPL and TDRA rules on withdrawing consent;
+- Meta's opt-out and quality-rating rules;
+- India's rules;
+- how long to keep consent logs.
+
+### 8.2 Confirming the buyer's phone number silently and naturally
+
+**Goal:** make sure the number really belongs to the person we are talking to. No codes, no "security check", nothing that worries the buyer. The buyer should only feel they received something useful.
+
+1. **Silent format check.**
+   - The number is checked and normalised as soon as it is given: country code, length, mobile or landline.
+   - If it is invalid or a landline, the AI asks naturally: "Is that a mobile number on WhatsApp? I'd like to send you the summary there."
+2. **Send something useful, not a code.** The **Requirement Summary PDF** goes to the buyer's preferred channel (WhatsApp, or email if they prefer), worded as service:
+
+   > "Hi Ahmed, here's the summary of what we discussed — 50,000 aluminium containers, 750 ml with lid, delivery to Riyadh. Our team is preparing your quotation."
+3. **Read the signals silently.**
+
+| Signal | What it tells us | Status on the deal |
+| --- | --- | --- |
+| WhatsApp shows **Delivered** | The number is active on WhatsApp | Reachable |
+| WhatsApp shows **Read** | The buyer opened it (only if they have read receipts on) | Likely verified |
+| The buyer **replies** from that number (anything, even "thanks") | Same person, number confirmed | **Verified** |
+| The WhatsApp **profile name** (visible when they reply) matches the name they gave | Extra confidence | Shown on the deal card |
+| Still on the website, the buyer says "got it" | Same person | **Verified** |
+| Delivery **fails** (not on WhatsApp, or invalid) | Wrong or non-WhatsApp number | Not reached |
+
+Read receipts can be switched off, so no "Read" tick is not a failure.
+
+4. **If not reached.**
+   - If the buyer is still on the website, the AI says naturally: "I've just sent the summary to your WhatsApp, but it doesn't seem to have arrived. Could you check the number, or would email be easier?"
+   - If the buyer has left, the summary goes by email (if we have it). Otherwise the salesperson is told.
+5. **Never:**
+   - OTP codes;
+   - the words "verify your identity" or "for security";
+   - a test call to the number.
+6. **In the CRM.**
+   - The deal card shows the phone status (Verified, Likely, Reachable or Not reached) with its time.
+   - Quotes go only to numbers that are Reachable or better. For Not reached, the salesperson decides.
 
 ## 9. Deal assignment
 
@@ -281,6 +470,19 @@ In v1 **prices are entered by the client's manager**, not calculated. For each p
 3. **Line total** = unit price × quantity.
 4. **Subtotal** = the sum of the lines. **VAT** = subtotal × VAT % (UAE only). **Total** = subtotal + VAT.
 
+**Who builds the quote: the system (backend), not the AI.**
+
+- The AI only collects the information (product, quantity, delivery place, buyer details) and saves it on the deal.
+- The **backend builds the quote with fixed rules** from the catalogue and the price list. It:
+  - picks the tier and takes the list price;
+  - converts the currency and adds VAT;
+  - fills in the product specs, default delivery time and terms;
+  - numbers the version and creates the PDF.
+- The same inputs always give the same quote, and every number can be traced to the price list.
+- **The AI never calculates or types a price.** It writes only the covering message.
+- **If the system can't build a line** (custom or printed item, no list price, quantity outside the tiers), that line stays empty and is marked **Pricing needed**. The **salesperson** fills it.
+  - We recommend the salesperson, not the AI, even in this case: a price made up by an AI can't be checked against anything and could be wrong in the buyer's favour.
+
 **Example (illustrative):** 50,000 pcs of ALC-750-L to Dubai.
 
 - The 50,000+ tier applies: list price AED 0.25, minimum AED 0.23.
@@ -331,9 +533,19 @@ The PDF can be in English or Arabic; Arabic is laid out right-to-left.
 
 The AI negotiates **price only**, and only between the tier's list price and its minimum. **Everything else becomes a change request** for the salesperson (section 13).
 
-&#91;embedded content: Negotiation decision on each buyer reply · 4 checks\]
+&#91;embedded content: Worked example · buyer, AI and salesperson, 8 steps\]
 
-Anything that isn't price goes to the salesperson. A price below the minimum that the buyer insists on pauses the AI.
+Read it top to bottom. The buyer's messages are on the left, the AI's replies in the middle, and the salesperson on the right.
+
+**In plain words:**
+
+- For each product and quantity, the manager sets two prices: the **normal price** and the **lowest price**.
+- The quote always starts at the normal price.
+- When the buyer asks for less, the AI can come down in **up to 3 small fixed steps** towards the lowest price.
+- The **first step** is goodwill. **Further steps** only when the buyer orders more.
+- The AI **never** goes below the lowest price. If the buyer insists, the AI stops and the salesperson decides; the manager is told.
+- **Anything that isn't price** (size, print, delivery date, payment) goes straight to the salesperson.
+- When the buyer agrees, the AI drafts the final quote and the **salesperson approves** it before it is sent.
 
 ### 12.1 The concession ladder
 
@@ -429,15 +641,46 @@ A **change request** is created whenever the buyer asks for anything the AI may 
    - Outside working hours the buyer gets an automatic acknowledgement: "Thanks — Sara will reply in the morning."
 7. **Payment, PO and banking details are discussed only by humans**, never by the AI.
 
+**How the salesperson contacts the buyer after handover: same channel, same number (recommended).**
+
+The salesperson continues on the **same company number and in the same conversation** the buyer already knows. They don't use a personal or second number.
+
+- **WhatsApp:**
+  - the salesperson replies from the **CRM inbox** (web and mobile), on the same regional company WhatsApp number;
+  - the buyer sees one continuous chat;
+  - messages are signed with the salesperson's name ("— Sara, Arifa Pack").
+- **Email:** from the same company address, with the salesperson's name as sender. Replies land in the deal.
+- **Calls:** click-to-call from the CRM through the company number. The call is logged on the deal; no personal phones.
+
+**Why this is better**
+
+- The buyer isn't confused by a new number, and keeps trusting the chat they started.
+- The full history (AI and salesperson) stays in the CRM. The manager and MD can see it, and nothing is lost if a salesperson leaves.
+- Consent, opt-out and WhatsApp's 24-hour rule keep working automatically.
+- The company, not a personal phone, owns the customer relationship.
+
+**Is it easy for the salesperson?** Yes, if the CRM inbox is fast on mobile:
+
+- a push notification for each buyer message;
+- one-tap reply;
+- quick-reply templates;
+- attachments.
+
+**Practical notes**
+
+- The WhatsApp Cloud API lets several staff reply on one number through the CRM. No WhatsApp app on a phone is needed.
+- After 24 hours without a buyer message, only an approved template can restart the chat, e.g. "Sara from Arifa Pack here about your order — reply to continue."
+- If a buyer insists on a direct personal contact, the salesperson may share it. The CRM records that this happened, and the deal must still be updated in the CRM.
+
 ## 15. Payment, won deals and order tracking
 
 1. **Payment (human).**
    - The salesperson agrees the payment method with the buyer.
-   - The salesperson records the advance: amount, currency, method, reference, date, and a proof file.
+   - The salesperson confirms the advance was received. Recording the amount, currency, method, reference, date and proof file is optional.
    - The **advance is always required** (the % is a setting per customer type). The deal moves to PAYMENT.
 2. **WON.**
-   - The salesperson marks the deal WON once the advance is confirmed.
-   - They enter the **expected re-order date**. It's stored now so v2 re-order follow-ups have data.
+   - The salesperson marks the deal WON once the advance is confirmed. Marking WON or LOST is mandatory; payment details and the re-order date are optional.
+   - They may enter the **expected re-order date**. It's optional; when filled, v2 re-order follow-ups can use it.
    - An **order record** is created.
 3. **Order statuses:** In production → Ready → Shipped (with tracking number or documents) → Delivered. The salesperson updates them by hand. Whether the buyer automatically gets a WhatsApp update for each status is a client choice.
 4. **LOST.**
@@ -476,6 +719,21 @@ Each follow-up has a reason, e.g. "any questions on the quotation?", the quote e
 - **Timers** count only alert hours (08:00–22:00 UAE, setting) and pause outside them.
 - **Channels:** each staff member chooses their preferred channels in their profile (WhatsApp, email, call, CRM push). This is to confirm with the client.
 - **The alert call** only reminds. **Approval always happens in the CRM** with two-step login.
+
+**Which channel is used when: call or text**
+
+| Situation | Channel | Why |
+| --- | --- | --- |
+| Buyer follow-ups (day 2, 5, 10) | **Text only:** WhatsApp, or email if the buyer prefers | No unsolicited calls to buyers; text is easy to answer later |
+| Quote, revised quote, final quote | **Text:** WhatsApp and/or email, with the PDF | The buyer needs the document |
+| The buyer asks "call me" or books a call | **Call:** the salesperson calls through the CRM on the company number, or the AI voice if the buyer wants to talk now | The buyer asked for it |
+| The buyer calls us, or talks on the website | **Voice** (AI) | The buyer started it |
+| AI cold calls to buyers | **Never** | UAE rules: AI calls to numbers that didn't ask need approval and a licensed line |
+| Staff reminders (approval, change request, below-minimum) | **WhatsApp** at 0 and 30 min, **automated call** at 60 min, **escalation** to the manager at 120 min (WhatsApp + call) | Staff get a call only when the text wasn't acted on |
+| Order status updates | **Text** (if the client turns them on) | Information only |
+| Opt-out confirmation | **Text**, one plain message (§8.1) | Required by the rules |
+
+**Rule of thumb:** buyers get text unless they ask for a call. Calls are only for staff alerts and calls the buyer asked for.
 
 ## 17. Notifications matrix
 
@@ -527,6 +785,16 @@ Each follow-up has a reason, e.g. "any questions on the quotation?", the quote e
 | **Website voice and chat** | Live AI conversation; continues on WhatsApp after qualification |
 | **Staff alert calls** (Twilio) | Scripted reminder calls to staff only (approvals, change requests, below-minimum). Never to buyers |
 | **AI calls to buyers** | Only calls the buyer starts or asks for. **No cold AI calls**: UAE rules require approval and a licensed line |
+
+**International channels (summary).**
+
+- **v1:** WhatsApp, email and website chat/voice. This covers GCC, South Asia, Africa, Europe, Latin America and much of South-East Asia.
+- **v1.5:** SMS as a fallback, for transactional messages only.
+- **v2:** WeChat (China), LINE (Japan, Thailand, Taiwan), Telegram (CIS) and Viber (Eastern Europe, Philippines), through one provider.
+- **Not practical now:** KakaoTalk (Korea) and Zalo (Vietnam) need a local company or partner.
+- Every new channel plugs into the same outbound service and follows the same consent, opt-out and approval rules.
+
+Full table by region, with how to build each channel and the laws: [Arifaa Pack — International Messaging Channels (research)](https://claude.ai/artifact/GmFGEoPTspaY3hDuQ8DcjT).
 
 **Background jobs** (all retried, logged, and safe to run twice):
 

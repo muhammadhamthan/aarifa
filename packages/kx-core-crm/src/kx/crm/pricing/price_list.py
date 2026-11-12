@@ -1,4 +1,4 @@
-"""v1 price-list pricing (pure, no I/O). Business rules: docs/BUSINESS_FLOW_V1.md §10 and §11.1, D6.
+"""v1 price-list pricing (pure, no I/O). Business rules: the SRS §10 and §11.1, D6.
 
 In v1 the manager enters prices: per product and quantity tier a **list price** (the AI always quotes it
 first) and a **minimum** (the AI never goes below it). A category may set a minimum % below list instead;

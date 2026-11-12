@@ -1,5 +1,5 @@
 # One RDS PostgreSQL instance per company (T19) holding the logical databases cms, crm, automation,
-# agents, each owned by its own login role. Databases and roles are created inside Postgres by the
+# agents and phoenix (AI traces, 11 Nov), each owned by its own login role. Databases and roles are created inside Postgres by the
 # one-off `db-bootstrap` ECS task (infra/scripts/db_bootstrap.sh); Terraform only generates the role
 # passwords and stores them, with ready-made DSNs, in Secrets Manager.
 
@@ -183,9 +183,10 @@ resource "aws_db_instance" "this" {
   skip_final_snapshot       = !var.deletion_protection
   final_snapshot_identifier = "${var.name}-final"
 
+  # Database Insights Advanced (Recommendation: slow queries, locks) requires 465 days of PI retention.
   performance_insights_enabled          = true
   performance_insights_kms_key_id       = var.kms_key_arn
-  performance_insights_retention_period = var.performance_insights_retention_days
+  performance_insights_retention_period = var.database_insights_mode == "advanced" ? max(var.performance_insights_retention_days, 465) : var.performance_insights_retention_days
   database_insights_mode                = var.database_insights_mode
   monitoring_interval                   = var.monitoring_interval
   monitoring_role_arn                   = var.monitoring_interval > 0 ? aws_iam_role.monitoring[0].arn : null
@@ -227,6 +228,8 @@ resource "aws_secretsmanager_secret_version" "role" {
     dsn = "postgresql+asyncpg://${each.value.role}:${random_password.role[each.key].result}@${aws_db_instance.this.address}:${aws_db_instance.this.port}/${each.value.db}"
     # KX_MIGRATE_<DB>_DSN for `kx migrate` (psycopg, libpq sslmode).
     migrate_dsn = "postgresql+psycopg://${each.value.role}:${random_password.role[each.key].result}@${aws_db_instance.this.address}:${aws_db_instance.this.port}/${each.value.db}?sslmode=require"
+    # Plain URL without driver or query (Arize Phoenix PHOENIX_SQL_DATABASE_URL; TLS is negotiated).
+    url = "postgresql://${each.value.role}:${random_password.role[each.key].result}@${aws_db_instance.this.address}:${aws_db_instance.this.port}/${each.value.db}"
     # Payload CMS (node-postgres). TODO: switch to verify-full with the RDS CA bundle in the CMS image.
     uri = "postgres://${each.value.role}:${random_password.role[each.key].result}@${aws_db_instance.this.address}:${aws_db_instance.this.port}/${each.value.db}?sslmode=no-verify"
   })

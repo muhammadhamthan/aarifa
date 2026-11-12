@@ -62,8 +62,16 @@ variable "crm_urls" {
   type        = list(string)
 }
 
-variable "cognito_domain_prefix" {
-  type = string
+variable "website_urls" {
+  description = "Website origins on Vercel that call /v1/public (chat, voice token), e.g. [\"https://www.arifapack.com\"]."
+  type        = list(string)
+  default     = []
+}
+
+variable "email_from_address" {
+  description = "The one company sending address (SES + the Postmark backup). null = sales@<ses_domain>."
+  type        = string
+  default     = null
 }
 
 # ---- sizes ----------------------------------------------------------------------
@@ -93,6 +101,12 @@ variable "cache_node_type" {
   default = "cache.t4g.small"
 }
 
+variable "database_insights_mode" {
+  description = "advanced = CloudWatch Database Insights Advanced (slow queries, locks; Recommendation ~US$18/month)."
+  type        = string
+  default     = "advanced"
+}
+
 variable "service_sizes" {
   type = map(object({
     cpu    = number
@@ -100,11 +114,16 @@ variable "service_sizes" {
     min    = number
     max    = number
   }))
+  # beat always runs exactly 1 task (min/max ignored); embeddings 1 vCPU + 4 GB per the Recommendation.
   default = {
-    api    = { cpu = 1024, memory = 2048, min = 2, max = 4 }
-    worker = { cpu = 1024, memory = 2048, min = 1, max = 2 }
-    voice  = { cpu = 2048, memory = 4096, min = 1, max = 2 }
-    cms    = { cpu = 512, memory = 1024, min = 1, max = 1 }
+    api            = { cpu = 1024, memory = 2048, min = 2, max = 4 }
+    worker         = { cpu = 1024, memory = 2048, min = 1, max = 2 }
+    beat           = { cpu = 256, memory = 512, min = 1, max = 1 }
+    voice          = { cpu = 2048, memory = 4096, min = 1, max = 2 }
+    cms            = { cpu = 512, memory = 1024, min = 1, max = 1 }
+    embeddings     = { cpu = 1024, memory = 4096, min = 1, max = 1 }
+    phoenix        = { cpu = 512, memory = 1024, min = 1, max = 1 }
+    otel_collector = { cpu = 256, memory = 512, min = 1, max = 1 }
   }
 }
 
@@ -118,19 +137,20 @@ variable "cms_health_path" {
   default = "/admin"
 }
 
-variable "bedrock_region" {
-  description = "null = Bedrock not used (Anthropic API direct, key in Secrets Manager)."
-  type        = string
-  default     = null
-}
-
 # ---- ops ----------------------------------------------------------------------------
 variable "alarm_emails" {
   type = list(string)
 }
 
 variable "monthly_budget_usd" {
-  type = number
+  description = "AWS Budgets alarm (AWS bill only: Claude, Meta, Postmark, Telnyx, LiveKit, Better Stack, Vercel bill outside AWS)."
+  type        = number
+}
+
+variable "betterstack_alarm_webhook_url" {
+  description = "Optional: Better Stack CloudWatch-integration URL subscribed to the alarm topic (incidents from alarms). Email stays the backup path."
+  type        = string
+  default     = null
 }
 
 variable "github_repository" {

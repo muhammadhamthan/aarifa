@@ -36,6 +36,7 @@ from kx.core.contracts import (
     DealContext,
     DealStage,
     DeliveryEstimateView,
+    OptOutScope,
     OutboundRequest,
     QualifyResult,
     QuoteLineView,
@@ -249,6 +250,23 @@ class FakeCrmGateway:
 
     async def set_cover_note(self, deal_id: uuid.UUID, note: str, actor: AiRole) -> None:
         self.calls.append(("set_cover_note", note))
+
+    async def record_opt_out(
+        self,
+        deal_id: uuid.UUID,
+        *,
+        scope: OptOutScope,
+        exact_words: str,
+        reason: str | None,
+        decided_by: str,
+        actor: AiRole,
+    ) -> None:
+        self.calls.append(("record_opt_out", {"scope": scope, "words": exact_words, "reason": reason}))
+
+    async def flag_unclear_stop(
+        self, deal_id: uuid.UUID, *, exact_words: str, live: bool, actor: AiRole
+    ) -> None:
+        self.calls.append(("flag_unclear_stop", {"words": exact_words, "live": live}))
 
 
 class RecordingSender:

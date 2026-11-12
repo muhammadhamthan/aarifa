@@ -1,6 +1,6 @@
 # Delivery — Kairox platform v1 (Arifaa Pack)
 
-> **Update 6 Nov 2026: the code now follows the 5 Nov business flow** (`docs/BUSINESS_FLOW_V1.md`). All twelve work
+> **Update 6 Nov 2026: the code now follows the 5 Nov business flow** (the SRS; `BUSINESS_FLOW_V1.md` was later renamed to the current SRS file). All twelve work
 > packages of `docs/V1_CHANGE_PLAN.md` are done (one commit each, `WP1` ... `WP12`), plus end-to-end tests of the ten
 > §23 scenarios. **502 tests pass, 0 skipped** (309 before), `make lint` clean. Decisions and gaps for the client or
 > the lead: `docs/OPEN_QUESTIONS.md`. Work log with tests per WP and benchmarks: `docs/V1_PROGRESS.md`.

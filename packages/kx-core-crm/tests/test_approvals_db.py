@@ -1,4 +1,4 @@
-"""WP3 on real Postgres: the salesperson approves (docs/BUSINESS_FLOW_V1.md §3, §11.3, §14.4, §16; D1, D3).
+"""WP3 on real Postgres: the salesperson approves (the SRS §3, §11.3, §14.4, §16; D1, D3).
 
 Done when (V1_CHANGE_PLAN WP3): the salesperson can approve their own deal but not another salesperson's;
 the manager can approve any deal; the MD only after a takeover; the owner can't edit during a takeover;

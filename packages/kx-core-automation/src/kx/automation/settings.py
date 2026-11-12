@@ -27,6 +27,7 @@ class WhatsAppSettings(_Group):
     app_secret: SecretStr = SecretStr("")
     verify_token: SecretStr = SecretStr("")
     template_language: str = "en"
+    quote_delivery_minutes: int = 10  # D32: not delivered by then -> the same quote by email
     session_hours: int = 24  # Meta customer-service window: free-form messages only inside it
 
 
@@ -37,6 +38,20 @@ class SesSettings(_Group):
     # signature alone does not prove the event is ours.
     sns_topic_arns: frozenset[str] = frozenset()
     inbound_bucket: str = ""  # S3 bucket SES Mail Manager writes inbound MIME to
+
+
+class PostmarkSettings(_Group):
+    """D33: SES -> Postmark for sending; Postmark inbound for buyer replies (Basic auth in the URL)."""
+
+    server_token: SecretStr = SecretStr("")  # empty = Postmark not configured (SES only)
+    message_stream: str = "outbound"
+    inbound_user: str = ""
+    inbound_password: SecretStr = SecretStr("")
+    timeout_seconds: float = 10.0
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.server_token.get_secret_value())
 
 
 class TwilioSettings(_Group):
@@ -68,7 +83,11 @@ class AlertSettings(_Group):
     # buyer-facing §17 templates (approved WhatsApp templates; outside the 24 h window only these may go)
     thank_you_template: str = "thank_you"  # WON
     order_update_template: str = "order_update"  # order status (client choice)
-    opt_out_confirmation_template: str = "opt_out_confirmation"  # the one message after STOP
+    # §6.5 / §8.2: the Requirement Summary, sent before the buyer ever wrote to WhatsApp, so it must be
+    # an approved utility template with a document header; params: buyer name, the summary (OPEN #45)
+    requirement_summary_template: str = "requirement_summary"
+    # §8.1 the STOP confirmation is free-form text in the buyer's language inside the 24 h window
+    # (kx.core.optout.CONFIRMATION), so it needs no template
 
 
 class FollowUpSettings(_Group):
@@ -87,6 +106,15 @@ class FollowUpSettings(_Group):
             "custom": "followup_1",
         }
     )
+
+
+class OptOutSettings(_Group):
+    """§8.1 (D18). `ask_reason` mirrors the CRM setting `optout.ask_reason` (off until a lawyer confirms a
+    "tell us why" line is not marketing); the container reads it from the CRM at start."""
+
+    ask_reason: bool = False
+    live_minutes: int = Field(default=10, ge=1)  # step 6: "replied in the last 10 minutes"
+    unclear_answer_hours: int = Field(default=24, ge=1)  # step 6: no answer within 24 h = opt-out
 
 
 class RateLimitSettings(_Group):
@@ -119,13 +147,16 @@ class AutomationSettings(BaseSettings):
 
     whatsapp: WhatsAppSettings = WhatsAppSettings()
     ses: SesSettings = SesSettings()
+    postmark: PostmarkSettings = PostmarkSettings()
     twilio: TwilioSettings = TwilioSettings()
     alerts: AlertSettings = AlertSettings()
     followup: FollowUpSettings = FollowUpSettings()
     rate_limit: RateLimitSettings = RateLimitSettings()
+    optout: OptOutSettings = OptOutSettings()
     price_sources: tuple[PriceSourceConfig, ...] = ()
-    opt_out_keywords: frozenset[str] = frozenset({"stop", "unsubscribe", "stop all", "إيقاف", "الغاء"})
     http_timeout_seconds: float = 15.0
+    company_name: str = ""  # shown in buyer messages ("You're unsubscribed from <company> messages")
+    public_base_url: str = "http://localhost:8000"  # https://api.<domain>: callbacks and unsubscribe links
 
     @cached_property
     def alert_window(self) -> Window:

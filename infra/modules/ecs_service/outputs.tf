@@ -21,3 +21,8 @@ output "execution_role_arn" {
 output "log_group_name" {
   value = aws_cloudwatch_log_group.this.name
 }
+
+output "discovery_name" {
+  description = "Private DNS label when service discovery is on, else null."
+  value       = var.create_service && var.service_discovery_namespace_id != null ? aws_service_discovery_service.this[0].name : null
+}

@@ -19,7 +19,15 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Auth | `kx.core.auth`: `current_principal`, `require_role`, `require_human_mfa`, `Role` | approvals need MFA |
 | Logging | `kx.core.logging`: `get_logger`, `configure_logging`, `mask_pii` | PII masked automatically |
 | Price safety | `kx.core.price_guard`: `check_prices`, `extract_prices` | contest winner C, fails closed |
-| Cross-package contracts | `kx.core.contracts`: `CrmGateway`, `GrantConsumer`, `MessageSender`, DTOs | no cost/markup fields, ever |
+| Cross-package contracts | `kx.core.contracts`: `CrmGateway`, `GrantConsumer`, `MessageSender`, `ClickToCall`, `StaffMailer`, DTOs | no cost/markup fields, ever |
+| Staff login (D26) | `kx.core.passwords` (Argon2id, TOTP, `SeedBox`), `kx.core.auth.TokenIssuer` (RS256, JWKS) | in-house, no Cognito |
+| Background jobs (D25) | `kx.core.jobs`: `JobStore`, `JobRunner`, `JobSpec` (PostgreSQL schedule table; Celery only in the app) | |
+| Vendor fallback (D30) | `kx.core.fallback`: `CircuitBreaker`, `FallbackChain`, `AllVendorsFailed` | switch metric `Kairox/VendorSwitch` |
+| Spend caps (D34) | `kx.core.spend`: `SpendMeter`, `SpendCaps` | integers in Redis, 80 % / 100 % alerts |
+| Kill-switch ladder (D35) | `kx.core.killswitch`: `KillSwitchLadder`, `KillLevel`, `engaged_at` | |
+| STOP rules (§8.1) | `kx.core.optout`: `match`, `match_voice`, `confirmation_text` | |
+| Signed public tokens | `kx.core.signed`: `sign`, `verify` | website sessions |
+| CloudWatch metrics | `kx.core.metrics`: `emit_metric` (EMF) | |
 
 ## Planned in docs/V1_CHANGE_PLAN.md (do not build twice; add them here when done)
 
@@ -44,6 +52,12 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Change requests (raise, start, revise link, resolve, decline, 120-min sweep) | `kx.crm.services.change_requests`; HTTP `kx.crm.api.change_requests`; contract `CrmGateway.raise_change_request`, `ChangeField`, `ChangeType` |
 | Who is alerted | `kx.crm.services.staff`: `approver_for` (owner, MD on takeover, backup when away, else manager), `covering_user`, `backup_of`, `manager_user`, `owner_of`, `staff_contact` |
 | Deal assignment (round-robin, rules, away/backup, returning customer), reassign, takeover, hand-back, availability | `kx.crm.services.assignment` (pure: `choose`, `rule_pool`, `available`, `next_in_turn`); HTTP `kx.crm.api.assignment`, `PUT /users/{id}/availability` |
+| Staff login, users | `kx.crm.services.auth`; HTTP `kx.crm.api.auth`, `kx.crm.api.users` |
+| §14 hand-over: staff reply, click-to-call | `kx.crm.services.handover` (`reply`, `call_buyer`) |
+| §8.2 phone status, Requirement Summary | `kx.crm.services.phone`, `kx.crm.services.summary` |
+| §7 CMS product mirror | `kx.crm.services.catalogue.mirror_product` |
+| D32 WhatsApp quote -> email | `kx.crm.services.issuing.resend_by_email` |
+| §20/§21 records, dashboards, exports | `kx.crm.api.records`, `kx.crm.api.reports`, kill switch `kx.crm.api.operations` |
 | Services | `kx.crm.services.*`: settings, deals, pricing, price_proposals, quotes, approvals, issuing, grants, negotiation, orders, retention |
 | Gateways for other packages | `kx.crm.gateway`: `CrmGatewayImpl`, `GrantConsumerImpl`, `ApprovalStatusReaderImpl` |
 | HTTP API | `kx.crm.api.build_router(databases, deps)`: deals, assignment (reassign/takeover/hand-back), quotes + approvals, change requests, screens (inbox, price list, Excel, stock), admin (settings, availability) |
@@ -68,30 +82,37 @@ owning package (and this file), not to your app. Enforced by import-linter (pack
 | Staff notices (§17 "notified", alert hours) | `kx.automation.alerts.notify_staff` |
 | §17 notifications matrix (event → recipients) | `kx.automation.handlers.EventHandlers.registry()`; table test `kx-core-automation/tests/test_notifications_matrix_db.py` |
 | Webhooks router | `kx.automation.webhooks.build_router(WebhookDeps)` |
-| Jobs | `kx.automation.jobs.build_jobs(scraping=...)` (scraper scheduled only with `features.scraping`, D14), `AutomationRuntime`, `ProcrastinateScheduler` |
-| Kill switch / rate limits | `kx.automation.killswitch.KillSwitch`, `kx.automation.ratelimit.TokenBucketLimiter` |
+| Jobs | `kx.automation.jobs`: `register_jobs`, `periodic_jobs`, `JobScheduler`, `AutomationRuntime` (scraper only with `features.scraping`, D14) |
+| Kill switch / rate limits | `kx.automation.killswitch.KillSwitch` (= `kx.core.killswitch.KillSwitchLadder`), `kx.automation.ratelimit.TokenBucketLimiter` |
+| Email chain SES -> Postmark (D33) | `kx.automation.channels.email_chain.EmailChain`, `kx.automation.channels.postmark` (`PostmarkSender`, `parse_inbound`) |
+| Click-to-call (§14) | `kx.automation.alerts.CallBridge` |
+| CMS publish webhook (§7) | `kx.automation.cms.build_router` |
+| STOP flow, unsubscribe link | `kx.automation.optout`, `kx.automation.unsubscribe` |
+| Admin: regional numbers, templates | `kx.automation.admin_api.build_router` |
 | Price scraping → proposals | `kx.automation.scraping.PriceScraper` |
 
 ## kx.agents — AI agent framework
 | Capability | Import |
 |---|---|
 | 12 roles, prompts (`AgentSpec.enabled`; repeat sales off in v1) | `kx.agents.registry`: `AgentRegistry` (`disabled()`), `AgentSpec`, `PromptStore`, `DefaultPromptStore`, `ModelTier` |
-| Models + fallback | `kx.agents.models`: `ModelRouter`, `AnthropicApiProvider`, `BedrockProvider` |
+| Models + fallback | `kx.agents.models`: `ModelRouter`, `AnthropicApiProvider` (Claude API direct, D27); safe reply + breaker in `AgentService` |
 | Routing (no LLM; agreement wording and post-quote change topics → deal graph; payment topics → deal graph in every stage; handed-over deals silent or the after-hours acknowledgement) | `kx.agents.orchestrator` (`PAYMENT_TOPIC`) |
 | Reply guard | `kx.agents.guard` (prices, cost wording, injection, length) |
 | Graphs | `kx.agents.graphs.conversation` / `quotation` (interrupt/resume) / `deal` |
 | Memory, checkpointer | `kx.agents.memory`: `open_checkpointer`, turn store |
 | Hybrid KB search | `kx.agents.knowledge`: `KnowledgeBase`, `KnowledgeIndexer`, `Embedder`, `ContentSource` |
 | Voice | `kx.agents.voice`: `VoiceRouter`, `make_livekit_entrypoint` |
-| Tracing | `kx.agents.tracing.Tracer` (Langfuse, PII-masked) |
+| Tracing | `kx.agents.tracing.Tracer` (Phoenix over OpenTelemetry, PII-masked, D29) |
+| Website conversation API (§6) | `kx.agents.website.build_router(WebsiteDeps)` |
+| Run cost table | `kx.agents.runs.PRICES`, `call_cost` |
 | Entry point | `kx.agents.service.AgentService`, `kx.agents.handlers.AgentHandlers` |
 | Test kit | `kx.agents.testing` (fake model, `FakeCrmGateway`, fake embedder), `kx.agents.evals` (§23 scenarios s01-s10 + trick prompts t01-t07) |
 | Change requests from the AI | tool `kx.agents.tools.raise_change_request`; deal graph `intent=change` + `PAYMENT_TOPIC`; phrase `Phrase.CHANGE_REQUEST`, `team_member` |
 
 ## Client app (copy per client) — `apps/arifaa-pack`
-`company.yaml` (identity), `config.py` (`KX_APP_*`), `adapters.py` (address book, Titan embedder, Payload CMS
+`company.yaml` (identity), `config.py` (`KX_APP_*`), `adapters.py` (address book, `HttpEmbedder` = Qwen3 in our UAE container (D28), Payload CMS
 source, LiveKit plugins), `container.py` (composition root + `EventBus`), `api.py`, `cli.py`
-(`kx api | worker | voice | migrate`), `migrations/` (Alembic, one script dir per DB).
+(`kx api | worker | beat | voice | migrate | create-user`), `migrations/` (Alembic, one script dir per DB).
 
 **New client (e.g. Arifaa Auto):** copy `apps/arifaa-pack` → `apps/arifaa-auto`, edit `company.yaml`, prompts
 and `crm.settings` seed; add `infra/envs/auto-prod/terraform.tfvars`. No platform code changes.

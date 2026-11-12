@@ -1,4 +1,4 @@
-"""Who may act on a deal (docs/BUSINESS_FLOW_V1.md §3, D1, D2, D5). Pure checks on loaded rows.
+"""Who may act on a deal (the SRS §3, D1, D2, D5). Pure checks on loaded rows.
 
 * Approve and send quotes: the deal's salesperson, the manager (any deal), and the MD only on a deal it
   has taken over (D1). A price below the tier minimum needs a manager-approved `special_price` (D3).
@@ -44,6 +44,17 @@ def ensure_can_view(p: Principal, deal: Deal, *, covering: uuid.UUID | None = No
 async def check_edit(session: AsyncSession, p: Principal, deal: Deal) -> None:
     covering = await staff.covering_user(session, deal) if p.role is Role.SALES else None
     ensure_can_edit(p, deal, covering=covering)
+
+
+async def check_contact_buyer(session: AsyncSession, p: Principal, deal: Deal) -> None:
+    """§14 / WP17: who may write to or call the buyer from the CRM: the deal's salesperson (or the colleague
+    covering them), the manager, and the MD on a deal it has taken over (the §3 "approve and send" rule).
+    Admin / IT never talks to buyers."""
+    if p.role is Role.ADMIN:
+        raise Forbidden("admin accounts do not contact buyers")
+    if p.role is Role.MD and not _md_on_takeover(p, deal):
+        raise Forbidden("take the deal over to contact the buyer")
+    await check_edit(session, p, deal)
 
 
 async def check_view(session: AsyncSession, p: Principal, deal: Deal) -> None:

@@ -3,9 +3,10 @@
 # Kairox DB bootstrap - idempotent. Run as the RDS master user BEFORE `kx migrate`.
 #
 # For every tenant prefix ("" in prod; "pack_", "auto_" in staging) it ensures:
-#   roles      <p>cms_app <p>crm_app <p>automation_app <p>agents_app <p>reporting_ro
+#   roles      <p>cms_app <p>crm_app <p>automation_app <p>agents_app <p>phoenix_app <p>reporting_ro
 #              (LOGIN, password = $KX_PW_<ROLE_UPPER>, re-synced every run; mirrors db/ddl/00_roles.sql)
-#   databases  <p>cms <p>crm <p>automation <p>agents, each OWNED by its app role
+#   databases  <p>cms <p>crm <p>automation <p>agents <p>phoenix, each OWNED by its app role
+#              (phoenix = the self-hosted Arize Phoenix AI-trace store, 11 Nov; Phoenix creates its own tables)
 #   connect    REVOKE CONNECT/TEMP FROM PUBLIC; each role may connect only to its own DB;
 #              reporting_ro may connect to <p>crm
 #   extensions crm: citext, pg_trgm, btree_gist | automation: citext | agents: vector, pg_trgm
@@ -21,12 +22,13 @@
 # =====================================================================================
 set -euo pipefail
 
-LOGICALS=(cms crm automation agents)
+LOGICALS=(cms crm automation agents phoenix)
 declare -A EXTENSIONS=(
   [cms]=""
   [crm]="citext pg_trgm btree_gist"
   [automation]="citext"
   [agents]="vector pg_trgm"
+  [phoenix]=""
 )
 
 PSQL=(psql -X -v ON_ERROR_STOP=1 --quiet --no-psqlrc)

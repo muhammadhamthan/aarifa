@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from kx.core.auth import Principal, Role, require_role
 from kx.core.errors import NotFound
 from kx.crm.api.context import STAFF, ApiContext
+from kx.crm.api.deals import visible_to
 from kx.crm.api.schemas import ChangeRequestOut, DeclineIn, QuoteEditsIn, QuoteVersionOut, ResolveIn
 from kx.crm.models import ChangeRequest, Deal
 from kx.crm.services import access, change_requests, quotes
@@ -43,12 +44,13 @@ def router(ctx: ApiContext) -> APIRouter:
         if deal_id is not None:
             stmt = stmt.where(ChangeRequest.deal_id == deal_id)
         if p.role is Role.SALES:
-            stmt = stmt.join(Deal, Deal.id == ChangeRequest.deal_id).where(Deal.owner_user_id == p.user_id)
+            stmt = visible_to(stmt.join(Deal, Deal.id == ChangeRequest.deal_id), p)  # own + covered (§9.3)
         rows = (await s.execute(stmt.order_by(ChangeRequest.sla_due_at).limit(limit))).scalars()
         return [ChangeRequestOut.model_validate(c) for c in rows]
 
     @r.get("/{cr_id}", response_model=ChangeRequestOut)
     async def card(cr_id: uuid.UUID, s: Session, p: Staff) -> ChangeRequestOut:
+        """§13 change request card: what the buyer asked (their words), current vs requested values, SLA."""
         cr = await s.get(ChangeRequest, cr_id)
         if cr is None:
             raise NotFound(f"change request {cr_id} not found")
@@ -57,6 +59,7 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.post("/{cr_id}/start", response_model=ChangeRequestOut)
     async def start(cr_id: uuid.UUID, s: Session, p: Staff) -> ChangeRequestOut:
+        """Take the change request (starts work; the SLA keeps running)."""
         return ChangeRequestOut.model_validate(await change_requests.start(s, deps, cr_id, p))
 
     @r.post("/{cr_id}/revise", response_model=QuoteVersionOut, status_code=201)
@@ -82,12 +85,14 @@ def router(ctx: ApiContext) -> APIRouter:
 
     @r.post("/{cr_id}/resolve", response_model=ChangeRequestOut)
     async def resolve(cr_id: uuid.UUID, body: ResolveIn, s: Session, p: Staff) -> ChangeRequestOut:
+        """Close the change request as done (a revised quote was sent or the answer given)."""
         return ChangeRequestOut.model_validate(
             await change_requests.resolve(s, deps, cr_id, body.version_id, p)
         )
 
     @r.post("/{cr_id}/decline", response_model=ChangeRequestOut)
     async def decline(cr_id: uuid.UUID, body: DeclineIn, s: Session, p: Staff) -> ChangeRequestOut:
+        """Decline the change request with a reason the buyer is told."""
         return ChangeRequestOut.model_validate(await change_requests.decline(s, deps, cr_id, body.reason, p))
 
     return r

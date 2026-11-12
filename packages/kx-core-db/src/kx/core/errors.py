@@ -35,6 +35,18 @@ class Unauthorized(DomainError):
     status, code, title = 401, "unauthorized", "Authentication required"
 
 
+class TooManyRequests(DomainError):
+    """Rate limit or lock-out (staff login after repeated failures; public website endpoints)."""
+
+    status, code, title = 429, "too_many_requests", "Too many requests"
+
+
+class Unavailable(DomainError):
+    """A dependency the request needs is switched off or down (e.g. email codes without a mailer)."""
+
+    status, code, title = 503, "unavailable", "Temporarily unavailable"
+
+
 class RuleViolation(DomainError):
     """A business rule refused the action (e.g. prices stale, grant invalid, stage move not allowed)."""
 

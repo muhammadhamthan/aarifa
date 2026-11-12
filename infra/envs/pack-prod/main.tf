@@ -1,5 +1,7 @@
 # Production for ONE company in its own AWS account (me-central-1, AZs az1 + az3).
 # This file is identical in every <company>-prod folder; only terraform.tfvars and backend.hcl differ.
+# 11 Nov stack (docs/DEPLOYMENT.md): Celery worker + one Beat, in-house staff login (no Cognito),
+# ElastiCache Redis OSS, Qwen3 embeddings, Phoenix, OpenTelemetry collector -> Better Stack.
 
 locals {
   name = "kx-${var.company}-prod"
@@ -58,6 +60,7 @@ module "database" {
   client_security_group_ids = { app = module.network.app_security_group_id }
   kms_key_arn               = module.secrets.kms_key_arn
   dr_copy_region            = var.dr_copy_region
+  database_insights_mode    = var.database_insights_mode
   tags                      = local.tags
 }
 
@@ -88,27 +91,19 @@ module "email" {
   name                 = local.name
   domain               = var.ses_domain
   route53_zone_id      = var.route53_zone_id
-  event_webhook_url    = "https://${var.api_host}/v1/webhooks/ses"
+  event_webhook_url    = "https://${var.api_host}/webhooks/ses"
   inbound_mail_enabled = var.inbound_mail_enabled
   kms_key_arn          = module.secrets.kms_key_arn
   tags                 = local.tags
 }
 
-module "auth" {
-  source              = "../../modules/auth"
-  name                = local.name
-  callback_urls       = [for u in var.crm_urls : "${u}/auth/callback"]
-  logout_urls         = var.crm_urls
-  domain_prefix       = var.cognito_domain_prefix
-  deletion_protection = true
-  tags                = local.tags
-}
-
 module "cluster" {
-  source      = "../../modules/ecs_cluster"
-  name        = local.name
-  kms_key_arn = module.secrets.kms_key_arn
-  tags        = local.tags
+  source = "../../modules/ecs_cluster"
+  name   = local.name
+  # Recommendation (11 Nov): Better Stack replaces Container Insights; service CPU/memory alarms still work.
+  container_insights = "disabled"
+  kms_key_arn        = module.secrets.kms_key_arn
+  tags               = local.tags
 }
 
 module "alb" {
@@ -141,6 +136,7 @@ module "app" {
   cluster_name            = module.cluster.cluster_name
   app_repository_url      = module.cluster.repository_urls["kairox/app"]
   cms_repository_url      = module.cluster.repository_urls["kairox/cms"]
+  vpc_id                  = module.network.vpc_id
   subnet_ids              = module.network.private_subnet_ids
   security_group_id       = module.network.app_security_group_id
   api_target_group_arn    = module.alb.target_group_arns["api"]
@@ -149,27 +145,26 @@ module "app" {
   public_api_url          = "https://${var.api_host}"
   public_cms_url          = "https://${var.cms_host}"
   db_secret_arns          = local.db_secret_arns
-  valkey_secret_arn       = module.cache.url_secret_arns[var.company]
+  redis_secret_arn        = module.cache.url_secret_arns[var.company]
+  jwt_secret_arn          = module.secrets.jwt_secret_arns[var.company]
+  auth_secret_arn         = module.secrets.auth_secret_arns[var.company]
   integration_secret_arns = local.integration_secret_arns
   generated_secret_arns   = local.generated_secret_arns
   bucket_names            = module.storage.bucket_names
   bucket_arns             = module.storage.bucket_arns
   inbound_bucket_arn      = module.email.inbound_bucket_arn
+  inbound_bucket_name     = module.email.inbound_bucket_name
   ses_identity_arn        = module.email.identity_arn
   ses_configuration_set   = module.email.configuration_set_name
+  ses_events_topic_arn    = module.email.events_topic_arn
   ses_from_domain         = var.ses_domain
-  jwt_issuer              = module.auth.issuer
-  jwks_url                = module.auth.jwks_url
-  jwt_audience            = module.auth.crm_client_id
-  bedrock_region          = var.bedrock_region
+  email_from_address      = var.email_from_address
+  cors_origins            = concat(var.crm_urls, var.website_urls)
   sizes                   = var.service_sizes
   kms_key_arn             = module.secrets.kms_key_arn
   tags                    = local.tags
 
   db_bootstrap_family = "${local.name}-db-bootstrap"
-  extra_environment = {
-    KX_CORS_ORIGINS = join(",", var.crm_urls)
-  }
 }
 
 # ---- one-off: create databases, roles and extensions (idempotent) --------------------
@@ -210,7 +205,7 @@ module "observability" {
   source                    = "../../modules/observability"
   name                      = local.name
   alarm_emails              = var.alarm_emails
-  alarm_webhook_url         = "https://${var.api_host}/v1/webhooks/alarms"
+  alarm_webhook_url         = var.betterstack_alarm_webhook_url
   alb_arn_suffix            = module.alb.alb_arn_suffix
   target_group_arn_suffixes = module.alb.target_group_arn_suffixes
   db_instance_ids           = [module.database.instance_id]
@@ -223,9 +218,12 @@ module "observability" {
   tags                      = local.tags
 
   ecs_services = {
-    api    = "${local.name}-api"
-    worker = "${local.name}-worker"
-    voice  = "${local.name}-voice"
+    api        = "${local.name}-api"
+    worker     = "${local.name}-worker"
+    beat       = "${local.name}-beat"
+    voice      = "${local.name}-voice"
+    embeddings = "${local.name}-embeddings"
+    phoenix    = "${local.name}-phoenix"
   }
 }
 

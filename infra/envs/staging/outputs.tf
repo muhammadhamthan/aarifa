@@ -14,13 +14,17 @@ output "ses_dns_records" {
   value = { for c, m in module.email : c => m.dns_records_for_client }
 }
 
-output "cognito" {
-  value = { for c, m in module.auth : c => {
-    user_pool_id  = m.user_pool_id
-    client_id     = m.crm_client_id
-    issuer        = m.issuer
-    hosted_domain = m.hosted_domain
+output "staff_login" {
+  description = "In-house staff login per company (11 Nov): RS256 tokens, public JWKS on the company's API host."
+  value = { for c, h in local.hosts : c => {
+    issuer   = "https://${h.api}"
+    audience = "kx-crm"
+    jwks_url = "https://${h.api}/.well-known/jwks.json"
   } }
+}
+
+output "internal_urls" {
+  value = { for c, m in module.app : c => m.internal_urls }
 }
 
 output "ecr_repositories" {

@@ -2,7 +2,7 @@
 
 The LLM never decides a price. It only (a) reads what the buyer asked for, which we cross-check
 against the amounts actually present in the buyer's text, and (b) phrases a reply around the ONE price
-the CRM's deterministic negotiation policy returned (docs/BUSINESS_FLOW_V1.md §12.2).
+the CRM's deterministic negotiation policy returned (the SRS §12.2).
 
 The AI negotiates price only (§12, D12). Anything else the buyer asks for (product, specification,
 printing, a quantity outside the tiers, delivery, samples, payment, other) becomes a change request for

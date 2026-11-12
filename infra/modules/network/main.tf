@@ -159,7 +159,8 @@ resource "aws_vpc_endpoint" "interface" {
   tags                = merge(var.tags, { Name = "${var.name}-${each.key}" })
 }
 
-# One security group shared by every application task (api, worker, voice, cms, migrate).
+# One security group shared by every application task (api, worker, beat, voice, cms, embeddings,
+# phoenix, otel-collector, migrate).
 # RDS and ElastiCache allow ingress from it; the ALB module adds ingress from the ALB.
 resource "aws_security_group" "app" {
   # checkov:skip=CKV2_AWS_5: attached to ECS services/tasks in other modules
@@ -171,9 +172,21 @@ resource "aws_security_group" "app" {
 
 resource "aws_vpc_security_group_egress_rule" "app_all" {
   security_group_id = aws_security_group.app.id
-  description       = "Outbound to AWS APIs, RDS, Valkey and third-party APIs (Meta, Twilio, LiveKit, LLMs)"
+  description       = "Outbound to AWS APIs, RDS, Redis and third-party APIs (Meta, Telnyx, LiveKit, Claude ...)"
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
+}
+
+# Private services inside the app group (11 Nov): the Qwen3 embedding server, Arize Phoenix (UI + OTLP)
+# and the OpenTelemetry collector are reached only by other app tasks, never through the ALB.
+resource "aws_vpc_security_group_ingress_rule" "app_internal" {
+  for_each                     = var.internal_service_ports
+  security_group_id            = aws_security_group.app.id
+  description                  = "App tasks to the private ${each.key} service"
+  referenced_security_group_id = aws_security_group.app.id
+  ip_protocol                  = "tcp"
+  from_port                    = each.value.from
+  to_port                      = each.value.to
 }
 
 # ---- VPC flow logs (security monitoring) --------------------------------

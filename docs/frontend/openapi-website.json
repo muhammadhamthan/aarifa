@@ -1,0 +1,533 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Kairox website API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/public/sessions": {
+      "post": {
+        "tags": [
+          "website"
+        ],
+        "summary": "Start",
+        "description": "\u00a76 step 1: start a website conversation (Turnstile-checked).",
+        "operationId": "start_v1_public_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/sessions/{session_id}/messages": {
+      "post": {
+        "tags": [
+          "website"
+        ],
+        "summary": "Message",
+        "description": "One chat turn (\u00a76 steps 2-6) through the same agents, guard and router as WhatsApp.",
+        "operationId": "message_v1_public_sessions__session_id__messages_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/sessions/{session_id}/voice": {
+      "post": {
+        "tags": [
+          "website"
+        ],
+        "summary": "Voice",
+        "description": "A LiveKit room token for live voice (participant metadata: deal_ref, language).",
+        "operationId": "voice_v1_public_sessions__session_id__voice_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/sessions/{session_id}/identify": {
+      "post": {
+        "tags": [
+          "website"
+        ],
+        "summary": "Identify",
+        "description": "\u00a76 step 7: the visitor typed their phone or email; a returning buyer is recognised now, never\nbefore. The answer does not say whether the buyer was known.",
+        "operationId": "identify_v1_public_sessions__session_id__identify_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentifyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentifyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IdentifyIn": {
+        "properties": {
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "title": "IdentifyIn"
+      },
+      "IdentifyOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "IdentifyOut"
+      },
+      "MessageIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "MessageIn"
+      },
+      "MessageOut": {
+        "properties": {
+          "reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "handed_over": {
+            "type": "boolean",
+            "title": "Handed Over"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reply",
+          "language",
+          "handed_over"
+        ],
+        "title": "MessageOut"
+      },
+      "SessionIn": {
+        "properties": {
+          "turnstile_token": {
+            "type": "string",
+            "maxLength": 4096,
+            "title": "Turnstile Token",
+            "default": ""
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "voice_consent": {
+            "type": "boolean",
+            "title": "Voice Consent",
+            "default": false
+          },
+          "cookie_consent": {
+            "type": "boolean",
+            "title": "Cookie Consent",
+            "default": false
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          }
+        },
+        "type": "object",
+        "title": "SessionIn"
+      },
+      "SessionOut": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Session Id"
+          },
+          "session_token": {
+            "type": "string",
+            "title": "Session Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "voice_available": {
+            "type": "boolean",
+            "title": "Voice Available"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "session_token",
+          "expires_at",
+          "language",
+          "voice_available"
+        ],
+        "title": "SessionOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VoiceOut": {
+        "properties": {
+          "livekit_url": {
+            "type": "string",
+            "title": "Livekit Url"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "room": {
+            "type": "string",
+            "title": "Room"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "livekit_url",
+          "token",
+          "room",
+          "language",
+          "expires_at"
+        ],
+        "title": "VoiceOut"
+      }
+    }
+  }
+}

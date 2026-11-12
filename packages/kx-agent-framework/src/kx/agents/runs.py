@@ -51,8 +51,42 @@ class Claim:
     fresh: bool  # False when re-claiming a failed run (the buyer turn is already stored)
 
 
+@dataclass(frozen=True, slots=True)
+class TokenPrices:
+    """USD per 1M tokens: uncached input, 5-minute cache write, cache read, output."""
+
+    input: Decimal
+    cache_write: Decimal
+    cache_read: Decimal
+    output: Decimal
+
+
+_M: Final = Decimal(1_000_000)
+LONG_PROMPT: Final = 100_000
+# Platform docs, Official sources.md "Claude API prices" (verified 11 Nov), USD per 1M tokens
+PRICES: Final[dict[str, tuple[TokenPrices, TokenPrices | None]]] = {
+    "claude-sonnet-5-5": (TokenPrices(Decimal(2), Decimal("2.50"), Decimal("0.10"), Decimal(10)), None),
+    "claude-haiku-5-5": (
+        TokenPrices(Decimal("0.10"), Decimal("0.125"), Decimal("0.01"), Decimal("0.50")),
+        TokenPrices(Decimal("0.50"), Decimal("0.625"), Decimal("0.05"), Decimal("2.50")),  # prompts > 100K
+    ),
+}
+
+
+def call_cost(model: str, *, uncached: int, cache_write: int, cache_read: int, output: int) -> Decimal | None:
+    """One model call's cost in USD, or None for a model without a price in the official sources."""
+    tiers = PRICES.get(model)
+    if tiers is None:
+        return None
+    base, long = tiers
+    p = long if long is not None and uncached + cache_write + cache_read > LONG_PROMPT else base
+    return (
+        uncached * p.input + cache_write * p.cache_write + cache_read * p.cache_read + output * p.output
+    ) / _M
+
+
 class UsageMeter(AsyncCallbackHandler):
-    """Sums token usage of every model call in a run (incl. fallbacks and structured calls)."""
+    """Sums token usage and cost of every model call in a run (incl. fallbacks and structured calls)."""
 
     def __init__(self, log: RunLog) -> None:
         self._log = log
@@ -62,10 +96,25 @@ class UsageMeter(AsyncCallbackHandler):
             for gen in gens:
                 msg = gen.message if isinstance(gen, ChatGeneration) else None
                 usage = msg.usage_metadata if isinstance(msg, AIMessage) else None
-                if usage:
-                    self._log.input_tokens += usage.get("input_tokens", 0)
-                    self._log.output_tokens += usage.get("output_tokens", 0)
-                    self._log.cached_tokens += (usage.get("input_token_details") or {}).get("cache_read", 0)
+                if not usage or msg is None:
+                    continue
+                details = usage.get("input_token_details") or {}
+                read, write = details.get("cache_read", 0), details.get("cache_creation", 0)
+                self._log.input_tokens += usage.get("input_tokens", 0)
+                self._log.output_tokens += usage.get("output_tokens", 0)
+                self._log.cached_tokens += read
+                model = str(
+                    msg.response_metadata.get("model_name") or msg.response_metadata.get("model") or ""
+                )
+                cost = call_cost(
+                    model,
+                    uncached=max(usage.get("input_tokens", 0) - read - write, 0),
+                    cache_write=write,
+                    cache_read=read,
+                    output=usage.get("output_tokens", 0),
+                )
+                if cost is not None:
+                    self._log.cost_usd += cost
 
 
 class RunStore:

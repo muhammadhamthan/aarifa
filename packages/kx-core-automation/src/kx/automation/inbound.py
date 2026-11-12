@@ -17,9 +17,10 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kx.automation import optout
 from kx.automation.channels import whatsapp as wa
 from kx.automation.channels.email import InboundEmail, SesEvent
-from kx.automation.models import InboundMessage, OutboundMessage, OutboundStatus, Thread
+from kx.automation.models import ChannelAccount, InboundMessage, OutboundMessage, OutboundStatus, Thread
 from kx.automation.outbox import emit
 from kx.automation.repo import (
     ThreadRef,
@@ -33,6 +34,7 @@ from kx.automation.repo import (
 from kx.core.event_payloads import MessageReceived, MessageStatus
 from kx.core.identity import recipient_hash
 from kx.core.logging import get_logger
+from kx.core.optout import StopMatch, match
 
 log = get_logger(__name__)
 
@@ -103,8 +105,10 @@ async def _received(
     media: tuple[str, ...],
     at: datetime,
     provider_message_id: str,
-    opted_out: bool = False,
+    stop: StopMatch | None = None,
+    profile_name: str | None = None,
 ) -> None:
+    stop = stop or StopMatch("none")
     await emit(
         s,
         MessageReceived(
@@ -118,15 +122,47 @@ async def _received(
             media_s3_keys=media,
             received_at=at,
             provider_message_id=provider_message_id,
-            opted_out=opted_out,
+            opted_out=stop.kind == "opt_out" and stop.scope == "all",
+            stop_in_sentence=stop.kind == "context",
+            stop_language=stop.language if stop.kind != "none" else None,
+            profile_name=profile_name,
         ),
     )
 
 
+async def _apply_rule_stop(
+    s: AsyncSession,
+    stop: StopMatch,
+    *,
+    channel: str,
+    address_hash: str,
+    thread: ThreadRef,
+    words: str,
+    at: datetime,
+) -> None:
+    """§8.1 steps 1-2: a rule matched, so the stop happens now, inside the webhook's transaction."""
+    if stop.stops:
+        await optout.apply_stop(
+            s,
+            optout.StopRecord(
+                scope=stop.scope,
+                source="rule",
+                channel=channel,
+                address_hashes=(address_hash,),
+                contact_ref=thread.contact_ref,
+                deal_ref=thread.deal_ref,
+                thread_ref=thread.id,
+                words=words,
+                reason=stop.reason,
+                decided_by=stop.rule,
+                language=stop.language,
+                at=at,
+            ),
+        )
+
+
 # ---------------------------------------------------------------- WhatsApp
-async def record_whatsapp(
-    s: AsyncSession, hook: wa.WaWebhook, opt_out_keywords: frozenset[str]
-) -> list[uuid.UUID]:
+async def record_whatsapp(s: AsyncSession, hook: wa.WaWebhook) -> list[uuid.UUID]:
     """Store messages + statuses. Returns inbound ids whose media must be fetched before they are
     announced (the AI needs the voice note / image, not just "a file arrived")."""
     media_pending: list[uuid.UUID] = []
@@ -151,9 +187,16 @@ async def record_whatsapp(
         )
         if stored is None:
             continue
-        opted_out = m.kind == "text" and m.text.strip().casefold() in opt_out_keywords
-        if opted_out:  # §8: opt-out words stop all messages at once (one confirmation follows, §17)
-            await suppress(s, "whatsapp", recipient_hash("whatsapp", m.from_e164), "stop_keyword")
+        stop = match(m.text) if m.kind in {"text", "button", "interactive"} else StopMatch("none")
+        await _apply_rule_stop(
+            s,
+            stop,
+            channel="whatsapp",
+            address_hash=recipient_hash("whatsapp", m.from_e164),
+            thread=thread,
+            words=m.text,
+            at=m.received_at,
+        )
         if m.media is not None:
             media_pending.append(stored.id)
         elif m.kind in {"text", "button", "interactive"}:
@@ -166,7 +209,8 @@ async def record_whatsapp(
                 media=(),
                 at=m.received_at,
                 provider_message_id=m.message_id,
-                opted_out=opted_out,
+                stop=stop,
+                profile_name=m.profile_name,
             )
     for st in hook.statuses:
         if st.status != "deleted" and await first_receipt(s, wa.PROVIDER, f"{st.message_id}:{st.status}"):
@@ -240,6 +284,18 @@ async def advance_status(
             )
         ).scalar_one_or_none()
     if message_id is not None:
+        who = (
+            await s.execute(
+                select(
+                    OutboundMessage.contact_ref,
+                    OutboundMessage.deal_ref,
+                    OutboundMessage.kind,
+                    ChannelAccount.channel,
+                )
+                .join(ChannelAccount, ChannelAccount.id == OutboundMessage.channel_account_id)
+                .where(OutboundMessage.id == message_id)
+            )
+        ).one_or_none()
         await emit(
             s,
             MessageStatus(
@@ -248,6 +304,10 @@ async def advance_status(
                 provider_message_id=provider_message_id,
                 error=error,
                 at=at,
+                contact_ref=who.contact_ref if who else None,
+                deal_ref=who.deal_ref if who else None,
+                kind=who.kind if who else None,
+                channel=who.channel if who else None,
             ),
         )
 
@@ -275,9 +335,14 @@ async def _suppress_emails(s: AsyncSession, addresses: Iterable[str], reason: st
 
 # ---------------------------------------------------------------- email
 async def record_email(
-    s: AsyncSession, mail: InboundEmail, *, s3_key: str, attachment_keys: tuple[str, ...]
+    s: AsyncSession,
+    mail: InboundEmail,
+    *,
+    s3_key: str | None,
+    attachment_keys: tuple[str, ...],
+    provider: str = "ses",
 ) -> None:
-    if not await first_receipt(s, "ses", mail.message_id):
+    if not await first_receipt(s, provider, mail.message_id):
         return
     account = await account_by_address(s, "email", mail.to_addresses) or await channel_account(
         s, "email", "customer"
@@ -292,7 +357,7 @@ async def record_email(
     stored = await _store(
         s,
         thread=thread,
-        provider="ses",
+        provider=provider,
         provider_message_id=mail.message_id,
         kind="email",
         text=mail.text,
@@ -302,6 +367,16 @@ async def record_email(
     )
     if stored is not None:
         text = f"{mail.subject}\n\n{mail.text}".strip() if mail.subject else mail.text
+        stop = match(mail.text or mail.subject or "")
+        await _apply_rule_stop(
+            s,
+            stop,
+            channel="email",
+            address_hash=recipient_hash("email", mail.from_address),
+            thread=thread,
+            words=mail.text or mail.subject or "",
+            at=mail.received_at,
+        )
         await _received(
             s,
             stored,
@@ -311,4 +386,5 @@ async def record_email(
             media=attachment_keys,
             at=mail.received_at,
             provider_message_id=mail.message_id,
+            stop=stop,
         )

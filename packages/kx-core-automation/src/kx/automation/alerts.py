@@ -23,19 +23,20 @@ from kx.automation.channels.voice_ivr import (
     Digit,
     alert_twiml,
     approval_alert_script,
+    bridge_twiml,
     change_request_script,
     escalation_script,
     negotiation_paused_script,
 )
 from kx.automation.models import CallAttempt, CallPurpose
 from kx.automation.ports import ApprovalStatusReader, Clock, TaskScheduler, utc_now
-from kx.automation.repo import advisory_lock
+from kx.automation.repo import advisory_lock, is_suppressed
 from kx.automation.settings import AutomationSettings
 from kx.core.contracts import MessageSender, OutboundKind, OutboundRequest
 from kx.core.db import Databases
 from kx.core.errors import RuleViolation
 from kx.core.event_payloads import ChangeRequested, NegotiationPaused, QuoteSubmitted, StaffContact
-from kx.core.identity import normalise_phone
+from kx.core.identity import normalise_phone, recipient_hash
 from kx.core.logging import get_logger
 from kx.core.settings import LogicalDb
 
@@ -45,6 +46,86 @@ _REQUESTED_BY: Final = "system:alerts"
 
 class Caller(Protocol):
     async def place_call(self, to_e164: str, twiml: str, status_callback_url: str) -> str: ...
+
+
+class KillSwitchReader(Protocol):
+    async def engaged(self, channel: str) -> bool: ...
+
+
+class CallBridge:
+    """kx.core.contracts.ClickToCall (§14, D21): the salesperson presses Call on the deal; their own phone
+    rings first ("Connecting you to the buyer for deal D-..."), then the buyer is dialled with the company
+    number as caller ID. The buyer's call stop (§8.1 step 2: one suppression list, checked before every
+    call) and the calls kill switch (D35) are checked before anything rings. One ring per click
+    (`idempotency_key`). The attempt row is the call log; Twilio status callbacks keep it current."""
+
+    def __init__(
+        self,
+        databases: Databases,
+        settings: AutomationSettings,
+        caller: Caller,
+        kill_switch: KillSwitchReader,
+        clock: Clock = utc_now,
+    ) -> None:
+        self._db = databases
+        self._settings = settings
+        self._caller = caller
+        self._kill = kill_switch
+        self._now = clock
+
+    async def bridge(
+        self,
+        *,
+        deal_ref: uuid.UUID,
+        contact_ref: uuid.UUID | None,
+        staff_e164: str,
+        buyer_e164: str,
+        idempotency_key: str,
+    ) -> uuid.UUID:
+        staff, buyer = normalise_phone(staff_e164), normalise_phone(buyer_e164)
+        if await self._kill.engaged("phone"):
+            raise RuleViolation("outbound calls are switched off", reason="kill_switch")
+        async with self._db.transaction(LogicalDb.AUTOMATION) as s:
+            await advisory_lock(s, f"click-to-call:{idempotency_key}")
+            existing = await s.scalar(
+                select(CallAttempt.id).where(CallAttempt.idempotency_key == idempotency_key)
+            )
+            if existing is not None:
+                return existing
+            if await is_suppressed(s, "phone", recipient_hash("phone", buyer), contact_ref):
+                raise RuleViolation("the buyer asked not to be called", reason="opt_out")
+            attempt = CallAttempt(
+                purpose="click_to_call",
+                deal_ref=deal_ref,
+                to_e164=staff,
+                provider=PROVIDER,
+                idempotency_key=idempotency_key,
+            )
+            s.add(attempt)
+            await s.flush()
+            attempt_id = attempt.id
+        base = self._settings.twilio.status_callback_base_url.rstrip("/")
+        intro = f"Connecting you to the buyer for {self._settings.company_name or 'the company'}."
+        try:
+            sid = await self._caller.place_call(
+                staff,
+                bridge_twiml(intro, buyer, self._settings.twilio),
+                f"{base}/webhooks/twilio/status?attempt_id={attempt_id}",
+            )
+        except ChannelError as exc:
+            log.warning("click_to_call.failed", attempt_id=str(attempt_id), error=exc.detail)
+            async with self._db.transaction(LogicalDb.AUTOMATION) as s:
+                await s.execute(
+                    update(CallAttempt)
+                    .where(CallAttempt.id == attempt_id)
+                    .values(status="failed", ended_at=self._now())
+                )
+            raise RuleViolation("the call could not be started; try again", reason="call_failed") from exc
+        async with self._db.transaction(LogicalDb.AUTOMATION) as s:
+            await s.execute(
+                update(CallAttempt).where(CallAttempt.id == attempt_id).values(provider_call_id=sid)
+            )
+        return attempt_id
 
 
 class VoiceAlerts:
@@ -375,7 +456,7 @@ async def notify_staff(
     params: tuple[str, ...],
     *,
     key: str,
-    deal_ref: uuid.UUID,
+    deal_ref: uuid.UUID | None,
     not_before: datetime | None = None,
 ) -> None:
     """One WhatsApp notice to each staff contact (§17 "notified"), inside alert hours via `not_before`."""
@@ -398,7 +479,7 @@ async def _notify(
     params: tuple[str, ...],
     *,
     key: str,
-    deal_ref: uuid.UUID,
+    deal_ref: uuid.UUID | None,
     not_before: datetime | None = None,
 ) -> None:
     """WhatsApp to a staff member who chose WhatsApp (D4: `StaffContact.whatsapp` is set only then)."""

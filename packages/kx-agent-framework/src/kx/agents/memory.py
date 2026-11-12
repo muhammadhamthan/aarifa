@@ -13,6 +13,7 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Final, Literal
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
@@ -24,15 +25,31 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kx.agents.models import ModelSet
-from kx.agents.orm import Conversation, Turn, Visitor
+from kx.agents.orm import SCHEMA, Conversation, Turn, Visitor
+from kx.core import events as ev
 from kx.core.contracts import Channel
 from kx.core.db import Databases
+from kx.core.event_payloads import ConversationSummaryUpdated, make_event
+from kx.core.events import Outbox
 from kx.core.logging import get_logger
 from kx.core.settings import LogicalDb
 
 log = get_logger(__name__)
 Speaker = Literal["buyer", "ai", "human", "system"]
 _COVERED: Final = re.compile(r"^\[turns 1-(\d+)\] ")  # DDL has no summary watermark column (see report)
+DEAL_SUMMARY_CHARS: Final = 1200
+DEAL_SUMMARY_PROMPT: Final = (
+    "Write what a salesperson reads at the top of a B2B deal page, in 3 to 5 short lines: what the buyer "
+    "wants (product, quantity, destination), where the conversation stands, open questions, and what the "
+    "buyer is waiting for. Plain words, no greeting, English. Copy a price only if it appears in the turns; "
+    "never invent one. No phone numbers or email addresses."
+)
+
+
+def deal_summary_due(turn_count: int, *, handoff: bool) -> bool:
+    """§7A.2: the deal-page summary is written after the first exchange, refreshed every third exchange,
+    and at every hand-over (the moment the salesperson opens the deal)."""
+    return turn_count >= 2 and (handoff or turn_count == 2 or turn_count % 6 == 0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +57,7 @@ class History:
     messages: list[BaseMessage]
     summary: str | None
     turn_count: int
+    last_at: datetime | None = None  # the newest turn's time (§8.1 step 6 "live conversation")
 
 
 def _split_summary(raw: str | None) -> tuple[int, str | None]:
@@ -116,7 +134,7 @@ class TurnStore:
         covered, summary = _split_summary(raw)
         rows = (
             await s.execute(
-                select(Turn.speaker, Turn.text, Turn.turn_no)
+                select(Turn.speaker, Turn.text, Turn.turn_no, Turn.created_at)
                 .where(Turn.conversation_id == conversation_id, Turn.turn_no > covered)
                 .order_by(Turn.turn_no.desc())
                 .limit(self.window + 2 * self.step)
@@ -124,12 +142,12 @@ class TurnStore:
         ).all()
         count = rows[0].turn_no if rows else covered
         messages: list[BaseMessage] = []
-        for speaker, text, _ in reversed(rows):
+        for speaker, text, _, _ in reversed(rows):
             if speaker == "buyer":
                 messages.append(HumanMessage(text))
             elif speaker in ("ai", "human"):
                 messages.append(AIMessage(text, name="staff" if speaker == "human" else None))
-        return History(messages, summary, count)
+        return History(messages, summary, count, rows[0].created_at if rows else None)
 
     async def summarise(self, databases: Databases, models: ModelSet, conversation_id: uuid.UUID) -> bool:
         """Fold turns older than the window into the rolling summary (one fast-model call per `step`)."""
@@ -177,6 +195,48 @@ class TurnStore:
                 .values(summary=f"[turns 1-{target}] {msg.text}")
             )
         return True
+
+    async def deal_summary(
+        self, databases: Databases, models: ModelSet, conversation_id: uuid.UUID, *, handoff: bool = False
+    ) -> str | None:
+        """§7A.2 (D23): the short summary at the top of the CRM deal page, published as
+        `conversation.summary_updated.v1` (the CRM stores it on the deal). Returns the text, or None when
+        no refresh is due."""
+        async with databases.transaction(LogicalDb.AGENTS) as s:
+            stmt = select(Conversation.summary, Conversation.deal_ref).where(
+                Conversation.id == conversation_id
+            )
+            conv = (await s.execute(stmt)).one_or_none()
+            if conv is None or conv.deal_ref is None:
+                return None
+            history = await self.history(s, conversation_id)
+        if not deal_summary_due(history.turn_count, handoff=handoff):
+            return None
+        _, earlier = _split_summary(conv.summary)
+        transcript = "\n".join(
+            f"{'buyer' if m.type == 'human' else 'us'}: {m.text}" for m in history.messages[-self.window :]
+        )
+        msg = await models.runnable().ainvoke(
+            [
+                SystemMessage(DEAL_SUMMARY_PROMPT),
+                HumanMessage(f"Earlier: {earlier or '-'}\n\nRecent turns:\n{transcript}"),
+            ]
+        )
+        text = msg.text.strip()[:DEAL_SUMMARY_CHARS]
+        if not text:
+            return None
+        async with databases.transaction(LogicalDb.AGENTS) as s:
+            await Outbox.add(
+                s,
+                SCHEMA,
+                make_event(
+                    ev.CONVERSATION_SUMMARY_UPDATED,
+                    "deal",
+                    conv.deal_ref,
+                    ConversationSummaryUpdated(deal_ref=conv.deal_ref, summary=text, at=datetime.now(UTC)),
+                ),
+            )
+        return text
 
     @staticmethod
     async def anonymise(s: AsyncSession, contact_ref: uuid.UUID) -> list[uuid.UUID]:

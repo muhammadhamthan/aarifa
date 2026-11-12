@@ -1,4 +1,6 @@
-# Alarms -> encrypted SNS topic -> email (+ optional API webhook that relays to WhatsApp).
+# CloudWatch alarms -> encrypted SNS topic -> email, plus (optional) Better Stack's CloudWatch integration
+# so alarms open incidents there. Better Stack is the primary place for uptime, errors, logs and on-call
+# (11 Nov, Recommendation); these alarms + SNS email are the backup path (Fallback plan "Monitoring").
 # Log groups live with the resource that writes them (ecs_service, database, alb_waf, network).
 
 data "aws_caller_identity" "current" {}
@@ -173,12 +175,13 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory" {
   tags                = var.tags
 }
 
-# ---- queue lag (placeholder: the worker must emit Kairox/QueueLagSeconds) ------------
-# Approval timers and follow-ups ride on procrastinate; a growing backlog means late manager calls.
+# ---- queue lag: the app emits Kairox/QueueLagSeconds (Embedded Metric Format, dimension Company) --------
+# Approval ladders and follow-ups are rows in automation.scheduled_jobs swept by Celery Beat; a growing lag
+# means late reminder calls (or a dead Beat: Better Stack's heartbeat monitor pages first).
 resource "aws_cloudwatch_metric_alarm" "queue_lag" {
   for_each            = toset(var.companies)
   alarm_name          = "${var.name}-${each.key}-queue-lag"
-  alarm_description   = "${each.key}: oldest due procrastinate job older than ${var.queue_lag_threshold_seconds}s"
+  alarm_description   = "${each.key}: oldest due scheduled job older than ${var.queue_lag_threshold_seconds}s"
   namespace           = "Kairox"
   metric_name         = "QueueLagSeconds"
   dimensions          = { Company = each.key }
@@ -193,7 +196,46 @@ resource "aws_cloudwatch_metric_alarm" "queue_lag" {
   tags                = var.tags
 }
 
-# ---- cost --------------------------------------------------------------------------
+# ---- vendor switch: the app emits Kairox/VendorSwitch (EMF, dimension Company) on every fallback ------
+# Fallback plan: "every switch writes a metric and pages the on-call engineer"; this is the CloudWatch copy.
+resource "aws_cloudwatch_metric_alarm" "vendor_switch" {
+  for_each            = toset(var.companies)
+  alarm_name          = "${var.name}-${each.key}-vendor-switch"
+  alarm_description   = "${each.key}: a field switched to its backup vendor in the last 5 minutes (see app logs for which)"
+  namespace           = "Kairox"
+  metric_name         = "VendorSwitch"
+  dimensions          = { Company = each.key }
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.actions
+  ok_actions          = local.actions
+  tags                = var.tags
+}
+
+# ---- spend cap: the app emits Kairox/SpendCap (value = 80 or 100 percent) when a daily cap is crossed (D34) --
+resource "aws_cloudwatch_metric_alarm" "spend_cap" {
+  for_each            = toset(var.companies)
+  alarm_name          = "${var.name}-${each.key}-spend-cap"
+  alarm_description   = "${each.key}: a daily spend cap (AI, voice minutes or WhatsApp templates) reached 80 % or more (see app logs for which)"
+  namespace           = "Kairox"
+  metric_name         = "SpendCap"
+  dimensions          = { Company = each.key }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 80
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.actions
+  ok_actions          = local.actions
+  tags                = var.tags
+}
+
+# ---- cost (AWS bill only; vendors billed outside AWS have their own spend caps) ----------------------
 resource "aws_budgets_budget" "monthly" {
   name         = "${var.name}-monthly"
   budget_type  = "COST"
