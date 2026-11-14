@@ -1,0 +1,13 @@
+{
+ "chunks": 48,
+ "chunk_tokens_total": 0,
+ "index_seconds": 264.6,
+ "index_tokens_per_s": null,
+ "index_seconds_per_chunk": 5.51,
+ "query_single_p50_s": 0.134,
+ "query_single_max_s": 0.915,
+ "query_10_at_once_p50_s": 0.729,
+ "query_10_at_once_max_s": 1.076,
+ "dims": 1024,
+ "vector_bytes_float32": 4096
+}

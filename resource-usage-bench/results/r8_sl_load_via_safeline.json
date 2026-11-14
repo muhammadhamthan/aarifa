@@ -1,0 +1,195 @@
+{
+ "start": 1794650643.9900424,
+ "end": 1794650956.7165835,
+ "users": {
+  "web": 5,
+  "wa": 4,
+  "staff": 1
+ },
+ "actions": {
+  "auth.login": {
+   "count": 1,
+   "codes": {
+    "200": 1
+   },
+   "p50_s": 0.075,
+   "p95_s": 0.075,
+   "max_s": 0.075
+  },
+  "auth.totp": {
+   "count": 1,
+   "codes": {
+    "200": 1
+   },
+   "p50_s": 0.044,
+   "p95_s": 0.044,
+   "max_s": 0.044
+  },
+  "crm.approvals": {
+   "count": 5,
+   "codes": {
+    "200": 5
+   },
+   "p50_s": 0.006,
+   "p95_s": 0.007,
+   "max_s": 0.007
+  },
+  "crm.approve": {
+   "count": 15,
+   "codes": {
+    "200": 1,
+    "422": 14
+   },
+   "p50_s": 0.473,
+   "p95_s": 0.583,
+   "max_s": 0.583
+  },
+  "crm.deal": {
+   "count": 28,
+   "codes": {
+    "200": 28
+   },
+   "p50_s": 0.006,
+   "p95_s": 0.01,
+   "max_s": 0.023
+  },
+  "crm.deals": {
+   "count": 28,
+   "codes": {
+    "200": 28
+   },
+   "p50_s": 0.01,
+   "p95_s": 0.019,
+   "max_s": 0.03
+  },
+  "crm.inbox": {
+   "count": 28,
+   "codes": {
+    "200": 28
+   },
+   "p50_s": 0.008,
+   "p95_s": 0.011,
+   "max_s": 0.015
+  },
+  "crm.quote_manual": {
+   "count": 5,
+   "codes": {
+    "201": 5
+   },
+   "p50_s": 0.023,
+   "p95_s": 0.026,
+   "max_s": 0.026
+  },
+  "crm.quotes": {
+   "count": 28,
+   "codes": {
+    "200": 28
+   },
+   "p50_s": 0.005,
+   "p95_s": 0.007,
+   "max_s": 0.008
+  },
+  "crm.stage_qualify": {
+   "count": 5,
+   "codes": {
+    "200": 5
+   },
+   "p50_s": 0.014,
+   "p95_s": 0.017,
+   "max_s": 0.017
+  },
+  "crm.timeline": {
+   "count": 28,
+   "codes": {
+    "200": 28
+   },
+   "p50_s": 0.005,
+   "p95_s": 0.01,
+   "max_s": 0.02
+  },
+  "wa.webhook": {
+   "count": 86,
+   "codes": {
+    "200": 86
+   },
+   "p50_s": 0.014,
+   "p95_s": 0.041,
+   "max_s": 0.098
+  },
+  "web.message": {
+   "count": 101,
+   "codes": {
+    "200": 95,
+    "500": 6
+   },
+   "p50_s": 5.124,
+   "p95_s": 13.797,
+   "max_s": 15.074
+  },
+  "web.session": {
+   "count": 20,
+   "codes": {
+    "201": 20
+   },
+   "p50_s": 0.012,
+   "p95_s": 0.062,
+   "max_s": 0.065
+  },
+  "_client_bytes": {
+   "up": 170576,
+   "down": 760165
+  },
+  "_error_samples": {
+   "crm.approve 422": [
+    "{\"type\":\"https://errors.kairox.ai/rule_violation\",\"title\":\"Business rule violated\",\"status\":422,\"detail\":\"contact has no WhatsApp number or email to send the quote to\",\"instance\":\"/v1/approvals/01a1d982-8a62-7321-aa18-aece70e5a07c/decision\"}",
+    "{\"type\":\"https://errors.kairox.ai/rule_violation\",\"title\":\"Business rule violated\",\"status\":422,\"detail\":\"contact has no WhatsApp number or email to send the quote to\",\"instance\":\"/v1/approvals/01a1d981-8960-729a-a7f7-78dc3bf78569/decision\"}"
+   ],
+   "web.message 500": [
+    "Internal Server Error",
+    "Internal Server Error"
+   ]
+  }
+ },
+ "fakes": {
+  "vendors": {
+   "control": {
+    "requests": 1,
+    "bytes_in": 154,
+    "bytes_out": 2
+   },
+   "s3": {
+    "requests": 17,
+    "bytes_in": 805978,
+    "bytes_out": 105264
+   },
+   "claude": {
+    "requests": 408,
+    "bytes_in": 2866089,
+    "bytes_out": 202984
+   },
+   "whatsapp": {
+    "requests": 85,
+    "bytes_in": 99367,
+    "bytes_out": 12325
+   }
+  },
+  "llm": {
+   "text": 324.0,
+   "input_tokens": 654353.0,
+   "output_tokens": 21067.0,
+   "cache_read_tokens": 430832.0,
+   "calls_haiku": 408.0,
+   "tool_use": 59.0,
+   "structured": 25.0
+  },
+  "s3_objects": 143,
+  "s3_bytes": 7536333,
+  "s3_by_prefix": {
+   "kx-bench-media/pack/quotes": {
+    "objects": 143,
+    "bytes": 7536333
+   }
+  }
+ },
+ "task_errors": []
+}

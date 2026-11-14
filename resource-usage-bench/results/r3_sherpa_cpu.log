@@ -1,0 +1,143 @@
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:151 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+{
+ "model_files_gb": 1.04,
+ "load_one_recognizer": {
+  "wall_s": 13.884,
+  "cpu_s": 18.49,
+  "cores_busy": 1.33,
+  "peak_rss_mb": 1459.4
+ },
+ "single_rtf": 0.855,
+ "wer_by_lang": {
+  "en": 0.317,
+  "ar": 0.061,
+  "hi": 0.567,
+  "zh": 0.5
+ },
+ "x10_parallel": {
+  "wall_s": 41.992,
+  "cpu_s": 598.42,
+  "cores_busy": 14.25,
+  "peak_rss_mb": 7242.5,
+  "rtf_effective": 0.711
+ }
+}

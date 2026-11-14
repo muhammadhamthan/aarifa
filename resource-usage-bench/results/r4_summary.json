@@ -1,0 +1,101 @@
+{
+ "qwen3_06b": {
+  "format": "qwen3",
+  "chunks": 48,
+  "chunk_tokens_total": 37320,
+  "index_seconds": 223.6,
+  "index_tokens_per_s": 166.9,
+  "index_seconds_per_chunk": 4.66,
+  "query_single_p50_s": 0.155,
+  "query_single_max_s": 0.215,
+  "query_10_at_once_p50_s": 1.26,
+  "query_10_at_once_max_s": 1.934,
+  "queries_over_2s_app_timeout": 0,
+  "dims": 1024,
+  "vector_bytes_float32": 4096,
+  "quality": {
+   "questions": 24,
+   "top1_all": 1.0,
+   "top1_en_only": 1.0,
+   "mrr_all": 1.0,
+   "misses": []
+  },
+  "model": "Qwen/Qwen3-Embedding-0.6B",
+  "ready_seconds": 45.7,
+  "ram_idle_after_warmup_mib": 2861.1,
+  "model_disk_bytes": 1203021471,
+  "container": {
+   "ram_peak_mib": 3104.8,
+   "ram_avg_mib": 2784.5,
+   "cpu_peak_pct": 887.8,
+   "cpu_avg_pct": 615.3,
+   "samples": 1438
+  }
+ },
+ "bge_m3": {
+  "format": "plain",
+  "chunks": 48,
+  "chunk_tokens_total": 18192,
+  "index_seconds": 35.9,
+  "index_tokens_per_s": 506.9,
+  "index_seconds_per_chunk": 0.75,
+  "query_single_p50_s": 0.071,
+  "query_single_max_s": 0.115,
+  "query_10_at_once_p50_s": 0.302,
+  "query_10_at_once_max_s": 0.423,
+  "queries_over_2s_app_timeout": 0,
+  "dims": 1024,
+  "vector_bytes_float32": 4096,
+  "quality": {
+   "questions": 24,
+   "top1_all": 1.0,
+   "top1_en_only": 1.0,
+   "mrr_all": 1.0,
+   "misses": []
+  },
+  "model": "BAAI/bge-m3",
+  "ready_seconds": 331.6,
+  "ram_idle_after_warmup_mib": 4813.8,
+  "model_disk_bytes": 4560866479,
+  "container": {
+   "ram_peak_mib": 4830.2,
+   "ram_avg_mib": 3834.9,
+   "cpu_peak_pct": 1643.6,
+   "cpu_avg_pct": 179.8,
+   "samples": 1766
+  }
+ },
+ "e5_large": {
+  "format": "e5",
+  "chunks": 48,
+  "chunk_tokens_total": 18152,
+  "index_seconds": 42.3,
+  "index_tokens_per_s": 429.5,
+  "index_seconds_per_chunk": 0.88,
+  "query_single_p50_s": 0.071,
+  "query_single_max_s": 0.114,
+  "query_10_at_once_p50_s": 0.379,
+  "query_10_at_once_max_s": 0.437,
+  "queries_over_2s_app_timeout": 0,
+  "dims": 1024,
+  "vector_bytes_float32": 4096,
+  "quality": {
+   "questions": 24,
+   "top1_all": 1.0,
+   "top1_en_only": 1.0,
+   "mrr_all": 1.0,
+   "misses": []
+  },
+  "model": "intfloat/multilingual-e5-large",
+  "ready_seconds": 441.0,
+  "ram_idle_after_warmup_mib": 4744.2,
+  "model_disk_bytes": 4497681963,
+  "container": {
+   "ram_peak_mib": 4760.6,
+   "ram_avg_mib": 3720.1,
+   "cpu_peak_pct": 1672.3,
+   "cpu_avg_pct": 161.7,
+   "samples": 2232
+  }
+ }
+}

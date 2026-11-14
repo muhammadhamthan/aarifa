@@ -1,0 +1,9 @@
+{
+ "source": "AWS Price List bulk API, AmazonECS me-central-1, publication 2026-11-11T23:46:23Z (https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/20261111234623/me-central-1/index.json)",
+ "on_demand_usd": {
+  "x86_vcpu_hour": 0.0526, "x86_gb_hour": 0.0058,
+  "arm_vcpu_hour": 0.04208, "arm_gb_hour": 0.00464,
+  "ephemeral_storage_gb_hour": 0.000134
+ },
+ "note": "the repo's Recommendation.md uses the ARM prices; the bench measured amd64 images, so RANK.md costs free containers at the x86 price"
+}

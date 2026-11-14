@@ -1,0 +1,15 @@
+{
+ "ready_s": 0.0,
+ "up_tail": "eated \n Container safeline-fvm Starting \n Container safeline-chaos Starting \n Container safeline-pg Starting \n Container safeline-detector Starting \n Container safeline-tengine Starting \n Container safeline-tengine Started \n Container safeline-fvm Started \n Container safeline-pg Started \n Container safeline-mgt Starting \n Container safeline-chaos Started \n Container safeline-detector Started \n Container safeline-mgt Started \n Container safeline-luigi Starting \n Container safeline-luigi Started \n",
+ "ram_idle_mib": {
+  "safeline-luigi": 29.0,
+  "safeline-mgt": 103.2,
+  "safeline-tengine": 1194.0,
+  "safeline-detector": 70.5,
+  "safeline-pg": 50.9,
+  "safeline-chaos": 43.0,
+  "safeline-fvm": 65.5
+ },
+ "ram_idle_total_mib": 1556.1,
+ "note": "idle only (its own compose): protecting a site needs setup in its web UI"
+}

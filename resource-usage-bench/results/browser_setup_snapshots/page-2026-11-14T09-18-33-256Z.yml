@@ -1,0 +1,11 @@
+- generic [ref=f6e2]:
+  - generic [ref=f6e4]:
+    - img "Stalwart Logo" [ref=f6e6]
+    - generic [ref=f6e9]:
+      - generic [ref=f6e10]:
+        - heading "Sign in" [level=1] [ref=f6e11]
+        - paragraph [ref=f6e12]: Enter your account name to continue
+      - textbox "Enter your account name to continue" [active] [ref=f6e13]:
+        - /placeholder: user@example.com
+      - button "Continue" [disabled]
+  - list

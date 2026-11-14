@@ -1,0 +1,5 @@
+/healthz                                                via BunkerWeb (833 CRS rules loaded): 200
+/healthz?id=1%27%20OR%20%271%27=%271                    via BunkerWeb (833 CRS rules loaded): 403
+/healthz?q=%3Cscript%3Ealert(1)%3C/script%3E            via BunkerWeb (833 CRS rules loaded): 403
+/healthz?file=../../../../etc/passwd                    via BunkerWeb (833 CRS rules loaded): 403
+POST /v1/webhooks/whatsapp (JSON, signature header)     via BunkerWeb: 404

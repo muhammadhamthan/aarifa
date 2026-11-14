@@ -1,0 +1,32 @@
+{
+ "qwen3_06b": {
+  "cold_start_cached_s": 31.7,
+  "ram_idle_cached_mib": 2817.0,
+  "tei_backend": "candle",
+  "top1_all": 0.921,
+  "top1_distractor_questions": 0.857,
+  "top1_non_english_questions": 0.909,
+  "mrr": 0.961,
+  "misses": 3
+ },
+ "bge_m3": {
+  "cold_start_cached_s": 32.8,
+  "ram_idle_cached_mib": 4743.2,
+  "tei_backend": "onnxruntime",
+  "top1_all": 0.947,
+  "top1_distractor_questions": 0.929,
+  "top1_non_english_questions": 0.909,
+  "mrr": 0.964,
+  "misses": 2
+ },
+ "e5_large": {
+  "cold_start_cached_s": 30.4,
+  "ram_idle_cached_mib": 4686.8,
+  "tei_backend": "onnxruntime",
+  "top1_all": 0.921,
+  "top1_distractor_questions": 0.857,
+  "top1_non_english_questions": 0.909,
+  "mrr": 0.961,
+  "misses": 3
+ }
+}

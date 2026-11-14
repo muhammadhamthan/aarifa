@@ -1,0 +1,29 @@
+{
+ "ready_s": 6.0,
+ "ram_idle_mib": {
+  "kxmail-haraka-1": 90.9
+ },
+ "load": {
+  "ram_total_peak_mib": 127.0,
+  "ram_total_avg_mib": 119.7,
+  "cpu_total_peak_cores": 0.32,
+  "cpu_total_avg_cores": 0.18
+ },
+ "send": {
+  "start": 1794627153.8822641,
+  "end": 1794627162.2911155,
+  "sent": 1000,
+  "worker_errors": 0,
+  "message_bytes": 71630,
+  "per_message_s_p50": 0.0825,
+  "per_message_s_max": 0.128,
+  "messages_per_s": 118.9
+ },
+ "note": "accept + discard (queue/discard): measures SMTP receive cost, no storage",
+ "load_before_dedupe_fix": {
+  "ram_total_peak_mib": 254.0,
+  "ram_total_avg_mib": 239.3,
+  "cpu_total_peak_cores": 0.65,
+  "cpu_total_avg_cores": 0.36
+ }
+}

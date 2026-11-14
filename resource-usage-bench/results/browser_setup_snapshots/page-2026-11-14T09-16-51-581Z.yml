@@ -1,0 +1,19 @@
+- generic [ref=f4e1]:
+  - button "Switch to dark mode" [ref=f4e2] [cursor=pointer]
+  - main [ref=f4e5]:
+    - img "Stalwart" [ref=f4e7]
+    - generic [ref=f4e10]:
+      - heading "Sign in to Stalwart Web Interface" [level=1] [ref=f4e13]
+      - paragraph [ref=f4e14]: Enter your credentials to continue
+    - generic [ref=f4e15]:
+      - generic [ref=f4e16]:
+        - generic [ref=f4e17]: Username
+        - textbox "Username" [ref=f4e18]:
+          - /placeholder: you@example.com
+          - text: admin
+      - generic [ref=f4e19]:
+        - generic [ref=f4e20]: Password
+        - textbox "Password" [active] [ref=f4e21]:
+          - /placeholder: ••••••••
+      - button "Sign in" [ref=f4e22] [cursor=pointer]
+      - button "Sign in with a passkey" [ref=f4e23] [cursor=pointer]

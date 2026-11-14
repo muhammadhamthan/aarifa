@@ -1,0 +1,121 @@
+- generic [ref=f10e1]:
+  - generic [ref=f10e101]:
+    - banner [ref=f10e102]:
+      - generic [ref=f10e103]:
+        - navigation [ref=f10e104]:
+          - list [ref=f10e105]:
+            - listitem [ref=f10e106]:
+              - generic [ref=f10e107] [cursor=pointer]: SafeLine WAF
+            - listitem [aria-hidden] [ref=f10e110]
+            - listitem [ref=f10e114]:
+              - generic [ref=f10e528]: Applications
+        - generic [ref=f10e116] [cursor=pointer]: Upgrade License
+        - button [ref=f10e545] [cursor=pointer]: 7-Day Trial
+        - button [ref=f10e546] [cursor=pointer]: Discord
+        - button [ref=f10e128] [cursor=pointer]
+    - generic [ref=f10e131]:
+      - generic [ref=f10e132]: SafeLine WAF
+      - generic [ref=f10e135]:
+        - button [ref=f10e547] [cursor=pointer]:
+          - generic [ref=f10e140]: Statistics
+        - button [ref=f10e548] [cursor=pointer]:
+          - generic [ref=f10e146]: Applications
+        - button [ref=f10e549] [cursor=pointer]:
+          - generic [ref=f10e152]: Attacks
+        - button [ref=f10e550] [cursor=pointer]:
+          - generic [ref=f10e158]: Allow & Deny
+        - button [ref=f10e551] [cursor=pointer]:
+          - generic [ref=f10e164]: HTTP Flood
+        - button [ref=f10e552] [cursor=pointer]:
+          - generic [ref=f10e172]: Anti-Bot
+        - button [ref=f10e553] [cursor=pointer]:
+          - generic [ref=f10e178]: Auth
+        - button [ref=f10e554] [cursor=pointer]:
+          - generic [ref=f10e184]: Settings
+      - generic [ref=f10e186]:
+        - generic [ref=f10e187]: Version 9.2.7
+        - link [ref=f10e555] [cursor=pointer]:
+          - /url: https://safepoint.cloud/landing/safeline
+          - text: Homepage
+        - generic [ref=f10e191] [cursor=pointer]: Get Support
+        - link [ref=f10e557] [cursor=pointer]:
+          - /url: https://docs.waf.chaitin.com/
+          - text: Documentation
+    - generic [ref=f10e529]:
+      - generic [ref=f10e531]:
+        - generic [ref=f10e532]:
+          - generic [ref=f10e533]: 0 Applications
+          - generic [ref=f10e534]:
+            - generic: Application
+            - generic [ref=f10e535]:
+              - textbox [ref=f10e558]:
+                - /placeholder: Application, Port, Domain
+              - group [aria-hidden]:
+                - generic: Application
+        - generic [ref=f10e537]:
+          - button [ref=f10e559] [cursor=pointer]: Advanced
+          - button [ref=f10e560] [cursor=pointer]: Add Application
+      - generic [ref=f10e540]:
+        - generic [ref=f10e541]: NoData
+        - status [ref=f10e544]
+  - dialog "Add Application" [ref=f10e563]:
+    - heading "Add Application" [level=2] [ref=f10e564]:
+      - text: Add Application
+      - button [ref=f10e565] [cursor=pointer]
+    - generic [ref=f10e568]:
+      - generic [ref=f10e570]:
+        - generic [ref=f10e571]: Domain
+        - generic [ref=f10e572]:
+          - button "*" [ref=f10e573]:
+            - img [aria-hidden] [ref=f10e575] [cursor=pointer]
+          - combobox "Domain" [ref=f10e577]
+          - group [aria-hidden]:
+            - generic: Domain
+      - generic [ref=f10e579]:
+        - generic [ref=f10e580]:
+          - generic [ref=f10e581]:
+            - text: Port
+            - generic [aria-hidden] [ref=f10e582]: "*"
+          - generic [ref=f10e583]:
+            - textbox "Port" [ref=f10e584]: "80"
+            - group [aria-hidden]:
+              - generic: Port *
+        - tablist [ref=f10e587]:
+          - tab "HTTP" [selected] [ref=f10e588] [cursor=pointer]
+          - tab "HTTPS" [ref=f10e589] [cursor=pointer]
+        - generic [ref=f10e590]:
+          - button [disabled]
+      - button "Add Listening Port" [ref=f10e609] [cursor=pointer]
+      - radiogroup [ref=f10e617]:
+        - generic [ref=f10e618]:
+          - generic [ref=f10e621] [cursor=pointer]:
+            - radio "Reverse Proxy" [checked] [ref=f10e623]
+            - generic [ref=f10e629]: Reverse Proxy
+          - generic [ref=f10e632] [cursor=pointer]:
+            - radio "Static Files" [ref=f10e634]
+            - generic [ref=f10e638]: Static Files
+          - generic [ref=f10e641] [cursor=pointer]:
+            - radio "Redirect" [ref=f10e643]
+            - generic [ref=f10e647]: Redirect
+      - generic [ref=f10e649]:
+        - generic [ref=f10e650]:
+          - generic [ref=f10e651]:
+            - text: Upstream
+            - generic [aria-hidden] [ref=f10e652]: "*"
+          - generic [ref=f10e653]:
+            - textbox "Upstream" [ref=f10e654]:
+              - /placeholder: http://192.168.1.10:8080, not support path
+            - group [aria-hidden]:
+              - generic: Upstream *
+        - generic [ref=f10e655]:
+          - button [disabled]
+      - button "Add Upstream" [ref=f10e656] [cursor=pointer]
+      - generic [ref=f10e662]:
+        - generic [ref=f10e663]: Application Name
+        - generic [ref=f10e664]:
+          - textbox "Application Name" [ref=f10e665]
+          - group [aria-hidden]:
+            - generic: Application Name
+    - generic [ref=f10e668]:
+      - button "Cancel" [ref=f10e669] [cursor=pointer]
+      - button "Submit" [ref=f10e670] [cursor=pointer]

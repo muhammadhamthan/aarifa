@@ -1,0 +1,28 @@
+{
+ "acquisition_row": [
+  "file:/logs/access.log",
+  "100.00k",
+  "100.00k",
+  "-",
+  "7.85k",
+  "96.91k"
+ ],
+ "parse_seconds_from_log": 39.0,
+ "lines_per_second": 2564,
+ "load": {
+  "ram_total_peak_mib": 158.7,
+  "ram_total_avg_mib": 99.6,
+  "cpu_total_peak_cores": 1.32,
+  "cpu_total_avg_cores": 0.91
+ },
+ "ram_after_mib": {
+  "kxfw-crowdsec-1": 158.4
+ },
+ "note": "test log uses private 10.x addresses, which CrowdSec whitelists by default, so scenario work was small",
+ "load_before_dedupe_fix": {
+  "ram_total_peak_mib": 317.4,
+  "ram_total_avg_mib": 199.2,
+  "cpu_total_peak_cores": 2.63,
+  "cpu_total_avg_cores": 1.81
+ }
+}

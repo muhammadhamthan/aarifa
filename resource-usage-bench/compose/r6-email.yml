@@ -1,0 +1,82 @@
+# Round 6: free self-hosted email servers from `free version.docx`, one at a time (profiles), each fed
+# 1,000 quote-style emails over SMTP by scripts/smtp_send.py. Everything is local: recipients are @bench.test.
+#   docker compose -p kxmail -f resource-usage-bench/compose/r6-email.yml --profile stalwart up -d
+services:
+  stalwart:
+    profiles: ["stalwart"]
+    image: stalwartlabs/stalwart:${STALWART_TAG:-latest}
+    ports:
+      - "2526:25"
+      - "28090:8080"
+    volumes:  # the image's own data folders (config written by the setup wizard + RocksDB mail store)
+      - stalwart-etc:/etc/stalwart
+      - stalwart:/var/lib/stalwart
+
+  haraka:
+    profiles: ["haraka", "postal"]  # with postal: the relay sink Postal delivers to (postal.yml smtp_relays)
+    image: node:22-slim
+    environment:
+      YES_REALLY_DO_DISCARD: "1"
+    entrypoint:
+      - sh
+      - -c
+      - >
+        npm install -g Haraka@3 >/tmp/npm.log 2>&1 && haraka -i /haraka >/dev/null &&
+        printf 'rcpt_to.in_host_list\nqueue/discard\n' > /haraka/config/plugins &&
+        echo bench.test > /haraka/config/host_list &&
+        printf '[main]\nlisten=0.0.0.0:2525\nnodes=1\n' > /haraka/config/smtp.ini &&
+        exec haraka -c /haraka
+    ports:
+      - "2525:2525"
+
+  mariadb:
+    profiles: ["postal"]
+    image: mariadb:11.8
+    environment:
+      MARIADB_DATABASE: postal
+      MARIADB_ROOT_PASSWORD: postal
+    volumes:
+      - postaldb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 30
+
+  postal-web:
+    profiles: ["postal"]
+    image: ghcr.io/postalserver/postal:${POSTAL_TAG:-3.3.4}
+    command: postal web-server
+    volumes:
+      - F:/kx-bench/email/postal:/config
+    ports:
+      - "25000:5000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  postal-smtp:
+    profiles: ["postal"]
+    image: ghcr.io/postalserver/postal:${POSTAL_TAG:-3.3.4}
+    command: postal smtp-server
+    volumes:
+      - F:/kx-bench/email/postal:/config
+    ports:
+      - "2527:25"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  postal-worker:
+    profiles: ["postal"]
+    image: ghcr.io/postalserver/postal:${POSTAL_TAG:-3.3.4}
+    command: postal worker
+    volumes:
+      - F:/kx-bench/email/postal:/config
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+volumes:
+  stalwart:
+  stalwart-etc:
+  postaldb:

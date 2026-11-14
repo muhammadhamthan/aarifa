@@ -1,0 +1,156 @@
+- generic [ref=f10e101]:
+  - banner [ref=f10e102]:
+    - generic [ref=f10e103]:
+      - navigation [ref=f10e104]:
+        - list [ref=f10e105]:
+          - listitem [ref=f10e106]:
+            - generic [ref=f10e107] [cursor=pointer]: SafeLine WAF
+          - listitem [aria-hidden] [ref=f10e110]
+          - listitem [ref=f10e114]:
+            - generic [ref=f10e115]: Statistics
+      - generic [ref=f10e116] [cursor=pointer]: Upgrade License
+      - button "7-Day Trial" [ref=f10e119] [cursor=pointer]
+      - button "Discord" [ref=f10e124] [cursor=pointer]
+      - button [ref=f10e128] [cursor=pointer]
+  - generic [ref=f10e131]:
+    - generic [ref=f10e132]: SafeLine WAF
+    - generic [ref=f10e135]:
+      - button "Statistics" [ref=f10e136] [cursor=pointer]
+      - button "Applications" [ref=f10e142] [cursor=pointer]
+      - button "Attacks" [ref=f10e148] [cursor=pointer]
+      - button "Allow & Deny" [ref=f10e154] [cursor=pointer]
+      - button "HTTP Flood" [ref=f10e160] [cursor=pointer]
+      - button "Anti-Bot" [ref=f10e168] [cursor=pointer]
+      - button "Auth" [ref=f10e174] [cursor=pointer]
+      - button "Settings" [ref=f10e180] [cursor=pointer]
+    - generic [ref=f10e186]:
+      - generic [ref=f10e187]: Version 9.2.7
+      - link [ref=f10e189] [cursor=pointer]:
+        - /url: https://safepoint.cloud/landing/safeline
+        - img "SafelineLogo" [ref=f10e190]
+        - text: Homepage
+      - generic [ref=f10e191] [cursor=pointer]: Get Support
+      - link "Documentation" [ref=f10e194] [cursor=pointer]:
+        - /url: https://docs.waf.chaitin.com/
+  - generic [ref=f10e198]:
+    - generic [ref=f10e199]:
+      - tablist [ref=f10e202]:
+        - tab "Traffic Analysis" [selected] [ref=f10e203] [cursor=pointer]
+        - tab "Security Posture" [ref=f10e204] [cursor=pointer]
+      - generic [ref=f10e206] [cursor=pointer]: DATA DASHBOARD
+    - generic [ref=f10e211]:
+      - generic [ref=f10e212]:
+        - generic [ref=f10e213]:
+          - combobox [ref=f10e214] [cursor=pointer]: All applications
+          - textbox [aria-hidden]: "-1"
+          - group [aria-hidden]
+        - generic [ref=f10e215]:
+          - combobox [ref=f10e216] [cursor=pointer]: 24 hours
+          - textbox [aria-hidden]: last1Day
+          - group [aria-hidden]
+      - generic [ref=f10e217]:
+        - generic [ref=f10e218]:
+          - generic [ref=f10e219]:
+            - generic [ref=f10e221]:
+              - generic [ref=f10e223]:
+                - generic [ref=f10e224]: Requests
+                - generic [ref=f10e229]: "0"
+              - generic [ref=f10e232]:
+                - generic [ref=f10e233]: Views (PV)
+                - generic [ref=f10e238]: "0"
+              - generic [ref=f10e241]:
+                - generic "The number of unique visitors counted through SafeLine session" [ref=f10e243]: Visitors(UV)
+                - generic [ref=f10e247]: "0"
+              - generic [ref=f10e250]:
+                - generic [ref=f10e251]: Unique IP
+                - generic [ref=f10e256]: "0"
+            - generic [ref=f10e260]:
+              - generic [ref=f10e262]:
+                - generic "The number of requests actively intercepted by SafeLine" [ref=f10e264]: Blocked
+                - generic [ref=f10e268]: "0"
+              - generic [ref=f10e273]:
+                - generic "Number of independent IPs requested by the attack" [ref=f10e275]: IP Addr
+                - generic [ref=f10e279]: "0"
+          - generic [ref=f10e281]:
+            - generic [ref=f10e283]:
+              - generic [ref=f10e285]:
+                - generic [ref=f10e286]: 4xx Errors
+                - generic [ref=f10e291]: "0"
+              - generic [ref=f10e294]:
+                - generic "The ratio of 4xx requests among requests returned by upstream services to SafeLine. A high ratio indicates potential application anomalies." [ref=f10e296]: Error Rate
+                - generic "0%" [ref=f10e301]
+            - generic [ref=f10e303]:
+              - generic [ref=f10e305]:
+                - generic [ref=f10e306]: 4xx Blocked
+                - generic [ref=f10e311]: "0"
+              - generic [ref=f10e314]:
+                - generic "The ratio of requests that SafeLine actively blocks and returns 4xx responses to clients. A high ratio indicates possible attacks or overly strict rule configurations." [ref=f10e316]: Blocked Rate
+                - generic "0%" [ref=f10e321]
+            - generic [ref=f10e323]:
+              - generic [ref=f10e325]:
+                - generic [ref=f10e326]: 5xx Errors
+                - generic [ref=f10e331]: "0"
+              - generic [ref=f10e336]:
+                - generic "The ratio of 5xx requests returned by the system, including upstream service errors and SafeLine gateway errors. A high ratio indicates potential application anomalies." [ref=f10e338]: Error Rate
+                - generic [ref=f10e342]: "0"
+          - generic [ref=f10e345]:
+            - generic [ref=f10e346]:
+              - generic [ref=f10e347]: Geo Location
+              - generic [ref=f10e348]:
+                - tablist [ref=f10e351]:
+                  - tab "3D" [selected] [ref=f10e352] [cursor=pointer]
+                  - tab "2D" [ref=f10e353] [cursor=pointer]
+                - tablist [ref=f10e357]:
+                  - tab "Requests" [selected] [ref=f10e358] [cursor=pointer]
+                  - tab "Blocked" [ref=f10e359] [cursor=pointer]
+            - generic [ref=f10e370]:
+              - generic [ref=f10e372]:
+                - paragraph [ref=f10e373]: "-"
+                - generic [ref=f10e374]: "0"
+              - generic [ref=f10e377]:
+                - paragraph [ref=f10e378]: "-"
+                - generic [ref=f10e379]: "0"
+              - generic [ref=f10e382]:
+                - paragraph [ref=f10e383]: "-"
+                - generic [ref=f10e384]: "0"
+              - generic [ref=f10e387]:
+                - paragraph [ref=f10e388]: "-"
+                - generic [ref=f10e389]: "0"
+              - generic [ref=f10e392]:
+                - paragraph [ref=f10e393]: "-"
+                - generic [ref=f10e394]: "0"
+              - generic [ref=f10e397]:
+                - paragraph [ref=f10e398]: "-"
+                - generic [ref=f10e399]: "0"
+              - generic [ref=f10e402]:
+                - paragraph [ref=f10e403]: "-"
+                - generic [ref=f10e404]: "0"
+        - generic [ref=f10e406]:
+          - generic [ref=f10e410]:
+            - generic [ref=f10e411]: Query Per Second
+            - generic [ref=f10e412]: "0"
+          - generic [ref=f10e469]:
+            - generic [ref=f10e470]: Requests Status
+            - generic [ref=f10e471]: Max
+            - generic [ref=f10e472]: "0"
+          - generic [ref=f10e479]:
+            - generic [ref=f10e480]: Blocking Status
+            - generic [ref=f10e481]: Max
+            - generic [ref=f10e482]: "0"
+        - generic [ref=f10e487]:
+          - generic [ref=f10e489]:
+            - generic [ref=f10e490]: User Clients
+            - generic [ref=f10e495]: Device and browser info parsed from User-Agent
+            - img "User Clients" [ref=f10e497]
+          - generic [ref=f10e499]:
+            - generic [ref=f10e500]: Response Status
+            - generic [ref=f10e505]: Response count and ratio by HTTP status code
+            - img "Response Status" [ref=f10e507]
+          - generic [ref=f10e509]:
+            - generic [ref=f10e510]: Referring Application/Page
+            - generic [ref=f10e515]: Referring sites and pages from Referer field
+            - img "Referring Application/Page" [ref=f10e517]
+          - generic [ref=f10e519]:
+            - generic [ref=f10e520]: Popular Application/Page
+            - generic [ref=f10e525]: Target domains and pages from Host field
+            - img "Popular Application/Page" [ref=f10e527]

@@ -1,0 +1,80 @@
+- generic [ref=f10e1]:
+  - generic [ref=f10e101]:
+    - banner [ref=f10e102]:
+      - generic [ref=f10e103]:
+        - navigation [ref=f10e104]:
+          - list [ref=f10e105]:
+            - listitem [ref=f10e106]:
+              - generic [ref=f10e107] [cursor=pointer]: SafeLine WAF
+            - listitem [aria-hidden] [ref=f10e110]
+            - listitem [ref=f10e114]:
+              - generic [ref=f10e528]: Applications
+        - generic [ref=f10e116] [cursor=pointer]: Upgrade License
+        - button "7-Day Trial" [ref=f10e672] [cursor=pointer]
+        - button "Discord" [ref=f10e673] [cursor=pointer]
+        - button [ref=f10e128] [cursor=pointer]
+    - generic [ref=f10e131]:
+      - generic [ref=f10e132]: SafeLine WAF
+      - generic [ref=f10e135]:
+        - button "Statistics" [ref=f10e674] [cursor=pointer]
+        - button "Applications" [ref=f10e675] [cursor=pointer]
+        - button "Attacks" [ref=f10e676] [cursor=pointer]
+        - button "Allow & Deny" [ref=f10e677] [cursor=pointer]
+        - button "HTTP Flood" [ref=f10e678] [cursor=pointer]
+        - button "Anti-Bot" [ref=f10e679] [cursor=pointer]
+        - button "Auth" [ref=f10e680] [cursor=pointer]
+        - button "Settings" [ref=f10e681] [cursor=pointer]
+      - generic [ref=f10e186]:
+        - generic [ref=f10e187]: Version 9.2.7
+        - link [ref=f10e682] [cursor=pointer]:
+          - /url: https://safepoint.cloud/landing/safeline
+          - img "SafelineLogo" [ref=f10e683]
+          - text: Homepage
+        - generic [ref=f10e191] [cursor=pointer]: Get Support
+        - link "Documentation" [ref=f10e684] [cursor=pointer]:
+          - /url: https://docs.waf.chaitin.com/
+    - generic [ref=f10e529]:
+      - generic [ref=f10e531]:
+        - generic [ref=f10e532]:
+          - generic [ref=f10e533]: 1 Applications
+          - generic [ref=f10e534]:
+            - generic: Application
+            - generic [ref=f10e535]:
+              - textbox "Application" [ref=f10e685]:
+                - /placeholder: Application, Port, Domain
+              - group [aria-hidden]:
+                - generic: Application
+        - generic [ref=f10e537]:
+          - button "Advanced" [ref=f10e686] [cursor=pointer]
+          - button "Add Application" [active] [ref=f10e687] [cursor=pointer]
+      - generic [ref=f10e540]:
+        - generic [ref=f10e692]:
+          - generic [ref=f10e693]:
+            - button "Defense" [ref=f10e696] [cursor=pointer]
+            - generic [ref=f10e697]:
+              - generic [ref=f10e698]:
+                - generic [ref=f10e699]: RQS TD
+                - generic [ref=f10e700]: "0"
+              - separator [ref=f10e701]
+              - generic [ref=f10e702]:
+                - generic [ref=f10e703]: BLK TD
+                - generic [ref=f10e704]: "0"
+          - separator [ref=f10e705]
+          - generic [ref=f10e706]:
+            - generic [ref=f10e707]:
+              - generic [ref=f10e708]: kairox-api
+              - button "Detail" [ref=f10e711] [cursor=pointer]
+            - generic [ref=f10e715]:
+              - generic [ref=f10e718]: "Domain:"
+              - generic [ref=f10e719]: Match All Host
+            - generic [ref=f10e721]:
+              - generic [ref=f10e724]: "Port:"
+              - generic [ref=f10e725]: "28089"
+            - generic [ref=f10e727]:
+              - button "HTTP Flood" [ref=f10e728] [cursor=pointer]
+              - button "BOT Protect" [ref=f10e730] [cursor=pointer]
+              - button "Auth" [ref=f10e732] [cursor=pointer]
+              - button "Attacks" [ref=f10e734] [cursor=pointer]
+        - status [ref=f10e544]
+  - alert [ref=f10e736]:
+    - generic [ref=f10e740]: Add Success

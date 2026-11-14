@@ -1,0 +1,32 @@
+{
+ "device": "cpu",
+ "model_dir_gb": 1.62,
+ "int8": {
+  "load": {
+   "wall_s": 16.045,
+   "cpu_s": 47.25,
+   "cores_busy": 2.94,
+   "peak_rss_mb": 1800.5,
+   "added_rss_mb": 1733.9
+  },
+  "single_rtf": 0.939,
+  "single_latency_s_avg": 5.546,
+  "wer_by_lang": {
+   "en": 0.317,
+   "ar": 0.061,
+   "hi": 0.196,
+   "zh": 0.5
+  },
+  "x10_parallel": {
+   "wall_s": 39.503,
+   "cpu_s": 477.59,
+   "cores_busy": 12.09,
+   "peak_rss_mb": 4311.7,
+   "audio_s": 59.0,
+   "rtf_effective": 0.669,
+   "latency_s_max": 39.48
+  },
+  "gpu_mem_used_mb": null,
+  "gpu_mem_model_mb": null
+ }
+}

@@ -1,0 +1,26 @@
+{
+ "attack: sql injection": {
+  "direct": 200,
+  "via_waf": 403
+ },
+ "attack: script injection (XSS)": {
+  "direct": 200,
+  "via_waf": 403
+ },
+ "attack: path traversal": {
+  "direct": 200,
+  "via_waf": 403
+ },
+ "normal: health check": {
+  "direct": 200,
+  "via_waf": 200
+ },
+ "normal: signed WhatsApp webhook (en)": {
+  "direct": 200,
+  "via_waf": 403
+ },
+ "normal: signed WhatsApp webhook (ar)": {
+  "direct": 200,
+  "via_waf": 403
+ }
+}

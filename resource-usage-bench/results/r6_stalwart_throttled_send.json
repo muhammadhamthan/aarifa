@@ -1,0 +1,11 @@
+{
+ "start": 1794648129.572998,
+ "end": 1794648131.410761,
+ "sent": 0,
+ "worker_errors": 5,
+ "message_bytes": 71630,
+ "connections": 5,
+ "per_message_s_p50": null,
+ "per_message_s_max": null,
+ "messages_per_s": 0.0
+}

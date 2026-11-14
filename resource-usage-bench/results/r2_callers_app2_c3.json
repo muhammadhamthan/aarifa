@@ -1,0 +1,56 @@
+{
+ "start": 1794623160.539921,
+ "end": 1794623278.5758426,
+ "callers": 3,
+ "turns_each": 4,
+ "answered": 12,
+ "missed": 0,
+ "reply_s_p50": 8.59,
+ "reply_s_p95": 17.74,
+ "replies_under_3s": 0,
+ "reply_s_max": 17.742,
+ "per_caller": [
+  {
+   "caller": 0,
+   "join_s": 0.315,
+   "notice": {
+    "first_audio_s": 1.42,
+    "done_s": 7.94
+   },
+   "reply_after_speech_s": [
+    9.869,
+    5.709,
+    6.609,
+    5.25
+   ]
+  },
+  {
+   "caller": 2,
+   "join_s": 0.26,
+   "notice": {
+    "first_audio_s": 1.38,
+    "done_s": 8.27
+   },
+   "reply_after_speech_s": [
+    14.507,
+    7.689,
+    14.117,
+    12.838
+   ]
+  },
+  {
+   "caller": 1,
+   "join_s": 0.242,
+   "notice": {
+    "first_audio_s": 3.11,
+    "done_s": 12.27
+   },
+   "reply_after_speech_s": [
+    17.742,
+    7.562,
+    9.481,
+    6.891
+   ]
+  }
+ ]
+}

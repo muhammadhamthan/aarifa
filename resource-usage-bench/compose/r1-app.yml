@@ -1,0 +1,177 @@
+# Round 1: the platform itself, measured under 10 fake users.
+#   docker compose -p kxbench -f resource-usage-bench/compose/r1-app.yml up -d
+# Separate project name and ports, so the developer's own `kairox-platform` containers and volumes are untouched.
+# Every outside vendor points at `fakes` (resource-usage-bench/scripts/fake_services.py). Nothing leaves the PC
+# except the one-time image and model downloads.
+
+x-env: &env
+  KX_ENV: local
+  KX_COMPANY_CODE: pack
+  KX_LOG_JSON: "true"
+  KX_CRM_DSN: postgresql+asyncpg://crm_app:dev@postgres:5432/crm
+  KX_AUTOMATION_DSN: postgresql+asyncpg://automation_app:dev@postgres:5432/automation
+  KX_AGENTS_DSN: postgresql+asyncpg://agents_app:dev@postgres:5432/agents
+  KX_REDIS_URL: redis://redis:6379/0
+  KX_APP_CELERY_BROKER_URL: redis://redis:6379/8
+  KX_APP_WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-10}
+  KX_SERVICE_TOKEN_SECRET: bench-service-token-secret-0123456789abcdef
+  # bench only: a fixed key so TOTP enrolments survive a container restart (local runs otherwise use a
+  # process-local key, see container.py _seed_box)
+  KX_AUTH__ENCRYPTION_KEY: "ZM0ARi02VXefvmtu5V-p8vcIb2VUBgm3w8l9przEtm8="
+  KX_AWS_REGION: me-central-1
+  KX_APP_MEDIA_BUCKET: kx-bench-media
+  KX_APP_INBOUND_MAIL_BUCKET: kx-bench-inbound
+  KX_APP_CHROMIUM_PATH: /usr/bin/chromium
+  # outside vendors -> the fakes
+  ANTHROPIC_BASE_URL: http://fakes:9000
+  KX_APP_ANTHROPIC_API_KEY: sk-ant-fake-bench
+  AWS_ENDPOINT_URL: http://fakes:9000
+  AWS_ACCESS_KEY_ID: bench
+  AWS_SECRET_ACCESS_KEY: bench
+  AWS_REGION: me-central-1
+  KX_AUTO_SES__FROM_ADDRESS: sales@bench.test
+  KX_AUTO_WHATSAPP__GRAPH_BASE_URL: http://fakes:9000
+  KX_AUTO_WHATSAPP__PHONE_NUMBER_ID: "100000000000001"
+  KX_AUTO_WHATSAPP__ACCESS_TOKEN: bench-wa-token
+  KX_AUTO_WHATSAPP__APP_SECRET: bench-wa-secret
+  KX_AUTO_WHATSAPP__VERIFY_TOKEN: bench-wa-verify
+  KX_AUTO_TWILIO__API_BASE_URL: http://fakes:9000
+  KX_AUTO_TWILIO__ACCOUNT_SID: ACbench
+  KX_AUTO_TWILIO__AUTH_TOKEN: bench-twilio
+  KX_AUTO_TWILIO__FROM_NUMBER: "+971400000000"
+  KX_AUTO_PUBLIC_BASE_URL: http://api:8000
+  KX_APP_CMS_URL: http://fakes:9000
+  KX_APP_CMS_API_KEY: bench-cms-key
+  KX_APP_CMS_WEBHOOK_SECRET: bench-cms-secret
+  KX_APP_EMBEDDING_URL: http://embeddings:80
+  KX_APP_EMBEDDING_TIMEOUT_SECONDS: "${EMBED_TIMEOUT:-120}"
+  KX_APP_PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006/v1/traces
+  KX_APP_PHOENIX_PROJECT: pack
+  KX_APP_SPEND_AI_USD_PER_DAY: "100000"
+
+x-app: &app
+  image: kxbench/app:local
+  read_only: true
+  tmpfs:
+    - /tmp
+  restart: "no"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      KX_DEV_DB_PASSWORD: dev
+      KX_INIT_APPLY_DDL: "1"
+    ports:
+      - "25432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ../../db/ddl:/kx/ddl:ro
+      - ../../infra/scripts/db_bootstrap.sh:/kx/db_bootstrap.sh:ro
+      - ../../docker/postgres/initdb.sh:/docker-entrypoint-initdb.d/10-kairox.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agents"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+
+  redis:
+    image: redis:8.2
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "26379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  fakes:
+    image: kxbench/app:local
+    entrypoint: ["python", "/bench/fake_services.py"]
+    environment:
+      FAKE_DATA_DIR: /data
+      FAKE_LLM_DELAY_S: ${FAKE_LLM_DELAY_S:-3.0}
+    volumes:
+      - ../scripts:/bench:ro
+      - fakedata:/data
+    user: "0:0"
+    ports:
+      - "29000:9000"
+
+  embeddings:
+    # FINDING (14 Nov): the repo's pinned cpu-1.7.2 crashes with Qwen3 on CPU (MKL SGEMM errors, exit 139);
+    # cpu-1.8 starts but needs --auto-truncate, and its default 16k-token warm-up batch was OOM-killed.
+    image: ghcr.io/huggingface/text-embeddings-inference:${TEI_TAG:-cpu-1.8}
+    command: ["--model-id", "Qwen/Qwen3-Embedding-0.6B", "--port", "80", "--auto-truncate",
+              "--max-batch-tokens", "${TEI_MAX_BATCH_TOKENS:-4096}"]
+    ports:
+      - "28080:80"
+    volumes:
+      - F:/kx-bench/hf:/data
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    environment:
+      PHOENIX_SQL_DATABASE_URL: postgresql://phoenix_app:dev@postgres:5432/phoenix
+      # Phoenix 21 turns login on by default; production sets it off too (infra app_services PHOENIX_ENABLE_AUTH)
+      PHOENIX_ENABLE_AUTH: "false"
+    ports:
+      - "26006:6006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    <<: *app
+    command: ["migrate"]
+    environment:
+      <<: *env
+      KX_PROCESS: migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command: ["api"]
+    environment:
+      <<: *env
+      KX_PROCESS: api
+    ports:
+      - "28000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    environment:
+      <<: *env
+      KX_PROCESS: worker
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  beat:
+    <<: *app
+    command: ["beat"]
+    environment:
+      <<: *env
+      KX_PROCESS: beat
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  fakedata:

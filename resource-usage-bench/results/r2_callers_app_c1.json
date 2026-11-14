@@ -1,0 +1,28 @@
+{
+ "start": 1794621864.210856,
+ "end": 1794621951.2674735,
+ "callers": 1,
+ "turns_each": 4,
+ "answered": 4,
+ "missed": 0,
+ "reply_s_p50": 7.28,
+ "reply_s_p95": 15.26,
+ "replies_under_3s": 0,
+ "reply_s_max": 15.259,
+ "per_caller": [
+  {
+   "caller": 0,
+   "join_s": 0.13,
+   "notice": {
+    "first_audio_s": 1.34,
+    "done_s": 7.62
+   },
+   "reply_after_speech_s": [
+    9.959,
+    4.609,
+    15.259,
+    4.389
+   ]
+  }
+ ]
+}

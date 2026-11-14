@@ -1,0 +1,28 @@
+- generic [ref=f5e2]:
+  - generic [ref=f5e3]:
+    - banner [ref=f5e4]:
+      - img "Stalwart Logo" [ref=f5e5]
+    - main [ref=f5e8]:
+      - generic [ref=f5e10]:
+        - generic [ref=f5e11]:
+          - generic [ref=f5e12]:
+            - heading "Welcome to Stalwart" [level=1] [ref=f5e13]
+            - paragraph [ref=f5e14]: Let's get your server set up.
+          - generic "Step 3 of 5" [ref=f5e205]
+        - generic [ref=f5e21]:
+          - heading "Account Directory" [level=2] [ref=f5e206]
+          - group [ref=f5e23]:
+            - generic [ref=f5e207]:
+              - generic [ref=f5e208]:
+                - generic [ref=f5e209]: Directory Type
+                - paragraph [ref=f5e213]: Where user accounts and credentials come from. The internal directory is recommended for ease of setup and management through the WebUI, but external OIDC or LDAP directories can be used for single sign-on and user provisioning in larger organizations.
+              - group "Directory Type" [ref=f5e216]:
+                - generic [ref=f5e219]:
+                  - generic [aria-hidden] [ref=f5e220]: Type
+                  - combobox "Directory Type" [ref=f5e222]:
+                    - generic: Use the internal directory
+        - generic [ref=f5e64]:
+          - button "Back" [ref=f5e204]
+          - generic [ref=f5e65]: Step 3 of 5
+          - button "Next" [active] [ref=f5e66]
+  - list

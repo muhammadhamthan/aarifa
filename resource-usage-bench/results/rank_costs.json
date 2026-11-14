@@ -1,0 +1,270 @@
+{
+ "rule": "the smallest valid Fargate task whose memory >= the measured peak RAM and whose vCPU\n>= the measured average CPU under the test load. GPU work: the smallest UAE GPU instance. 730 hours a month.\nPrices: results/aws_fargate_me-central-1_prices.json (x86, because the measured images were amd64) and\nresults/aws_ec2_me-central-1_prices.json.\n  python rank_costs.py -> results/rank_costs.json\n",
+ "fargate": {
+  "haraka": {
+   "peak_mib": 127.0,
+   "avg_cores": 0.18,
+   "vcpu": 0.25,
+   "memory_gb": 0.5,
+   "usd_month": 11.72
+  },
+  "stalwart": {
+   "peak_mib": 228.1,
+   "avg_cores": 0.22,
+   "vcpu": 0.25,
+   "memory_gb": 0.5,
+   "usd_month": 11.72
+  },
+  "postal": {
+   "peak_mib": 652.0,
+   "avg_cores": 0.71,
+   "vcpu": 1,
+   "memory_gb": 2,
+   "usd_month": 46.87
+  },
+  "asterisk": {
+   "peak_mib": 52.3,
+   "avg_cores": 0.05,
+   "vcpu": 0.25,
+   "memory_gb": 0.5,
+   "usd_month": 11.72
+  },
+  "freeswitch": {
+   "peak_mib": 50.3,
+   "avg_cores": 0.03,
+   "vcpu": 0.25,
+   "memory_gb": 0.5,
+   "usd_month": 11.72
+  },
+  "crowdsec": {
+   "peak_mib": 158.7,
+   "avg_cores": 0.91,
+   "vcpu": 1,
+   "memory_gb": 2,
+   "usd_month": 46.87
+  },
+  "bunkerweb": {
+   "peak_mib": 472.1,
+   "avg_cores": 0.05,
+   "vcpu": 0.25,
+   "memory_gb": 0.5,
+   "usd_month": 11.72
+  },
+  "safeline": {
+   "peak_mib": 1639.4,
+   "avg_cores": 0.03,
+   "vcpu": 0.25,
+   "memory_gb": 2,
+   "usd_month": 18.07
+  },
+  "phoenix": {
+   "peak_mib": 510.1,
+   "avg_cores": 0.05,
+   "vcpu": 0.25,
+   "memory_gb": 0.5,
+   "usd_month": 11.72
+  },
+  "langfuse": {
+   "peak_mib": 2549.0,
+   "avg_cores": 0.22,
+   "vcpu": 0.5,
+   "memory_gb": 3,
+   "usd_month": 31.9,
+   "note": "sized on its idle reading 2.49 GB (larger than the run peak)"
+  },
+  "opik": {
+   "peak_mib": 3322.7,
+   "avg_cores": 1.43,
+   "vcpu": 2,
+   "memory_gb": 4,
+   "usd_month": 93.73
+  },
+  "qwen3_embedding": {
+   "peak_mib": 3174.4,
+   "avg_cores": 1.0,
+   "vcpu": 1,
+   "memory_gb": 4,
+   "usd_month": 55.33
+  },
+  "bge_m3": {
+   "peak_mib": 4945.9,
+   "avg_cores": 1.0,
+   "vcpu": 1,
+   "memory_gb": 5,
+   "usd_month": 59.57
+  },
+  "e5_large": {
+   "peak_mib": 4874.2,
+   "avg_cores": 1.0,
+   "vcpu": 1,
+   "memory_gb": 5,
+   "usd_month": 59.57
+  },
+  "embeddings_arm_plan_size": {
+   "qwen3_1vcpu_4gb_arm": 44.27,
+   "bge_m3_or_e5_1vcpu_8gb_arm": 57.82
+  }
+ },
+ "gpu": {
+  "g6.xlarge": {
+   "instance": "g6.xlarge",
+   "vcpu": "4",
+   "memory": "16 GiB",
+   "gpu_memory": "24 GB",
+   "usd_hour": 0.98824,
+   "usd_month": 721.42
+  },
+  "g6.2xlarge": {
+   "instance": "g6.2xlarge",
+   "vcpu": "8",
+   "memory": "32 GiB",
+   "gpu_memory": "24 GB",
+   "usd_hour": 1.20043,
+   "usd_month": 876.31
+  },
+  "g5.xlarge": {
+   "instance": "g5.xlarge",
+   "vcpu": "4",
+   "memory": "16 GiB",
+   "gpu_memory": "24 GB",
+   "usd_hour": 1.234,
+   "usd_month": 900.82
+  }
+ },
+ "voice": {
+  "paid_stt_tts_transport": [
+   91,
+   279,
+   930
+  ],
+  "free_on_g6.xlarge_saving": [
+   -630.42,
+   -442.42,
+   208.58
+  ],
+  "free_on_g6.2xlarge_saving": [
+   -785.31,
+   -597.31,
+   53.69
+  ]
+ },
+ "piper": {
+  "core_per_simultaneous_stream": 0.428,
+  "1_stream": {
+   "vcpu": 0.5,
+   "memory_gb": 1,
+   "usd_month": 23.43
+  },
+  "10_streams": {
+   "vcpu": 8,
+   "memory_gb": 16,
+   "usd_month": 374.93
+  }
+ },
+ "calls": {
+  "telnyx_voice_api_part": [
+   0.07,
+   0.36,
+   1.2
+  ],
+  "telnyx_total": [
+   10,
+   46,
+   152
+  ]
+ },
+ "paid": {
+  "stt_deepgram": [
+   14,
+   69,
+   230
+  ],
+  "tts_elevenlabs": [
+   27,
+   135,
+   450
+  ],
+  "voice_livekit_cloud": [
+   50,
+   75,
+   250
+  ],
+  "calls_telnyx": [
+   10,
+   46,
+   152
+  ],
+  "email_ses_postmark": [
+   17,
+   19,
+   22
+  ],
+  "waf_aws_turnstile": [
+   10,
+   11,
+   14
+  ],
+  "tracing_langfuse_cloud_core": [
+   29,
+   47,
+   105
+  ],
+  "tracing_phoenix_plan": [
+   19,
+   19,
+   19
+  ],
+  "embeddings_qwen3_plan": [
+   44,
+   44,
+   44
+  ],
+  "embeddings_gemini_api": [
+   0.28,
+   1.3,
+   4.2
+  ]
+ },
+ "saving_per_month_light_normal_heavy": {
+  "voice chain (STT+TTS+transport) on g6.xlarge": [
+   -630.42,
+   -442.42,
+   208.58
+  ],
+  "calls: Asterisk instead of Telnyx Voice API": [
+   -11.65,
+   -11.36,
+   -10.52
+  ],
+  "email: Postal (send) + Stalwart (replies) instead of SES + Postmark": [
+   -41.59,
+   -39.59,
+   -36.59
+  ],
+  "WAF: SafeLine instead of AWS WAF + Turnstile": [
+   -8.07,
+   -7.07,
+   -4.07
+  ],
+  "WAF: BunkerWeb instead of AWS WAF + Turnstile": [
+   -1.72,
+   -0.72,
+   2.28
+  ],
+  "tracing: Phoenix (plan) vs Langfuse Cloud Core": [
+   10,
+   28,
+   86
+  ],
+  "embeddings: BGE-M3 (1 vCPU + 8 GB ARM) vs Qwen3 plan container": [
+   -13.82,
+   -13.82,
+   -13.82
+  ]
+ },
+ "saving_if_all_four_replaced": [
+  -691.73,
+  -500.44,
+  157.4
+ ]
+}

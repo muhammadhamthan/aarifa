@@ -1,0 +1,140 @@
+ Network kxembed_default Creating 
+ Network kxembed_default Created 
+ Container kxembed-embeddings-1 Creating 
+ Container kxembed-embeddings-1 Created 
+ Container kxembed-embeddings-1 Starting 
+ Container kxembed-embeddings-1 Started 
+{
+ "format": "qwen3",
+ "chunks": 48,
+ "chunk_tokens_total": 37320,
+ "index_seconds": 223.6,
+ "index_tokens_per_s": 166.9,
+ "index_seconds_per_chunk": 4.66,
+ "query_single_p50_s": 0.155,
+ "query_single_max_s": 0.215,
+ "query_10_at_once_p50_s": 1.26,
+ "query_10_at_once_max_s": 1.934,
+ "queries_over_2s_app_timeout": 0,
+ "dims": 1024,
+ "vector_bytes_float32": 4096,
+ "quality": {
+  "questions": 24,
+  "top1_all": 1.0,
+  "top1_en_only": 1.0,
+  "mrr_all": 1.0,
+  "misses": []
+ }
+}
+ Container kxembed-embeddings-1 Stopping 
+ Container kxembed-embeddings-1 Stopped 
+ Container kxembed-embeddings-1 Removing 
+ Container kxembed-embeddings-1 Removed 
+ Network kxembed_default Removing 
+ Network kxembed_default Removed 
+ Network kxembed_default Creating 
+ Network kxembed_default Created 
+ Container kxembed-embeddings-1 Creating 
+ Container kxembed-embeddings-1 Created 
+ Container kxembed-embeddings-1 Starting 
+ Container kxembed-embeddings-1 Started 
+{
+ "format": "plain",
+ "chunks": 48,
+ "chunk_tokens_total": 18192,
+ "index_seconds": 35.9,
+ "index_tokens_per_s": 506.9,
+ "index_seconds_per_chunk": 0.75,
+ "query_single_p50_s": 0.071,
+ "query_single_max_s": 0.115,
+ "query_10_at_once_p50_s": 0.302,
+ "query_10_at_once_max_s": 0.423,
+ "queries_over_2s_app_timeout": 0,
+ "dims": 1024,
+ "vector_bytes_float32": 4096,
+ "quality": {
+  "questions": 24,
+  "top1_all": 1.0,
+  "top1_en_only": 1.0,
+  "mrr_all": 1.0,
+  "misses": []
+ }
+}
+ Container kxembed-embeddings-1 Stopping 
+ Container kxembed-embeddings-1 Stopped 
+ Container kxembed-embeddings-1 Removing 
+ Container kxembed-embeddings-1 Removed 
+ Network kxembed_default Removing 
+ Network kxembed_default Removed 
+ Network kxembed_default Creating 
+ Network kxembed_default Created 
+ Container kxembed-embeddings-1 Creating 
+ Container kxembed-embeddings-1 Created 
+ Container kxembed-embeddings-1 Starting 
+ Container kxembed-embeddings-1 Started 
+{
+ "format": "e5",
+ "chunks": 48,
+ "chunk_tokens_total": 18152,
+ "index_seconds": 42.3,
+ "index_tokens_per_s": 429.5,
+ "index_seconds_per_chunk": 0.88,
+ "query_single_p50_s": 0.071,
+ "query_single_max_s": 0.114,
+ "query_10_at_once_p50_s": 0.379,
+ "query_10_at_once_max_s": 0.437,
+ "queries_over_2s_app_timeout": 0,
+ "dims": 1024,
+ "vector_bytes_float32": 4096,
+ "quality": {
+  "questions": 24,
+  "top1_all": 1.0,
+  "top1_en_only": 1.0,
+  "mrr_all": 1.0,
+  "misses": []
+ }
+}
+ Container kxembed-embeddings-1 Stopping 
+ Container kxembed-embeddings-1 Stopped 
+ Container kxembed-embeddings-1 Removing 
+ Container kxembed-embeddings-1 Removed 
+ Network kxembed_default Removing 
+ Network kxembed_default Removed 
+{
+ "qwen3_06b": {
+  "ram_idle_after_warmup_mib": 2861.1,
+  "index_seconds_per_chunk": 4.66,
+  "query_10_at_once_p50_s": 1.26,
+  "quality": {
+   "questions": 24,
+   "top1_all": 1.0,
+   "top1_en_only": 1.0,
+   "mrr_all": 1.0,
+   "misses": []
+  }
+ },
+ "bge_m3": {
+  "ram_idle_after_warmup_mib": 4813.8,
+  "index_seconds_per_chunk": 0.75,
+  "query_10_at_once_p50_s": 0.302,
+  "quality": {
+   "questions": 24,
+   "top1_all": 1.0,
+   "top1_en_only": 1.0,
+   "mrr_all": 1.0,
+   "misses": []
+  }
+ },
+ "e5_large": {
+  "ram_idle_after_warmup_mib": 4744.2,
+  "index_seconds_per_chunk": 0.88,
+  "query_10_at_once_p50_s": 0.379,
+  "quality": {
+   "questions": 24,
+   "top1_all": 1.0,
+   "top1_en_only": 1.0,
+   "mrr_all": 1.0,
+   "misses": []
+  }
+ }
+}

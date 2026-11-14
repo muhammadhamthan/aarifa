@@ -1,0 +1,13 @@
+snapshot -> C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\results\r1_snap_0_start.json
+A_idle: 180 s
+snapshot -> C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\results\r1_snap_1_after_idle.json
+B_cms_index: 984 s
+snapshot -> C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\results\r1_snap_2_after_cms.json
+--- rerun C/D from 05:11 (fixed TOTP key; valid UAE numbers)
+snapshot -> C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\results\r1_snap_2_after_cms.json
+C_load_worker10: 914 s
+snapshot -> C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\results\r1_snap_3_after_load_c10.json
+D0_idle_worker3: 93 s
+D_load_worker3: 613 s
+snapshot -> C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\results\r1_snap_4_after_load_c3.json
+done

@@ -1,0 +1,32 @@
+{
+ "ram_idle_mib": {
+  "kxcalls-asterisk-1": 49.4
+ },
+ "load": {
+  "ram_total_peak_mib": 52.3,
+  "ram_total_avg_mib": 51.4,
+  "cpu_total_peak_cores": 0.17,
+  "cpu_total_avg_cores": 0.05
+ },
+ "sipp_wall_s": 18.7,
+ "sipp_stats": {
+  "CallRate(P)": "0",
+  "CallRate(C)": "0.713318",
+  "SuccessfulCall(P)": "0",
+  "SuccessfulCall(C)": "10",
+  "FailedCall(P)": "0",
+  "FailedCall(C)": "0",
+  "FailedCallRejected(P)": "0",
+  "FailedCallRejected(C)": "0",
+  "Retransmissions(P)": "0",
+  "Retransmissions(C)": "0"
+ },
+ "sipp_tail": "s not usable.)\ndebconf: falling back to frontend: Readline\ndebconf: unable to initialize frontend: Readline\ndebconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.40.1 /usr/local/share/perl/5.40.1 /usr/lib/x86_64-linux-gnu/perl5/5.40 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.40 /usr/share/perl/5.40 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8, <STDIN> line 14.)\ndebconf: falling back to frontend: Teletype\ndebconf: unable to initialize frontend: Teletype\ndebconf: (This frontend requires a controlling tty.)\ndebconf: falling back to frontend: Noninteractive\nResolving remote host 'asterisk'... Done.\n",
+ "note": "10 simultaneous SIP calls, 60 s each, G.711 audio both ways (answer + echo)",
+ "load_before_dedupe_fix": {
+  "ram_total_peak_mib": 104.6,
+  "ram_total_avg_mib": 102.7,
+  "cpu_total_peak_cores": 0.34,
+  "cpu_total_avg_cores": 0.09
+ }
+}

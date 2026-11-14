@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\scripts\r2_driver.py", line 100, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\scripts\r2_driver.py", line 93, in main
+    v["containers"] = window(csv_path, *v["span"])
+                      ~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\head user\Desktop\Hamthan\Clinets\client-4-aluminium-coil\kairox-platform-v1\kairox-platform\resource-usage-bench\scripts\r2_driver.py", line 48, in window
+    cpu = [float(r["cpu_pct"]) for r in rs]
+           ~~~~~^^^^^^^^^^^^^^
+ValueError: could not convert string to float: '--'

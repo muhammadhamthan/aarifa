@@ -1,0 +1,91 @@
+- generic [ref=f5e2]:
+  - generic [ref=f5e3]:
+    - banner [ref=f5e4]:
+      - img "Stalwart Logo" [ref=f5e5]
+    - main [ref=f5e8]:
+      - generic [ref=f5e10]:
+        - generic [ref=f5e11]:
+          - generic [ref=f5e12]:
+            - heading "Welcome to Stalwart" [level=1] [ref=f5e13]
+            - paragraph [ref=f5e14]: Let's get your server set up.
+          - generic "Step 2 of 5" [ref=f5e67]
+        - generic [ref=f5e21]:
+          - heading "Storage" [level=2] [ref=f5e68]
+          - group [ref=f5e23]:
+            - generic [ref=f5e69]:
+              - generic [ref=f5e70]:
+                - generic [ref=f5e71]: Main Data Storage
+                - paragraph [ref=f5e75]: "Where structured data is kept: email metadata, calendars, contacts, mailbox state, and server settings. RocksDB is recommended for single-node installations; PostgreSQL, MySQL, SQLite, and FoundationDB are also supported."
+              - group "Main Data Storage" [ref=f5e78]:
+                - generic [ref=f5e79]:
+                  - generic [ref=f5e81]:
+                    - generic [aria-hidden] [ref=f5e82]: Type
+                    - combobox "Main Data Storage" [ref=f5e84]:
+                      - generic: RocksDB
+                  - generic [ref=f5e87]:
+                    - generic [ref=f5e88]:
+                      - generic [ref=f5e89]:
+                        - generic [ref=f5e90]: Path*
+                        - paragraph [ref=f5e94]: Path to the RocksDB data directory
+                      - textbox "Path" [ref=f5e97]: /var/lib/stalwart/
+                    - generic [ref=f5e98]:
+                      - generic [ref=f5e99]:
+                        - generic [ref=f5e100]: Min blob size*
+                        - paragraph [ref=f5e104]: Minimum size of a blob to write to a separate RocksDB blob file; smaller blobs are stored inline in the LSM tree. Only applies when RocksDB is also the blob store
+                      - generic [ref=f5e107]:
+                        - spinbutton "Min blob size" [ref=f5e108]: "4"
+                        - combobox "Unit" [ref=f5e109]:
+                          - generic: KB
+                    - generic [ref=f5e112]:
+                      - generic [ref=f5e113]:
+                        - generic [ref=f5e114]: Write buffer size*
+                        - paragraph [ref=f5e118]: Total amount of memory shared by the write buffers (memtables) of every column family. Higher values batch more writes in memory before they are flushed to disk
+                      - generic [ref=f5e121]:
+                        - spinbutton "Write buffer size" [ref=f5e122]: "128"
+                        - combobox "Unit" [ref=f5e123]:
+                          - generic: MB
+                    - generic [ref=f5e126]:
+                      - generic [ref=f5e127]:
+                        - generic [ref=f5e128]: Block cache size(optional)
+                        - paragraph [ref=f5e132]: Total amount of memory shared by the block caches of every column family, used to cache data blocks, indexes and bloom filters read from disk. When unset, one eighth of the memory available to the server (the lower of physical memory and the container memory limit), between 256 MiB and 8 GiB; on hosts with less than 1 GiB, a quarter of the memory; 256 MiB when the memory cannot be determined
+                      - generic [ref=f5e135]:
+                        - spinbutton "Block cache size(optional)" [ref=f5e136]
+                        - combobox "Unit" [ref=f5e137]:
+                          - generic: B
+                    - generic [ref=f5e140]:
+                      - generic [ref=f5e141]:
+                        - generic [ref=f5e142]: Thread Pool Size(optional)
+                        - paragraph [ref=f5e146]: Number of worker threads to use for the store, defaults to the number of cores
+                      - spinbutton "Thread Pool Size(optional)" [ref=f5e149]
+            - generic [ref=f5e150]:
+              - generic [ref=f5e151]:
+                - generic [ref=f5e152]: Attachment & File Storage
+                - paragraph [ref=f5e156]: Where the raw content of email messages, attachments, and other large files is stored. Leave as default to reuse the data store, or point to an object storage service such as S3 for larger deployments.
+              - group "Attachment & File Storage" [ref=f5e159]:
+                - generic [ref=f5e162]:
+                  - generic [aria-hidden] [ref=f5e163]: Type
+                  - combobox "Attachment & File Storage" [ref=f5e165]:
+                    - generic: Use data store
+            - generic [ref=f5e168]:
+              - generic [ref=f5e169]:
+                - generic [ref=f5e170]: Full-Text Search Index
+                - paragraph [ref=f5e174]: Where the full-text search index is kept, so users can search across message bodies and attachments. Leave as default to reuse the data store, or point to a dedicated search backend for larger deployments.
+              - group "Full-Text Search Index" [ref=f5e177]:
+                - generic [ref=f5e180]:
+                  - generic [aria-hidden] [ref=f5e181]: Type
+                  - combobox "Full-Text Search Index" [ref=f5e183]:
+                    - generic: Use data store
+            - generic [ref=f5e186]:
+              - generic [ref=f5e187]:
+                - generic [ref=f5e188]: Cache & Temporary Data
+                - paragraph [ref=f5e192]: "Where short-lived data lives: session caches, rate-limit counters, and temporary tokens. Leave as default to keep this data in the memory of the server process, or point to Stalwart Keep or Redis for multi-node deployments."
+              - group "Cache & Temporary Data" [ref=f5e195]:
+                - generic [ref=f5e198]:
+                  - generic [aria-hidden] [ref=f5e199]: Type
+                  - combobox "Cache & Temporary Data" [ref=f5e201]:
+                    - generic: Local in-process store (single node only)
+        - generic [ref=f5e64]:
+          - button "Back" [ref=f5e204]
+          - generic [ref=f5e65]: Step 2 of 5
+          - button "Next" [active] [ref=f5e66]
+  - list

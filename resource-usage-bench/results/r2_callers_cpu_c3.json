@@ -1,0 +1,44 @@
+{
+ "start": 1794618456.2218845,
+ "end": 1794618612.0196764,
+ "callers": 3,
+ "turns_each": 4,
+ "answered": 12,
+ "missed": 0,
+ "reply_s_p50": 24.98,
+ "reply_s_p95": 27.2,
+ "replies_under_3s": 0,
+ "reply_s_max": 27.203,
+ "per_caller": [
+  {
+   "caller": 0,
+   "join_s": 0.243,
+   "reply_after_speech_s": [
+    26.605,
+    27.004,
+    21.496,
+    22.235
+   ]
+  },
+  {
+   "caller": 2,
+   "join_s": 0.217,
+   "reply_after_speech_s": [
+    26.36,
+    24.937,
+    21.948,
+    23.209
+   ]
+  },
+  {
+   "caller": 1,
+   "join_s": 0.177,
+   "reply_after_speech_s": [
+    27.203,
+    25.033,
+    21.864,
+    25.242
+   ]
+  }
+ ]
+}

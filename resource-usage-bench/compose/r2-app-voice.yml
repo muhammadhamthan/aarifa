@@ -1,0 +1,52 @@
+# Round 2b: the platform's REAL voice worker (`kx voice` wiring, scripts/app_voice_worker.py) on a LiveKit
+# server BUILT FROM SOURCE (repos/livekit-server @ v1.13.11), 10 callers with real deal_ref metadata.
+# Runs in the kxbench project next to Round 1's databases, Redis and fake Claude; speech server on the host GPU.
+#   docker build -t kxbench/livekit-server:v1.13.11-src resource-usage-bench/repos/livekit-server
+#   docker compose -p kxbench -f resource-usage-bench/compose/r1-app.yml -f resource-usage-bench/compose/r2-app-voice.yml \
+#     up -d postgres redis fakes phoenix api livekit-src voice
+services:
+  livekit-src:
+    image: kxbench/livekit-server:v1.13.11-src
+    command: ["--dev", "--bind", "0.0.0.0"]
+    ports:
+      - "27881:7880"
+
+  voice:
+    extends:
+      file: r1-app.yml
+      service: api
+    entrypoint: ["/app/.venv/bin/python", "/bench/app_voice_worker.py"]
+    command: !reset []
+    ports: !reset []
+    depends_on: !reset []
+    healthcheck:
+      disable: true
+    environment:
+      KX_PROCESS: voice
+      LIVEKIT_URL: ws://livekit-src:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+      SPEECH_URL: ${SPEECH_URL:-http://host.docker.internal:8100/v1}
+      # LiveKit's openai + silero plugins 1.8.10, built from repos/livekit-agents (the app image has no voice
+      # vendor plugins); onnxruntime + flatbuffers only, so the app keeps its own numpy / protobuf
+      PYTHONPATH: /pylib/appvoice:/pylib/appvoice-deps
+      HOME: /tmp
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - ../scripts:/bench:ro
+      - F:/kx-bench/pylib:/pylib:ro
+
+  callers-app:
+    profiles: ["run"]
+    image: python:3.12-slim
+    working_dir: /bench
+    entrypoint: ["sh", "-c", "PYTHONPATH=/pylib/agent python /bench/voice_callers.py --callers ${CALLERS:-10} --turns ${TURNS:-4} --clips /clips --meta /results/r2_app_meta.json --out /results/r2_callers_${TAG:-app}.json"]
+    environment:
+      LIVEKIT_URL: ws://livekit-src:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+    volumes:
+      - ../scripts:/bench:ro
+      - F:/kx-bench/clips:/clips:ro
+      - ../results:/results
+      - F:/kx-bench/pylib:/pylib:ro

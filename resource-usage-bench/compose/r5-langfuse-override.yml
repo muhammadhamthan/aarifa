@@ -1,0 +1,14 @@
+# Bench override for Langfuse's official docker-compose.yml (F:/kx-bench/repos/langfuse): the internal services
+# publish host ports that clash with the developer's own containers on this PC (Postgres 5432, Valkey/Redis 6379).
+# Only the web UI / OTLP endpoint (3000) is needed from outside; nothing else in the official file is changed.
+services:
+  langfuse-worker:
+    ports: !reset []
+  clickhouse:
+    ports: !reset []
+  minio:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  postgres:
+    ports: !reset []

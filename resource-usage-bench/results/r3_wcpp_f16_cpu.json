@@ -1,0 +1,30 @@
+{
+ "ram_idle_mib": 1616.896,
+ "ram_peak_mib": 1783.808,
+ "single_rtf": 1.988,
+ "single_latency_s_avg": 11.739,
+ "wer_by_lang": {
+  "en": 0.317,
+  "ar": 0.061,
+  "hi": 0.181,
+  "zh": 0.5
+ },
+ "x10_parallel": {
+  "wall_s": 121.04,
+  "audio_s": 59.0,
+  "rtf_effective": 2.05,
+  "latency_s_max": 121.04
+ },
+ "transcripts": {
+  "clip00_en.wav": " Our aluminium container holds 750 milliliters and comes with a paper lid.\n",
+  "clip01_en.wav": " The minimum order is 5,000 pieces, delivered in 10 to 14 working days.\n",
+  "clip02_en.wav": " Each carton holds 500 containers, about 8 kilograms.\n",
+  "clip03_ar.wav": " حاوية الألمنيوم لدينا تتسع لسبع مائة وخمسين مليلترا وتأتي مع غطاء ورقي،\n",
+  "clip04_ar.wav": " الحد الأدنى للطلب خمسة آلاف قطعة ويتم التسليم خلال عشرة إلى أربعة عشر يوم عمل.\n",
+  "clip05_ar.wav": " شكراً لاتصالكم، سيرسل فريق المبيعات عرض السعر عبر واتساب.\n",
+  "clip06_hi.wav": " हमारा एल्यूमिनियम कंटेनर 750 मिली लीटर का है और कागस के धक्कन के साथ आता है।\n",
+  "clip07_hi.wav": " धन्यवाद हमारी सेल्स टीम वाटसाप पर कोटेशन भीजेगी।\n",
+  "clip08_zh.wav": "我们的铝箔餐和容量为750毫升配有纸钙\n",
+  "clip09_zh.wav": "最低企定量为5000\n隔10-14个工作日内叫货\n"
+ }
+}

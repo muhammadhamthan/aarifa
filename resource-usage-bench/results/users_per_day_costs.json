@@ -1,0 +1,381 @@
+{
+ "rule": "1 user a day = 1 conversation of 10 AI turns; other channels scale by Recommendation.md Light ratios",
+ "ratios_per_turn": {
+  "voice_min": 0.10714285714285714,
+  "whatsapp": 0.2785714285714286,
+  "email_out": 0.14285714285714285,
+  "email_in": 0.03571428571428571,
+  "call_min": 0.0025714285714285713
+ },
+ "namecheap_plans": {
+  "Xeon E-2236 (6 cores / 12 threads), 32 GB, 2 x 480 GB SSD": 79.88,
+  "Xeon E-2236, 64 GB, 2 x 960 GB SSD (SATA)": 83.88,
+  "Xeon E-2236, 64 GB, 2 x 960 GB SSD (NVMe)": 94.88,
+  "Dual Xeon Silver 4208, 64 GB, 2 x 1 TB NVMe": 153.88,
+  "Dual Xeon Gold 5218, 128 GB, 4 x 1 TB NVMe": 229.88
+ },
+ "namecheap_pick": "Xeon E-2236, 64 GB, 2 x 960 GB SSD (SATA)",
+ "footprint_measured_gib": {
+  "app: api + worker (concurrency 3) + beat + Postgres + Redis + Qwen3 embeddings (R1)": 4.5,
+  "voice worker, platform code, 10 calls (R2b)": 4.21,
+  "Phoenix traces (R5)": 0.51,
+  "Postal + MariaDB, sending (R6)": 0.65,
+  "Stalwart mailbox (R6)": 0.23,
+  "Asterisk, 10 calls (R7)": 0.05,
+  "SafeLine firewall (R8)": 1.6,
+  "CrowdSec (R8)": 0.16,
+  "Coolify (its docs: minimum 2 GB)": 2.0
+ },
+ "footprint_estimated_gib": {
+  "CMS + 2 Next.js sites (not measured, estimate)": 1.0,
+  "OS (not measured, estimate)": 0.8
+ },
+ "footprint_total_gib": 15.71,
+ "by_users_per_day": {
+  "50": {
+   "usage_per_month": {
+    "turns": 15000,
+    "voice_min": 1607.1,
+    "whatsapp": 4178.6,
+    "email_out": 2142.9,
+    "email_in": 535.7,
+    "call_min": 38.6
+   },
+   "vendor_lines": {
+    "AI replies (Claude Sonnet + Haiku)": 52.5,
+    "WhatsApp (Meta)": 29.34,
+    "speech-to-text (Deepgram)": 14.79,
+    "text-to-speech (ElevenLabs)": 28.93,
+    "voice transport (LiveKit Cloud Ship)": 50.0,
+    "staff alert calls (Telnyx)": 10.65,
+    "email (SES + Postmark Pro)": 16.84
+   },
+   "stack_paid": {
+    "total_low": 914.05,
+    "total_high": 1193.05
+   },
+   "stack_hybrid": {
+    "items": {
+     "Namecheap dedicated server (64 GB)": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude)": 52.5,
+     "WhatsApp (Meta)": 29.34,
+     "speech-to-text (Deepgram)": 14.79,
+     "text-to-speech (Piper, self-hosted)": 0.0,
+     "voice transport (LiveKit server, self-hosted)": 0.0,
+     "staff alert calls (Telnyx)": 10.65,
+     "email (SES + Postmark)": 16.84,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 228.0,
+    "elevenlabs_per_min_for_ta_si_calls": 0.018
+   },
+   "stack_free": {
+    "items": {
+     "Namecheap dedicated server (64 GB)": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "GPU server for faster-whisper (AWS g6.xlarge, UAE)": 721.42,
+     "AI replies (Claude)": 52.5,
+     "WhatsApp (Meta)": 29.34,
+     "speech-to-text (faster-whisper)": 0.0,
+     "text-to-speech (Piper)": 0.0,
+     "voice transport (LiveKit)": 0.0,
+     "phone minutes (SIP trunk; Asterisk does the rest)": 10.57,
+     "email (Postal + Stalwart)": 0.0,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 917.71
+   },
+   "A_aws_plan_all_paid": {
+    "low_light_sizes": 914.05,
+    "high_normal_sizes": 1193.05,
+    "hosting_light": 711,
+    "hosting_normal": 990
+   },
+   "B_namecheap_coolify_paid_voice": {
+    "items": {
+     "Namecheap dedicated server": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude Sonnet + Haiku)": 52.5,
+     "WhatsApp (Meta)": 29.34,
+     "speech-to-text (Deepgram)": 14.79,
+     "text-to-speech (ElevenLabs)": 28.93,
+     "voice transport (LiveKit Cloud Ship)": 50.0,
+     "email (SES + Postmark Pro)": 16.84,
+     "phone minutes (SIP trunk at Telnyx rates; Asterisk replaces only the Voice API part)": 10.57,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 306.85
+   },
+   "C_namecheap_coolify_paid_voice_selfhosted_email": {
+    "items": {
+     "Namecheap dedicated server": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude Sonnet + Haiku)": 52.5,
+     "WhatsApp (Meta)": 29.34,
+     "speech-to-text (Deepgram)": 14.79,
+     "text-to-speech (ElevenLabs)": 28.93,
+     "voice transport (LiveKit Cloud Ship)": 50.0,
+     "phone minutes (SIP trunk at Telnyx rates; Asterisk replaces only the Voice API part)": 10.57,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 290.01
+   },
+   "disk_growth_gb_per_month": 0.26
+  },
+  "100": {
+   "usage_per_month": {
+    "turns": 30000,
+    "voice_min": 3214.3,
+    "whatsapp": 8357.1,
+    "email_out": 4285.7,
+    "email_in": 1071.4,
+    "call_min": 77.1
+   },
+   "vendor_lines": {
+    "AI replies (Claude Sonnet + Haiku)": 105.0,
+    "WhatsApp (Meta)": 79.43,
+    "speech-to-text (Deepgram)": 29.57,
+    "text-to-speech (ElevenLabs)": 57.86,
+    "voice transport (LiveKit Cloud Ship)": 50.0,
+    "staff alert calls (Telnyx)": 20.27,
+    "email (SES + Postmark Pro)": 17.19
+   },
+   "stack_paid": {
+    "total_low": 1070.32,
+    "total_high": 1349.32
+   },
+   "stack_hybrid": {
+    "items": {
+     "Namecheap dedicated server (64 GB)": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude)": 105.0,
+     "WhatsApp (Meta)": 79.43,
+     "speech-to-text (Deepgram)": 29.57,
+     "text-to-speech (Piper, self-hosted)": 0.0,
+     "voice transport (LiveKit server, self-hosted)": 0.0,
+     "staff alert calls (Telnyx)": 20.27,
+     "email (SES + Postmark)": 17.19,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 355.34,
+    "elevenlabs_per_min_for_ta_si_calls": 0.018
+   },
+   "stack_free": {
+    "items": {
+     "Namecheap dedicated server (64 GB)": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "GPU server for faster-whisper (AWS g6.xlarge, UAE)": 721.42,
+     "AI replies (Claude)": 105.0,
+     "WhatsApp (Meta)": 79.43,
+     "speech-to-text (faster-whisper)": 0.0,
+     "text-to-speech (Piper)": 0.0,
+     "voice transport (LiveKit)": 0.0,
+     "phone minutes (SIP trunk; Asterisk does the rest)": 20.12,
+     "email (Postal + Stalwart)": 0.0,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 1029.85
+   },
+   "A_aws_plan_all_paid": {
+    "low_light_sizes": 1070.32,
+    "high_normal_sizes": 1349.32,
+    "hosting_light": 711,
+    "hosting_normal": 990
+   },
+   "B_namecheap_coolify_paid_voice": {
+    "items": {
+     "Namecheap dedicated server": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude Sonnet + Haiku)": 105.0,
+     "WhatsApp (Meta)": 79.43,
+     "speech-to-text (Deepgram)": 29.57,
+     "text-to-speech (ElevenLabs)": 57.86,
+     "voice transport (LiveKit Cloud Ship)": 50.0,
+     "email (SES + Postmark Pro)": 17.19,
+     "phone minutes (SIP trunk at Telnyx rates; Asterisk replaces only the Voice API part)": 20.12,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 463.05
+   },
+   "C_namecheap_coolify_paid_voice_selfhosted_email": {
+    "items": {
+     "Namecheap dedicated server": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude Sonnet + Haiku)": 105.0,
+     "WhatsApp (Meta)": 79.43,
+     "speech-to-text (Deepgram)": 29.57,
+     "text-to-speech (ElevenLabs)": 57.86,
+     "voice transport (LiveKit Cloud Ship)": 50.0,
+     "phone minutes (SIP trunk at Telnyx rates; Asterisk replaces only the Voice API part)": 20.12,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 445.86
+   },
+   "disk_growth_gb_per_month": 0.51
+  },
+  "150": {
+   "usage_per_month": {
+    "turns": 45000,
+    "voice_min": 4821.4,
+    "whatsapp": 12535.7,
+    "email_out": 6428.6,
+    "email_in": 1607.1,
+    "call_min": 115.7
+   },
+   "vendor_lines": {
+    "AI replies (Claude Sonnet + Haiku)": 157.5,
+    "WhatsApp (Meta)": 129.52,
+    "speech-to-text (Deepgram)": 44.36,
+    "text-to-speech (ElevenLabs)": 86.79,
+    "voice transport (LiveKit Cloud Ship)": 50.0,
+    "staff alert calls (Telnyx)": 29.93,
+    "email (SES + Postmark Pro)": 17.53
+   },
+   "stack_paid": {
+    "total_low": 1226.63,
+    "total_high": 1505.63
+   },
+   "stack_hybrid": {
+    "items": {
+     "Namecheap dedicated server (64 GB)": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude)": 157.5,
+     "WhatsApp (Meta)": 129.52,
+     "speech-to-text (Deepgram)": 44.36,
+     "text-to-speech (Piper, self-hosted)": 0.0,
+     "voice transport (LiveKit server, self-hosted)": 0.0,
+     "staff alert calls (Telnyx)": 29.93,
+     "email (SES + Postmark)": 17.53,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 482.72,
+    "elevenlabs_per_min_for_ta_si_calls": 0.018
+   },
+   "stack_free": {
+    "items": {
+     "Namecheap dedicated server (64 GB)": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "GPU server for faster-whisper (AWS g6.xlarge, UAE)": 721.42,
+     "AI replies (Claude)": 157.5,
+     "WhatsApp (Meta)": 129.52,
+     "speech-to-text (faster-whisper)": 0.0,
+     "text-to-speech (Piper)": 0.0,
+     "voice transport (LiveKit)": 0.0,
+     "phone minutes (SIP trunk; Asterisk does the rest)": 29.7,
+     "email (Postal + Stalwart)": 0.0,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 1142.02
+   },
+   "A_aws_plan_all_paid": {
+    "low_light_sizes": 1226.63,
+    "high_normal_sizes": 1505.63,
+    "hosting_light": 711,
+    "hosting_normal": 990
+   },
+   "B_namecheap_coolify_paid_voice": {
+    "items": {
+     "Namecheap dedicated server": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude Sonnet + Haiku)": 157.5,
+     "WhatsApp (Meta)": 129.52,
+     "speech-to-text (Deepgram)": 44.36,
+     "text-to-speech (ElevenLabs)": 86.79,
+     "voice transport (LiveKit Cloud Ship)": 50.0,
+     "email (SES + Postmark Pro)": 17.53,
+     "phone minutes (SIP trunk at Telnyx rates; Asterisk replaces only the Voice API part)": 29.7,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 619.28
+   },
+   "C_namecheap_coolify_paid_voice_selfhosted_email": {
+    "items": {
+     "Namecheap dedicated server": 83.88,
+     "Coolify (self-hosted)": 0.0,
+     "AI replies (Claude Sonnet + Haiku)": 157.5,
+     "WhatsApp (Meta)": 129.52,
+     "speech-to-text (Deepgram)": 44.36,
+     "text-to-speech (ElevenLabs)": 86.79,
+     "voice transport (LiveKit Cloud Ship)": 50.0,
+     "phone minutes (SIP trunk at Telnyx rates; Asterisk replaces only the Voice API part)": 29.7,
+     "website + CRM (Vercel Pro)": 20.0
+    },
+    "total": 601.75
+   },
+   "disk_growth_gb_per_month": 0.77
+  }
+ },
+ "stack_ram_gib": {
+  "hybrid": {
+   "items": {
+    "app (api + worker c=3 + beat) + PostgreSQL + Redis": 2.21,
+    "BGE-M3 embeddings": 4.83,
+    "Phoenix": 0.51,
+    "voice worker (10 calls)": 4.21,
+    "LiveKit server": 0.09,
+    "Piper (10 voices at once)": 2.07,
+    "SafeLine": 1.6,
+    "CrowdSec": 0.16,
+    "Coolify (docs minimum)": 2.0,
+    "CMS + websites (E)": 1.0,
+    "OS (E)": 0.8
+   },
+   "total": 19.48
+  },
+  "free": {
+   "items": {
+    "app (api + worker c=3 + beat) + PostgreSQL + Redis": 2.21,
+    "BGE-M3 embeddings": 4.83,
+    "Phoenix": 0.51,
+    "voice worker (10 calls)": 4.21,
+    "LiveKit server": 0.09,
+    "Piper (10 voices at once)": 2.07,
+    "SafeLine": 1.6,
+    "CrowdSec": 0.16,
+    "Coolify (docs minimum)": 2.0,
+    "CMS + websites (E)": 1.0,
+    "OS (E)": 0.8,
+    "Postal + MariaDB": 0.65,
+    "Stalwart": 0.23,
+    "Asterisk": 0.05
+   },
+   "total": 20.41
+  }
+ },
+ "stack_disk_gb": {
+  "hybrid": {
+   "items": {
+    "app image (with Chromium)": 2.68,
+    "pgvector": 0.63,
+    "redis": 0.2,
+    "TEI": 0.94,
+    "BGE-M3 ONNX model": 2.3,
+    "Phoenix": 1.44,
+    "LiveKit server": 0.13,
+    "Piper 4 voices": 0.25,
+    "SafeLine (7 images)": 2.34,
+    "CrowdSec": 0.48
+   },
+   "total": 11.39
+  },
+  "free": {
+   "items": {
+    "app image (with Chromium)": 2.68,
+    "pgvector": 0.63,
+    "redis": 0.2,
+    "TEI": 0.94,
+    "BGE-M3 ONNX model": 2.3,
+    "Phoenix": 1.44,
+    "LiveKit server": 0.13,
+    "Piper 4 voices": 0.25,
+    "SafeLine (7 images)": 2.34,
+    "CrowdSec": 0.48,
+    "Postal + MariaDB": 2.37,
+    "Stalwart": 0.47,
+    "Asterisk": 0.49
+   },
+   "total": 14.72
+  }
+ }
+}

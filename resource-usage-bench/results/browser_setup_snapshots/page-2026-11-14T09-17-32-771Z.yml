@@ -1,0 +1,28 @@
+- generic [ref=f5e2]:
+  - generic [ref=f5e3]:
+    - banner [ref=f5e4]:
+      - img "Stalwart Logo" [ref=f5e5]
+    - main [ref=f5e8]:
+      - generic [ref=f5e10]:
+        - generic [ref=f5e11]:
+          - generic [ref=f5e12]:
+            - heading "Welcome to Stalwart" [level=1] [ref=f5e13]
+            - paragraph [ref=f5e14]: Let's get your server set up.
+          - generic "Step 5 of 5" [ref=f5e352]
+        - generic [ref=f5e21]:
+          - heading "Automatic DNS Management" [level=2] [ref=f5e353]
+          - group [ref=f5e23]:
+            - generic [ref=f5e354]:
+              - generic [ref=f5e355]:
+                - generic [ref=f5e356]: DNS Server Type
+                - paragraph [ref=f5e360]: Optionally automate the DNS records your mail server needs (SPF, DKIM, DMARC, and more) by connecting to your DNS provider's API. Leave as manual unless your DNS is hosted by a supported provider; this can always be enabled later.
+              - group "DNS Server Type" [ref=f5e363]:
+                - generic [ref=f5e366]:
+                  - generic [aria-hidden] [ref=f5e367]: Type
+                  - combobox "DNS Server Type" [ref=f5e369]:
+                    - generic: Manual DNS server management
+        - generic [ref=f5e64]:
+          - button "Back" [ref=f5e204]
+          - generic [ref=f5e65]: Step 5 of 5
+          - button "Finish setup" [active] [ref=f5e372]
+  - list

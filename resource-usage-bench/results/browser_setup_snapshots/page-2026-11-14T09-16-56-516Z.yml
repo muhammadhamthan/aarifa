@@ -1,0 +1,43 @@
+- generic [ref=f5e2]:
+  - generic [ref=f5e3]:
+    - banner [ref=f5e4]:
+      - img "Stalwart Logo" [ref=f5e5]
+    - main [ref=f5e8]:
+      - generic [ref=f5e10]:
+        - generic [ref=f5e11]:
+          - generic [ref=f5e12]:
+            - heading "Welcome to Stalwart" [level=1] [ref=f5e13]
+            - paragraph [ref=f5e14]: Let's get your server set up.
+          - generic "Step 1 of 5" [ref=f5e15]
+        - generic [ref=f5e21]:
+          - heading "Server Identity" [level=2] [ref=f5e22]
+          - group [ref=f5e23]:
+            - generic [ref=f5e24]:
+              - generic [ref=f5e25]:
+                - generic [ref=f5e26]: Server Hostname*
+                - paragraph [ref=f5e30]: The public hostname this server answers to, for example mail.example.com. Used in SMTP greetings, outgoing message headers, and TLS certificate requests.
+              - textbox "Server Hostname" [ref=f5e33]:
+                - /placeholder: mail.example.org
+                - text: 7660c7527346
+            - generic [ref=f5e34]:
+              - generic [ref=f5e35]:
+                - generic [ref=f5e36]: Default Email Domain*
+                - paragraph [ref=f5e40]: The primary email domain this installation will serve, for example example.com. Additional domains can be added at any time after setup.
+              - textbox "Default Email Domain" [ref=f5e43]:
+                - /placeholder: example.org
+                - text: example.org
+            - generic [ref=f5e44]:
+              - generic [ref=f5e45]:
+                - generic [ref=f5e46]: Automatically Obtain TLS Certificate
+                - paragraph [ref=f5e50]: Automatically obtain a free TLS certificate for the server hostname from Let's Encrypt using the ACME protocol, so clients can connect securely out of the box. Turn this off if you plan to install a certificate manually.
+              - switch "Automatically Obtain TLS Certificate" [checked] [ref=f5e53] [cursor=pointer]
+            - generic [ref=f5e54]:
+              - generic [ref=f5e55]:
+                - generic [ref=f5e56]: Generate Email Signing Keys
+                - paragraph [ref=f5e60]: Generate DKIM signing keys for the default domain. DKIM cryptographically signs outgoing mail and significantly improves the chances that messages reach the recipient's inbox instead of spam. Turn this off only if you plan to manage DKIM keys yourself.
+              - switch "Generate Email Signing Keys" [checked] [ref=f5e63] [cursor=pointer]
+        - generic [ref=f5e64]:
+          - button "Back" [disabled]
+          - generic [ref=f5e65]: Step 1 of 5
+          - button "Next" [ref=f5e66]
+  - list

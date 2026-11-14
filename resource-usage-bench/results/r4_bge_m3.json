@@ -1,0 +1,33 @@
+{
+ "format": "plain",
+ "chunks": 48,
+ "chunk_tokens_total": 18192,
+ "index_seconds": 35.9,
+ "index_tokens_per_s": 506.9,
+ "index_seconds_per_chunk": 0.75,
+ "query_single_p50_s": 0.071,
+ "query_single_max_s": 0.115,
+ "query_10_at_once_p50_s": 0.302,
+ "query_10_at_once_max_s": 0.423,
+ "queries_over_2s_app_timeout": 0,
+ "dims": 1024,
+ "vector_bytes_float32": 4096,
+ "quality": {
+  "questions": 24,
+  "top1_all": 1.0,
+  "top1_en_only": 1.0,
+  "mrr_all": 1.0,
+  "misses": []
+ },
+ "model": "BAAI/bge-m3",
+ "ready_seconds": 331.6,
+ "ram_idle_after_warmup_mib": 4813.8,
+ "model_disk_bytes": 4560866479,
+ "container": {
+  "ram_peak_mib": 4830.2,
+  "ram_avg_mib": 3834.9,
+  "cpu_peak_pct": 1643.6,
+  "cpu_avg_pct": 179.8,
+  "samples": 1766
+ }
+}

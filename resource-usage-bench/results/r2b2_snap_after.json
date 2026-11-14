@@ -1,0 +1,870 @@
+{
+ "ts": 1794623555.2296674,
+ "databases": {
+  "postgres": 7845567,
+  "cms": 8033983,
+  "automation": 15759039,
+  "agents": 13481663,
+  "phoenix": 15906495,
+  "crm": 15693503
+ },
+ "tables": {
+  "cms": {},
+  "automation": {
+   "automation.price_observations": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "automation.contact_suppressions": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "automation.scheduled_jobs": {
+    "rows": 3571,
+    "total_bytes": 4038656,
+    "heap_bytes": 3457024
+   },
+   "automation.inbound_messages": {
+    "rows": 661,
+    "total_bytes": 540672,
+    "heap_bytes": 344064
+   },
+   "public.alembic_version": {
+    "rows": 1,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "automation.outbox_events": {
+    "rows": 1781,
+    "total_bytes": 1146880,
+    "heap_bytes": 983040
+   },
+   "automation.call_attempts": {
+    "rows": 0,
+    "total_bytes": 49152,
+    "heap_bytes": 0
+   },
+   "automation.channel_accounts": {
+    "rows": 3,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "automation.opt_out_log": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "automation.webhook_receipts": {
+    "rows": 761,
+    "total_bytes": 278528,
+    "heap_bytes": 147456
+   },
+   "automation.threads": {
+    "rows": 20,
+    "total_bytes": 98304,
+    "heap_bytes": 8192
+   },
+   "automation.outbound_messages": {
+    "rows": 449,
+    "total_bytes": 532480,
+    "heap_bytes": 270336
+   },
+   "automation.scrape_runs": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "automation.suppressions": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "automation.inbox_events": {
+    "rows": 89,
+    "total_bytes": 106496,
+    "heap_bytes": 49152
+   },
+   "automation.message_templates": {
+    "rows": 32,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   }
+  },
+  "agents": {
+   "agents.visitors": {
+    "rows": 165,
+    "total_bytes": 90112,
+    "heap_bytes": 40960
+   },
+   "agents.lane_risk_assessments": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.kb_chunks": {
+    "rows": 13,
+    "total_bytes": 425984,
+    "heap_bytes": 24576
+   },
+   "agents.kb_documents": {
+    "rows": 5,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "agents.checkpoint_migrations": {
+    "rows": 10,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "agents.guard_events": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.news_items": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "agents.turns": {
+    "rows": 2996,
+    "total_bytes": 1138688,
+    "heap_bytes": 819200
+   },
+   "agents.tool_calls": {
+    "rows": 410,
+    "total_bytes": 491520,
+    "heap_bytes": 425984
+   },
+   "agents.eval_runs": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "agents.knowledge_gaps": {
+    "rows": 57,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "agents.outbox_events": {
+    "rows": 1894,
+    "total_bytes": 892928,
+    "heap_bytes": 729088
+   },
+   "agents.inbox_events": {
+    "rows": 419,
+    "total_bytes": 163840,
+    "heap_bytes": 90112
+   },
+   "public.alembic_version": {
+    "rows": 1,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "agents.conversations": {
+    "rows": 205,
+    "total_bytes": 204800,
+    "heap_bytes": 49152
+   },
+   "agents.checkpoint_writes": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.checkpoint_blobs": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.checkpoints": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.agent_runs": {
+    "rows": 1644,
+    "total_bytes": 909312,
+    "heap_bytes": 483328
+   }
+  },
+  "phoenix": {
+   "public.span_annotations": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.token_prices": {
+    "rows": 1330,
+    "total_bytes": 270336,
+    "heap_bytes": 114688
+   },
+   "public.project_annotation_configs": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.prompt_versions": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.experiment_jobs": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.password_reset_tokens": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.span_costs": {
+    "rows": 475,
+    "total_bytes": 344064,
+    "heap_bytes": 155648
+   },
+   "public.experiment_tags": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.dataset_labels": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.dataset_splits": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.deployment_secret": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.refresh_tokens": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.experiment_eval_logs": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.secrets": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.prompt_version_tags": {
+    "rows": 0,
+    "total_bytes": 49152,
+    "heap_bytes": 0
+   },
+   "public.datasets_dataset_labels": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.code_evaluators": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.projects": {
+    "rows": 2,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "public.experiments": {
+    "rows": 0,
+    "total_bytes": 57344,
+    "heap_bytes": 0
+   },
+   "public.agent_session_snapshots": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.oauth2_grants": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.languages": {
+    "rows": 2,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.agent_sessions": {
+    "rows": 0,
+    "total_bytes": 49152,
+    "heap_bytes": 0
+   },
+   "public.prompts": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.user_roles": {
+    "rows": 4,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "public.evaluators": {
+    "rows": 5,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   },
+   "public.experiment_runs": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.system_state": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.system_settings": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.sandbox_providers": {
+    "rows": 8,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "public.document_annotations": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.project_session_annotations": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.span_cost_details": {
+    "rows": 950,
+    "total_bytes": 360448,
+    "heap_bytes": 221184
+   },
+   "public.dataset_evaluators": {
+    "rows": 0,
+    "total_bytes": 49152,
+    "heap_bytes": 0
+   },
+   "public.builtin_evaluators": {
+    "rows": 5,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "public.experiment_task_logs": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.code_evaluator_code_versions": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.project_trace_retention_policies": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.dataset_example_revisions": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.traces": {
+    "rows": 485,
+    "total_bytes": 327680,
+    "heap_bytes": 139264
+   },
+   "public.oauth2_clients": {
+    "rows": 1,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "public.experiments_dataset_splits": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.prompts_prompt_labels": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.dataset_splits_dataset_examples": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.datasets": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.experiments_dataset_examples": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.alembic_version": {
+    "rows": 1,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "public.sandbox_configs": {
+    "rows": 3,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   },
+   "public.users": {
+    "rows": 2,
+    "total_bytes": 98304,
+    "heap_bytes": 8192
+   },
+   "public.oauth2_authorization_codes": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.generative_model_custom_providers": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.experiment_run_annotations": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.api_keys": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.generative_models": {
+    "rows": 419,
+    "total_bytes": 221184,
+    "heap_bytes": 49152
+   },
+   "public.access_tokens": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.experiment_prompt_tasks": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.dataset_versions": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.spans": {
+    "rows": 485,
+    "total_bytes": 1859584,
+    "heap_bytes": 221184
+   },
+   "public.agent_session_messages": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.prompt_labels": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.experiment_dataset_evaluators": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.experiment_logs": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.dataset_examples": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.trace_annotations": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.llm_evaluators": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.project_sessions": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.annotation_configs": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   }
+  },
+  "crm": {
+   "crm.quote_send_grants": {
+    "rows": 6,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.product_costings": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.quote_versions": {
+    "rows": 31,
+    "total_bytes": 122880,
+    "heap_bytes": 32768
+   },
+   "crm.deals": {
+    "rows": 183,
+    "total_bytes": 237568,
+    "heap_bytes": 90112
+   },
+   "crm.negotiation_rounds": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.timeline_events": {
+    "rows": 1001,
+    "total_bytes": 876544,
+    "heap_bytes": 671744
+   },
+   "crm.idempotency_keys": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.alembic_version": {
+    "rows": 1,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "crm.quotes": {
+    "rows": 29,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.settings_history": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.material_rates": {
+    "rows": 1,
+    "total_bytes": 57344,
+    "heap_bytes": 8192
+   },
+   "crm.materials": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.orders": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "crm.settings": {
+    "rows": 44,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.change_requests": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "crm.payments": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.approvals": {
+    "rows": 31,
+    "total_bytes": 98304,
+    "heap_bytes": 8192
+   },
+   "crm.companies": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "crm.audit_events": {
+    "rows": 1674,
+    "total_bytes": 1130496,
+    "heap_bytes": 819200
+   },
+   "crm.supplier_lead_times": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.auth_challenges": {
+    "rows": 200,
+    "total_bytes": 172032,
+    "heap_bytes": 57344
+   },
+   "crm.lane_risk_history": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.deal_requirements": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.product_price_tiers": {
+    "rows": 3,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.inbox_events": {
+    "rows": 1711,
+    "total_bytes": 540672,
+    "heap_bytes": 385024
+   },
+   "crm.stock_items": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "crm.order_status_history": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.rpt_daily_metrics": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.quote_line_tiers": {
+    "rows": 0,
+    "total_bytes": 8192,
+    "heap_bytes": 0
+   },
+   "crm.reorder_opportunities": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.product_categories": {
+    "rows": 2,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.products": {
+    "rows": 102,
+    "total_bytes": 155648,
+    "heap_bytes": 73728
+   },
+   "crm.staff_credentials": {
+    "rows": 2,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.tasks": {
+    "rows": 6,
+    "total_bytes": 57344,
+    "heap_bytes": 8192
+   },
+   "crm.contacts": {
+    "rows": 183,
+    "total_bytes": 221184,
+    "heap_bytes": 81920
+   },
+   "crm.auth_sessions": {
+    "rows": 13,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.freight_lanes": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.delivery_estimates": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.price_sources": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.stock_movements": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.stage_history": {
+    "rows": 241,
+    "total_bytes": 188416,
+    "heap_bytes": 106496
+   },
+   "crm.consents": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.factory_visits": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.feature_flags": {
+    "rows": 5,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.visit_slots": {
+    "rows": 0,
+    "total_bytes": 8192,
+    "heap_bytes": 0
+   },
+   "crm.approval_events": {
+    "rows": 6,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   },
+   "crm.margin_rules": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.quote_line_costs": {
+    "rows": 0,
+    "total_bytes": 8192,
+    "heap_bytes": 0
+   },
+   "crm.users": {
+    "rows": 6,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   },
+   "crm.quote_lines": {
+    "rows": 31,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.outbox_events": {
+    "rows": 331,
+    "total_bytes": 245760,
+    "heap_bytes": 155648
+   },
+   "crm.fx_rates": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   }
+  }
+ },
+ "pg_connections": {
+  "phoenix_app": 4,
+  "postgres": 2,
+  "(bg)": 7,
+  "crm_app": 4,
+  "automation_app": 3,
+  "agents_app": 21
+ },
+ "pg_settings": {
+  "max_connections": "100",
+  "shared_buffers": "16384",
+  "work_mem": "4096"
+ },
+ "redis": {
+  "used_memory": "1824872",
+  "used_memory_rss": "8388608",
+  "used_memory_peak": "1863192"
+ },
+ "images": {
+  "kxbench/livekit-server:v1.13.11-src": "133MB",
+  "kxbench/app:local": "2.68GB",
+  "arizephoenix/phoenix:latest": "1.44GB",
+  "ghcr.io/ggml-org/whisper.cpp:main": "1.72GB",
+  "kx-lo:local": "701MB",
+  "kx-testrunner:local": "492MB",
+  "kx-test:local": "479MB",
+  "python:3.12-slim": "180MB",
+  "python:3.14-slim": "181MB",
+  "redis:8.2": "204MB",
+  "pgvector/pgvector:pg18": "631MB",
+  "valkey/valkey:8.1": "170MB",
+  "livekit/livekit-server:latest": "132MB",
+  "librecrawl-librecrawl:latest": "3.96GB",
+  "redis:7-alpine": "57.8MB",
+  "redis:latest": "204MB",
+  "hashicorp/terraform-mcp-server:0.4.0": "19.8MB",
+  "ghcr.io/huggingface/text-embeddings-inference:cpu-1.8": "938MB",
+  "curlimages/curl:8.11.1": "32.3MB"
+ },
+ "volumes": {
+  "kxbench_fakedata": "4.374MB",
+  "kxbench_pgdata": "143.8MB"
+ },
+ "fakes": {
+  "vendors": {
+   "control": {
+    "requests": 2,
+    "bytes_in": 162,
+    "bytes_out": 208
+   },
+   "s3": {
+    "requests": 14,
+    "bytes_in": 6272,
+    "bytes_out": 0
+   },
+   "claude": {
+    "requests": 84,
+    "bytes_in": 505684,
+    "bytes_out": 42405
+   }
+  },
+  "llm": {
+   "text": 69.0,
+   "input_tokens": 113627.0,
+   "output_tokens": 4493.0,
+   "cache_read_tokens": 75304.0,
+   "calls_haiku": 84.0,
+   "tool_use": 15.0
+  },
+  "s3_objects": 83,
+  "s3_bytes": 4374005,
+  "s3_by_prefix": {
+   "kx-bench-media/pack/quotes": {
+    "objects": 83,
+    "bytes": 4374005
+   }
+  }
+ }
+}

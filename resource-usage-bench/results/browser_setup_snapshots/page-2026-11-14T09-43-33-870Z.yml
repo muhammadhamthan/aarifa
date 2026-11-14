@@ -1,0 +1,26 @@
+- generic [ref=f10e3]:
+  - banner [ref=f10e4]
+  - generic [ref=f10e6]:
+    - generic [ref=f10e7]:
+      - generic [ref=f10e8]: Login
+      - generic [ref=f10e9]: SafeLine WAF
+    - generic [ref=f10e11]:
+      - generic [ref=f10e13]:
+        - generic [ref=f10e98]: Username
+        - generic [ref=f10e14]:
+          - textbox "Username" [active] [invalid] [ref=f10e94]
+          - group [aria-hidden]:
+            - generic: Username
+        - paragraph [ref=f10e99]: Required
+      - generic [ref=f10e17]:
+        - generic: Password
+        - generic [ref=f10e18]:
+          - textbox "Password" [invalid] [ref=f10e95]
+          - button "display the password" [ref=f10e96] [cursor=pointer]
+          - group [aria-hidden]:
+            - generic: Password
+        - paragraph [ref=f10e100]: Required
+      - button "Login" [ref=f10e97] [cursor=pointer]
+    - generic [ref=f10e23]:
+      - paragraph [ref=f10e24] [cursor=pointer]: Get latest version
+      - generic [ref=f10e25] [cursor=pointer]: Forgot your password?

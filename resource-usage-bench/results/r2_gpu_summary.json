@@ -1,0 +1,212 @@
+{
+ "tag": "gpu",
+ "idle": {
+  "span": [
+   1794619209.2835207,
+   1794619269.285299
+  ],
+  "containers": {
+   "agent": {
+    "ram_avg_mib": 1380.4,
+    "ram_peak_mib": 1381.4,
+    "cpu_avg_cores": 0.07,
+    "cpu_peak_cores": 0.11,
+    "net_rx_mb": 0.0,
+    "net_tx_mb": 0.0
+   },
+   "fakes": {
+    "ram_avg_mib": 47.1,
+    "ram_peak_mib": 47.1,
+    "cpu_avg_cores": 0.0,
+    "cpu_peak_cores": 0.0,
+    "net_rx_mb": 0.0,
+    "net_tx_mb": 0.0
+   },
+   "livekit": {
+    "ram_avg_mib": 32.2,
+    "ram_peak_mib": 32.9,
+    "cpu_avg_cores": 0.0,
+    "cpu_peak_cores": 0.01,
+    "net_rx_mb": 0.0,
+    "net_tx_mb": 0.0
+   }
+  }
+ },
+ "c1": {
+  "span": [
+   1794619271.459934,
+   1794619344.1427414
+  ],
+  "answered": 4,
+  "missed": 0,
+  "reply_s_p50": 3.89,
+  "reply_s_p95": 6.88,
+  "reply_s_max": 6.883,
+  "replies_under_3s": 0,
+  "speech_server": {
+   "stt_calls": 4,
+   "stt_audio_s": 26.74,
+   "stt_busy_s": 2.89,
+   "tts_calls": 6,
+   "tts_audio_s": 17.96,
+   "tts_busy_s": 1.82,
+   "rss_mb": 617.3,
+   "gpu_mem_used_mb": 107.0,
+   "gpu_util_pct": 1.0,
+   "stt_rtf": 0.108,
+   "tts_rtf": 0.101
+  },
+  "containers": {
+   "agent": {
+    "ram_avg_mib": 1446.7,
+    "ram_peak_mib": 1456.1,
+    "cpu_avg_cores": 0.21,
+    "cpu_peak_cores": 0.44,
+    "net_rx_mb": 1.61,
+    "net_tx_mb": 1.85
+   },
+   "callers-run-05b863f7baa7": {
+    "ram_avg_mib": 57.2,
+    "ram_peak_mib": 63.9,
+    "cpu_avg_cores": 0.16,
+    "cpu_peak_cores": 0.38,
+    "net_rx_mb": 0.49,
+    "net_tx_mb": 0.47
+   },
+   "fakes": {
+    "ram_avg_mib": 47.1,
+    "ram_peak_mib": 47.1,
+    "cpu_avg_cores": 0.0,
+    "cpu_peak_cores": 0.01,
+    "net_rx_mb": 0.01,
+    "net_tx_mb": 0.02
+   },
+   "livekit": {
+    "ram_avg_mib": 36.7,
+    "ram_peak_mib": 37.7,
+    "cpu_avg_cores": 0.02,
+    "cpu_peak_cores": 0.1,
+    "net_rx_mb": 1.0,
+    "net_tx_mb": 1.0
+   }
+  }
+ },
+ "c3": {
+  "span": [
+   1794619368.3297064,
+   1794619449.5172293
+  ],
+  "answered": 12,
+  "missed": 0,
+  "reply_s_p50": 4.46,
+  "reply_s_p95": 6.02,
+  "reply_s_max": 6.017,
+  "replies_under_3s": 0,
+  "speech_server": {
+   "stt_calls": 12,
+   "stt_audio_s": 93.14,
+   "stt_busy_s": 6.15,
+   "tts_calls": 14,
+   "tts_audio_s": 56.32,
+   "tts_busy_s": 4.76,
+   "rss_mb": -47.6,
+   "gpu_mem_used_mb": 71.0,
+   "gpu_util_pct": -4.0,
+   "stt_rtf": 0.066,
+   "tts_rtf": 0.085
+  },
+  "containers": {
+   "agent": {
+    "ram_avg_mib": 1582.9,
+    "ram_peak_mib": 1609.7,
+    "cpu_avg_cores": 0.47,
+    "cpu_peak_cores": 1.43,
+    "net_rx_mb": 4.97,
+    "net_tx_mb": 6.2
+   },
+   "callers-run-e7b47e3b6c82": {
+    "ram_avg_mib": 63.1,
+    "ram_peak_mib": 66.2,
+    "cpu_avg_cores": 0.42,
+    "cpu_peak_cores": 1.1,
+    "net_rx_mb": 1.54,
+    "net_tx_mb": 1.66
+   },
+   "fakes": {
+    "ram_avg_mib": 47.2,
+    "ram_peak_mib": 47.2,
+    "cpu_avg_cores": 0.0,
+    "cpu_peak_cores": 0.12,
+    "net_rx_mb": 0.04,
+    "net_tx_mb": 0.07
+   },
+   "livekit": {
+    "ram_avg_mib": 48.6,
+    "ram_peak_mib": 49.8,
+    "cpu_avg_cores": 0.06,
+    "cpu_peak_cores": 0.32,
+    "net_rx_mb": 3.2,
+    "net_tx_mb": 3.2
+   }
+  }
+ },
+ "c10": {
+  "span": [
+   1794619473.6965766,
+   1794619771.0913546
+  ],
+  "answered": 36,
+  "missed": 4,
+  "reply_s_p50": 4.69,
+  "reply_s_p95": 5.7,
+  "reply_s_max": 6.148,
+  "replies_under_3s": 0,
+  "speech_server": {
+   "stt_calls": 36,
+   "stt_audio_s": 245.2,
+   "stt_busy_s": 34.23,
+   "tts_calls": 50,
+   "tts_audio_s": 155.84,
+   "tts_busy_s": 5.23,
+   "rss_mb": -985.2,
+   "gpu_mem_used_mb": 364.0,
+   "gpu_util_pct": 2.0,
+   "stt_rtf": 0.14,
+   "tts_rtf": 0.034
+  },
+  "containers": {
+   "agent": {
+    "ram_avg_mib": 1608.8,
+    "ram_peak_mib": 2074.6,
+    "cpu_avg_cores": 0.41,
+    "cpu_peak_cores": 3.76,
+    "net_rx_mb": 13.9,
+    "net_tx_mb": 16.93
+   },
+   "callers-run-3dc52d04267c": {
+    "ram_avg_mib": 84.4,
+    "ram_peak_mib": 112.1,
+    "cpu_avg_cores": 0.46,
+    "cpu_peak_cores": 2.24,
+    "net_rx_mb": 4.69,
+    "net_tx_mb": 5.45
+   },
+   "fakes": {
+    "ram_avg_mib": 47.3,
+    "ram_peak_mib": 47.3,
+    "cpu_avg_cores": 0.0,
+    "cpu_peak_cores": 0.03,
+    "net_rx_mb": 0.12,
+    "net_tx_mb": 0.19
+   },
+   "livekit": {
+    "ram_avg_mib": 81.4,
+    "ram_peak_mib": 89.1,
+    "cpu_avg_cores": 0.05,
+    "cpu_peak_cores": 0.98,
+    "net_rx_mb": 10.0,
+    "net_tx_mb": 9.5
+   }
+  }
+ }
+}

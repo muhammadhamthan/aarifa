@@ -1,0 +1,103 @@
+{
+ "ram_idle_mib": {
+  "safeline-luigi": 35.5,
+  "safeline-mgt": 105.5,
+  "safeline-tengine": 1195.0,
+  "safeline-pg": 59.4,
+  "safeline-fvm": 76.7,
+  "safeline-chaos": 46.1,
+  "safeline-detector": 110.7
+ },
+ "ram_idle_total_mib": 1628.9,
+ "direct": {
+  "safeline_load": {
+   "ram_total_peak_mib": 1629.2,
+   "ram_total_avg_mib": 1565.4,
+   "cpu_total_peak_cores": 0.1,
+   "cpu_total_avg_cores": 0.02
+  },
+  "actions": {
+   "wa.webhook": {
+    "count": 87,
+    "codes": {
+     "200": 87
+    },
+    "p50_s": 0.012,
+    "p95_s": 0.035
+   },
+   "web.message": {
+    "count": 93,
+    "codes": {
+     "200": 93
+    },
+    "p50_s": 6.057,
+    "p95_s": 13.403
+   },
+   "web.session": {
+    "count": 19,
+    "codes": {
+     "201": 19
+    },
+    "p50_s": 0.01,
+    "p95_s": 0.12
+   }
+  },
+  "errors": {},
+  "load_before_dedupe_fix": {
+   "ram_total_peak_mib": 3258.4,
+   "ram_total_avg_mib": 3030.8,
+   "cpu_total_peak_cores": 0.2,
+   "cpu_total_avg_cores": 0.04
+  }
+ },
+ "via_safeline": {
+  "safeline_load": {
+   "ram_total_peak_mib": 1630.9,
+   "ram_total_avg_mib": 1613.6,
+   "cpu_total_peak_cores": 0.13,
+   "cpu_total_avg_cores": 0.02
+  },
+  "actions": {
+   "wa.webhook": {
+    "count": 87,
+    "codes": {
+     "200": 87
+    },
+    "p50_s": 0.012,
+    "p95_s": 0.029
+   },
+   "web.message": {
+    "count": 95,
+    "codes": {
+     "200": 95
+    },
+    "p50_s": 5.59,
+    "p95_s": 13.497
+   },
+   "web.session": {
+    "count": 21,
+    "codes": {
+     "201": 21
+    },
+    "p50_s": 0.014,
+    "p95_s": 0.079
+   }
+  },
+  "errors": {},
+  "load_before_dedupe_fix": {
+   "ram_total_peak_mib": 3261.7,
+   "ram_total_avg_mib": 3227.2,
+   "cpu_total_peak_cores": 0.25,
+   "cpu_total_avg_cores": 0.05
+  }
+ },
+ "ram_after_mib": {
+  "safeline-luigi": 47.2,
+  "safeline-mgt": 99.3,
+  "safeline-tengine": 1197.1,
+  "safeline-pg": 56.7,
+  "safeline-fvm": 63.4,
+  "safeline-chaos": 47.7,
+  "safeline-detector": 109.8
+ }
+}

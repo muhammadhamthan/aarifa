@@ -1,0 +1,84 @@
+{
+ "tag": "app2",
+ "idle": {
+  "span": [
+   1794622978.3550367,
+   1794623038.3567443
+  ]
+ },
+ "c1": {
+  "span": [
+   1794623040.527202,
+   1794623133.7183814
+  ],
+  "answered": 4,
+  "missed": 0,
+  "reply_s_p50": 9.82,
+  "reply_s_p95": 12.43,
+  "reply_s_max": 12.433,
+  "replies_under_3s": 0,
+  "speech_server": {
+   "stt_calls": 4,
+   "stt_audio_s": 22.64,
+   "stt_busy_s": 1.76,
+   "tts_calls": 11,
+   "tts_audio_s": 52.34,
+   "tts_busy_s": 1.39,
+   "rss_mb": 638.6,
+   "gpu_mem_used_mb": 287.0,
+   "gpu_util_pct": 0.0,
+   "stt_rtf": 0.078,
+   "tts_rtf": 0.027
+  }
+ },
+ "c3": {
+  "span": [
+   1794623157.9392467,
+   1794623278.8682468
+  ],
+  "answered": 12,
+  "missed": 0,
+  "reply_s_p50": 8.59,
+  "reply_s_p95": 17.74,
+  "reply_s_max": 17.742,
+  "replies_under_3s": 0,
+  "speech_server": {
+   "stt_calls": 12,
+   "stt_audio_s": 86.61,
+   "stt_busy_s": 4.31,
+   "tts_calls": 33,
+   "tts_audio_s": 164.28,
+   "tts_busy_s": 8.35,
+   "rss_mb": 211.7,
+   "gpu_mem_used_mb": -24.0,
+   "gpu_util_pct": 0.0,
+   "stt_rtf": 0.05,
+   "tts_rtf": 0.051
+  }
+ },
+ "c10": {
+  "span": [
+   1794623303.1000783,
+   1794623527.7114193
+  ],
+  "answered": 29,
+  "missed": 11,
+  "reply_s_p50": 9.97,
+  "reply_s_p95": 16.56,
+  "reply_s_max": 18.134,
+  "replies_under_3s": 0,
+  "speech_server": {
+   "stt_calls": 43,
+   "stt_audio_s": 276.96,
+   "stt_busy_s": 17.54,
+   "tts_calls": 88,
+   "tts_audio_s": 402.59,
+   "tts_busy_s": 35.04,
+   "rss_mb": 209.7,
+   "gpu_mem_used_mb": 288.0,
+   "gpu_util_pct": 0.0,
+   "stt_rtf": 0.063,
+   "tts_rtf": 0.087
+  }
+ }
+}

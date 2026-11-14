@@ -1,0 +1,81 @@
+{
+ "start": 1794649513.9850388,
+ "end": 1794649831.6844127,
+ "users": {
+  "web": 5,
+  "wa": 4,
+  "staff": 1
+ },
+ "actions": {
+  "wa.webhook": {
+   "count": 87,
+   "codes": {
+    "200": 87
+   },
+   "p50_s": 0.012,
+   "p95_s": 0.035,
+   "max_s": 0.115
+  },
+  "web.message": {
+   "count": 93,
+   "codes": {
+    "200": 93
+   },
+   "p50_s": 6.057,
+   "p95_s": 13.403,
+   "max_s": 15.559
+  },
+  "web.session": {
+   "count": 19,
+   "codes": {
+    "201": 19
+   },
+   "p50_s": 0.01,
+   "p95_s": 0.12,
+   "max_s": 0.12
+  },
+  "_client_bytes": {
+   "up": 118466,
+   "down": 69501
+  },
+  "_error_samples": {}
+ },
+ "fakes": {
+  "vendors": {
+   "control": {
+    "requests": 1,
+    "bytes_in": 154,
+    "bytes_out": 2
+   },
+   "claude": {
+    "requests": 356,
+    "bytes_in": 2634585,
+    "bytes_out": 179774
+   },
+   "whatsapp": {
+    "requests": 61,
+    "bytes_in": 33688,
+    "bytes_out": 8845
+   }
+  },
+  "llm": {
+   "text": 296.0,
+   "input_tokens": 604401.0,
+   "output_tokens": 19036.0,
+   "cache_read_tokens": 402893.0,
+   "calls_haiku": 356.0,
+   "tool_use": 60.0
+  },
+  "s3_objects": 113,
+  "s3_bytes": 5954670,
+  "s3_by_prefix": {
+   "kx-bench-media/pack/quotes": {
+    "objects": 113,
+    "bytes": 5954670
+   }
+  }
+ },
+ "task_errors": [
+  "FileNotFoundError(2, 'No such file or directory')"
+ ]
+}

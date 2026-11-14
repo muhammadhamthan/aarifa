@@ -1,0 +1,18 @@
+# Round 4: the three candidate embedding models, one at a time, on the same TEI CPU server the app uses.
+#   MODEL_ID=BAAI/bge-m3 docker compose -p kxembed -f resource-usage-bench/compose/r4-embed.yml up -d
+# Models are read from the shared Hugging Face cache on F: (no download at start when already cached).
+services:
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:${TEI_TAG:-cpu-1.8}
+    command:
+      - --model-id
+      - ${MODEL_ID:-Qwen/Qwen3-Embedding-0.6B}
+      - --auto-truncate
+      - --max-batch-tokens
+      - "${TEI_MAX_BATCH_TOKENS:-1024}"
+    environment:
+      HF_HUB_OFFLINE: "${HF_OFFLINE:-0}"
+    volumes:
+      - F:/kx-bench/hf:/data
+    ports:
+      - "28081:80"

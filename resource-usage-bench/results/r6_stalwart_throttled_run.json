@@ -1,0 +1,32 @@
+{
+ "ready_s": 4.0,
+ "ram_idle_mib": {
+  "kxmail-stalwart-1": 119.6
+ },
+ "load": {
+  "ram_total_peak_mib": 336.2,
+  "ram_total_avg_mib": 294.5,
+  "cpu_total_peak_cores": 0.34,
+  "cpu_total_avg_cores": 0.04
+ },
+ "ram_after_mib": {
+  "kxmail-stalwart-1": 128.5
+ },
+ "send": {
+  "start": 1794648129.572998,
+  "end": 1794648131.410761,
+  "sent": 0,
+  "worker_errors": 5,
+  "message_bytes": 71630,
+  "connections": 5,
+  "per_message_s_p50": null,
+  "per_message_s_max": null,
+  "messages_per_s": 0.0
+ },
+ "stored_before": 1,
+ "stored_after": 26,
+ "delivered": 25,
+ "store_growth_bytes": 1923304,
+ "store_per_1000_mails_mb": 76.93,
+ "note": "receive + spam/DKIM/SPF checks + store in RocksDB (full-text index on)"
+}

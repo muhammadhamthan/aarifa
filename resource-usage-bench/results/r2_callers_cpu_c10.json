@@ -1,0 +1,114 @@
+{
+ "start": 1794618635.3261292,
+ "end": 1794618957.1764615,
+ "callers": 10,
+ "turns_each": 4,
+ "answered": 0,
+ "missed": 40,
+ "reply_s_p50": null,
+ "reply_s_p95": null,
+ "replies_under_3s": 0,
+ "reply_s_max": null,
+ "per_caller": [
+  {
+   "caller": 7,
+   "join_s": 0.802,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 8,
+   "join_s": 0.802,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 9,
+   "join_s": 0.791,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 6,
+   "join_s": 0.802,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 5,
+   "join_s": 0.798,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 0,
+   "join_s": 0.83,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 4,
+   "join_s": 0.753,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 1,
+   "join_s": 0.802,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 2,
+   "join_s": 0.755,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 3,
+   "join_s": 0.751,
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

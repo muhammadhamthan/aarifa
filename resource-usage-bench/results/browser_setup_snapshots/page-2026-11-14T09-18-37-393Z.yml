@@ -1,0 +1,9 @@
+- generic [active] [ref=f7e1]:
+  - button "Switch to dark mode" [ref=f7e2] [cursor=pointer]
+  - main [ref=f7e5]:
+    - img "Stalwart" [ref=f7e7]
+    - generic [ref=f7e10]:
+      - heading "Unable to continue" [level=1] [ref=f7e12]
+      - paragraph
+    - alert [ref=f7e13]:
+      - generic [ref=f7e16]: Unknown client id

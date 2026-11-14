@@ -1,0 +1,46 @@
+{
+ "platform": "phoenix",
+ "start_to_ready_s": 9.2,
+ "wall_from_up_s": 369.5,
+ "containers": [
+  "kxbench-phoenix-1",
+  "kxbench-postgres-1"
+ ],
+ "ram_idle_mib": {
+  "kxbench-phoenix-1": 436.6,
+  "kxbench-postgres-1": 45.7
+ },
+ "ram_idle_total_mib": 482.3,
+ "load": {
+  "ram_total_peak_mib": 510.1,
+  "ram_total_avg_mib": 503.2,
+  "cpu_total_peak_cores": 0.24,
+  "cpu_total_avg_cores": 0.05
+ },
+ "replay": "{\"start\": 1794626095.3336174, \"end\": 1794626195.390939, \"spans\": 1000, \"text_chars\": 2171564, \"endpoint\": \"http://localhost:26006/v1/traces\"}",
+ "replay_errors": "",
+ "stored_before": {
+  "spans": 1485,
+  "phoenix_db_bytes": 18118335
+ },
+ "stored_after": {
+  "spans": 2485,
+  "phoenix_db_bytes": 19986111
+ },
+ "volume_bytes_before": {
+  "kxbench_pgdata": 146245865
+ },
+ "volume_bytes_after": {
+  "kxbench_pgdata": 148121833
+ },
+ "disk_growth_bytes": 1875968,
+ "control_growth_bytes_same_duration_no_spans": 0,
+ "disk_growth_per_1000_spans_mb": 1.88,
+ "images_json": "[{\"ID\":\"sha256:09ec48906c054a27dd09a88c8e6bcc24fe89649d3ecc94d3a8ed394e21279b31\",\"ContainerName\":\"kxbench-phoenix-1\",\"Repository\":\"arizephoenix/phoenix\",\"Tag\":\"latest\",\"Platform\":\"linux/amd64\",\"Size\":329342107,\"Created\":\"2026-11-13T06:27:44.136419546Z\",\"LastTagTime\":\"2026-11-13T21:15:43.193271424Z\"},{\"ID\":\"sha256:cf1a5ecb16c9344888d0df7106a0f1c67d6690a0a1e8b4764f111ff4a5e02dc4\",\"ContainerName\":\"kxbench-livekit-src-1\",\"Repository\":\"kxbench/livekit-server\",\"Tag\":\"v1.13.11-src\",\"Platform\":\"linux/amd64\",\"Size\":41610622,\"Created\":\"2026-11-14T01:51:47.44201178Z\",\"LastTagTime\":\"2026-11-14T01:51:49.810732802Z\"},{\"ID\":\"sha256:4811f2753d8f38e15ec0e75ae7a4478744e74563cad480d8fc033dd6828ffdf7\",\"ContainerName\":\"kxbench-api-1\",\"Repository\":\"kxbench/app\",\"Tag\":\"local\",\"Platform\":\"linux/amd64\",\"Size\":687490128,\"Created\":\"2026-11-13T18:56:29.162306591Z\",\"LastTagTime\":\"2026-11-13T18:56:57.024814992Z\"},{\"ID\":\"sha256:4811f2753d8f38e15ec0e75ae7a4478744e74563cad480d8fc033dd6828ffdf7\",\"ContainerName\":\"kxbench-fakes-1\",\"Repository\":\"kxbench/app\",\"Tag\":\"local\",\"Platform\":\"linux/amd64\",\"Size\":687490128,\"Created\":\"2026-11-13T18:56:29.162306591Z\",\"LastTagTime\":\"2026-11-13T18:56:57.024814992Z\"},{\"ID\":\"sha256:4811f2753d8f38e15ec0e75ae7a4478744e74563cad480d8fc033dd6828ffdf7\",\"ContainerName\":\"kxbench-migrate-1\",\"Repository\":\"kxbench/app\",\"Tag\":\"local\",\"Platform\":\"linux/amd64\",\"Size\":687490128,\"Created\":\"2026-11-13T18:56:29.162306591Z\",\"LastTagTime\":\"2026-11-13T18:56:57.024814992Z\"},{\"ID\":\"sha256:8de25e75ce39617f17f2f6c77d60a4f75b65e779ed5005420eb1400072a15c1c\",\"ContainerName\":\"kxbench-embeddings-1\",\"Repository\":\"ghcr.io/huggingface/text-embeddings-inference\",\"Tag\":\"cpu-1.8\",\"Platform\":\"linux/amd64\",\"Size\":239133285,\"Created\":\"2025-10-30T09:17:51.183276505Z\",\"LastTagTime\":\"2026-11-13T21:21:00.641820917Z\"},{\"ID\":\"sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47\",\"ContainerName\":\"kxbench-postgres-1\",\"Repository\":\"pgvector/pgvector\",\"Tag\":\"pg18\",\"Platform\":\"linux/amd64\",\"Size\":158905521,\"Created\":\"2026-10-31T10:05:00.914261884Z\",\"LastTagTime\":\"2026-11-05T17:39:18.245399366Z\"},{\"ID\":\"sha256:4811f2753d8f38e15ec0e75ae7a4478744e74563cad480d8fc033dd6828ffdf7\",\"ContainerName\":\"kxbench-worker-1\",\"Repository\":\"kxbench/app\",\"Tag\":\"local\",\"Platform\":\"linux/amd64\",\"Size\":687490128,\"Created\":\"2026-11-13T18:56:29.162306591Z\",\"LastTagTime\":\"2026-11-13T18:56:57.024814992Z\"},{\"ID\":\"sha256:4811f2753d8f38e15ec0e75ae7a4478744e74563cad480d8fc033dd6828ffdf7\",\"ContainerName\":\"kxbench-voice-1\",\"Repository\":\"kxbench/app\",\"Tag\":\"local\",\"Platform\":\"linux/amd64\",\"Size\":687490128,\"Created\":\"2026-11-13T18:56:29.162306591Z\",\"LastTagTime\":\"2026-11-13T18:56:57.024814992Z\"},{\"ID\":\"sha256:4811f2753d8f38e15ec0e75ae7a4478744e74563cad480d8fc033dd6828ffdf7\",\"ContainerName\":\"kxbench-beat-1\",\"Repository\":\"kxbench/app\",\"Tag\":\"local\",\"Platform\":\"linux/amd64\",\"Size\":687490128,\"Created\":\"2026-11-13T18:56:29.162306591Z\",\"LastTagTime\":\"2026-11-13T18:56:57.024814992Z\"},{\"ID\":\"sha256:b0b01167ff47bc3868e56a967895a26be4230891a1f42a78ab61cdd227accc8d\",\"ContainerName\":\"kxbench-redis-1\",\"Repository\":\"redis\",\"Tag\":\"8.2\",\"Platform\":\"linux/amd64\",\"Size\":52866798,\"Created\":\"2026-11-05T07:37:54.417150332Z\",\"LastTagTime\":\"2026-11-13T21:15:00.104024049Z\"}]\n\n",
+ "load_before_dedupe_fix": {
+  "ram_total_peak_mib": 1020.1,
+  "ram_total_avg_mib": 1006.4,
+  "cpu_total_peak_cores": 0.47,
+  "cpu_total_avg_cores": 0.1
+ }
+}

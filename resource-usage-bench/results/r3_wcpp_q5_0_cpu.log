@@ -1,0 +1,18 @@
+{
+ "ram_idle_mib": 613.8,
+ "ram_peak_mib": 780.9,
+ "single_rtf": 1.976,
+ "single_latency_s_avg": 11.667,
+ "wer_by_lang": {
+  "en": 0.317,
+  "ar": 0.061,
+  "hi": 0.181,
+  "zh": 0.523
+ },
+ "x10_parallel": {
+  "wall_s": 117.57,
+  "audio_s": 59.0,
+  "rtf_effective": 1.991,
+  "latency_s_max": 117.57
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "device": "cuda",
+ "model_dir_gb": 1.62,
+ "float16": {
+  "load": {
+   "wall_s": 2.476,
+   "cpu_s": 2.5,
+   "cores_busy": 1.01,
+   "peak_rss_mb": 1774.7,
+   "added_rss_mb": 159.4
+  },
+  "single_rtf": 0.041,
+  "single_latency_s_avg": 0.244,
+  "wer_by_lang": {
+   "en": 0.317,
+   "ar": 0.061,
+   "hi": 0.181,
+   "zh": 0.5
+  },
+  "x10_parallel": {
+   "wall_s": 2.695,
+   "cpu_s": 18.78,
+   "cores_busy": 6.97,
+   "peak_rss_mb": 793.0,
+   "audio_s": 59.0,
+   "rtf_effective": 0.046,
+   "latency_s_max": 2.65
+  },
+  "gpu_mem_used_mb": 4779.0,
+  "gpu_mem_model_mb": 3507.0
+ },
+ "int8_float16": {
+  "load": {
+   "wall_s": 4.106,
+   "cpu_s": 25.44,
+   "cores_busy": 6.2,
+   "peak_rss_mb": 2547.5,
+   "added_rss_mb": -132.7
+  },
+  "single_rtf": 0.039,
+  "single_latency_s_avg": 0.232,
+  "wer_by_lang": {
+   "en": 0.317,
+   "ar": 0.061,
+   "hi": 0.196,
+   "zh": 0.5
+  },
+  "x10_parallel": {
+   "wall_s": 2.954,
+   "cpu_s": 17.73,
+   "cores_busy": 6.0,
+   "peak_rss_mb": 697.1,
+   "audio_s": 59.0,
+   "rtf_effective": 0.05,
+   "latency_s_max": 2.91
+  },
+  "gpu_mem_used_mb": 4139.0,
+  "gpu_mem_model_mb": -640.0
+ }
+}

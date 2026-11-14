@@ -1,0 +1,876 @@
+{
+ "ts": 1794606341.7798622,
+ "databases": {
+  "postgres": 7845567,
+  "cms": 7684623,
+  "automation": 9238207,
+  "agents": 9254591,
+  "phoenix": 13006527,
+  "crm": 12039871
+ },
+ "tables": {
+  "cms": {},
+  "automation": {
+   "automation.price_observations": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "automation.contact_suppressions": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "automation.scheduled_jobs": {
+    "rows": 37,
+    "total_bytes": 196608,
+    "heap_bytes": 57344
+   },
+   "automation.inbound_messages": {
+    "rows": 4,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "public.alembic_version": {
+    "rows": 1,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "automation.outbox_events": {
+    "rows": 9,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "automation.call_attempts": {
+    "rows": 0,
+    "total_bytes": 49152,
+    "heap_bytes": 0
+   },
+   "automation.channel_accounts": {
+    "rows": 3,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "automation.opt_out_log": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "automation.webhook_receipts": {
+    "rows": 4,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "automation.threads": {
+    "rows": 3,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "automation.outbound_messages": {
+    "rows": 6,
+    "total_bytes": 131072,
+    "heap_bytes": 8192
+   },
+   "automation.scrape_runs": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "automation.suppressions": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "automation.inbox_events": {
+    "rows": 6,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "automation.message_templates": {
+    "rows": 32,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   }
+  },
+  "agents": {
+   "agents.visitors": {
+    "rows": 2,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "agents.lane_risk_assessments": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.kb_chunks": {
+    "rows": 0,
+    "total_bytes": 90112,
+    "heap_bytes": 0
+   },
+   "agents.kb_documents": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.checkpoint_migrations": {
+    "rows": 10,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "agents.guard_events": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.news_items": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "agents.turns": {
+    "rows": 16,
+    "total_bytes": 57344,
+    "heap_bytes": 8192
+   },
+   "agents.tool_calls": {
+    "rows": 4,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "agents.eval_runs": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "agents.knowledge_gaps": {
+    "rows": 4,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "agents.outbox_events": {
+    "rows": 15,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "agents.inbox_events": {
+    "rows": 5,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.alembic_version": {
+    "rows": 1,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "agents.conversations": {
+    "rows": 4,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   },
+   "agents.checkpoint_writes": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.checkpoint_blobs": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.checkpoints": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "agents.agent_runs": {
+    "rows": 9,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   }
+  },
+  "phoenix": {
+   "public.span_annotations": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.token_prices": {
+    "rows": 1330,
+    "total_bytes": 270336,
+    "heap_bytes": 114688
+   },
+   "public.project_annotation_configs": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.prompt_versions": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.experiment_jobs": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.password_reset_tokens": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.span_costs": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.experiment_tags": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.dataset_labels": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.dataset_splits": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.deployment_secret": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.refresh_tokens": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.experiment_eval_logs": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.secrets": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.prompt_version_tags": {
+    "rows": 0,
+    "total_bytes": 49152,
+    "heap_bytes": 0
+   },
+   "public.datasets_dataset_labels": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.code_evaluators": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.projects": {
+    "rows": 1,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "public.experiments": {
+    "rows": 0,
+    "total_bytes": 57344,
+    "heap_bytes": 0
+   },
+   "public.agent_session_snapshots": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.oauth2_grants": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.languages": {
+    "rows": 2,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.agent_sessions": {
+    "rows": 0,
+    "total_bytes": 49152,
+    "heap_bytes": 0
+   },
+   "public.prompts": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.user_roles": {
+    "rows": 4,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "public.evaluators": {
+    "rows": 5,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   },
+   "public.experiment_runs": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.system_state": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.system_settings": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.sandbox_providers": {
+    "rows": 8,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "public.document_annotations": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.project_session_annotations": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.span_cost_details": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.dataset_evaluators": {
+    "rows": 0,
+    "total_bytes": 49152,
+    "heap_bytes": 0
+   },
+   "public.builtin_evaluators": {
+    "rows": 5,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "public.experiment_task_logs": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.code_evaluator_code_versions": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.project_trace_retention_policies": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "public.dataset_example_revisions": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.traces": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.oauth2_clients": {
+    "rows": 1,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "public.experiments_dataset_splits": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.prompts_prompt_labels": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.dataset_splits_dataset_examples": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.datasets": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.experiments_dataset_examples": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.alembic_version": {
+    "rows": 1,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "public.sandbox_configs": {
+    "rows": 3,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   },
+   "public.users": {
+    "rows": 2,
+    "total_bytes": 98304,
+    "heap_bytes": 8192
+   },
+   "public.oauth2_authorization_codes": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.generative_model_custom_providers": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.experiment_run_annotations": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.api_keys": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.generative_models": {
+    "rows": 419,
+    "total_bytes": 221184,
+    "heap_bytes": 49152
+   },
+   "public.access_tokens": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.experiment_prompt_tasks": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.dataset_versions": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.spans": {
+    "rows": 0,
+    "total_bytes": 73728,
+    "heap_bytes": 0
+   },
+   "public.agent_session_messages": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.prompt_labels": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "public.experiment_dataset_evaluators": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.experiment_logs": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.dataset_examples": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.trace_annotations": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.llm_evaluators": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "public.project_sessions": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "public.annotation_configs": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   }
+  },
+  "crm": {
+   "crm.quote_send_grants": {
+    "rows": 1,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.product_costings": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.quote_versions": {
+    "rows": 1,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.deals": {
+    "rows": 4,
+    "total_bytes": 122880,
+    "heap_bytes": 8192
+   },
+   "crm.negotiation_rounds": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.timeline_events": {
+    "rows": 14,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.idempotency_keys": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "public.alembic_version": {
+    "rows": 1,
+    "total_bytes": 24576,
+    "heap_bytes": 8192
+   },
+   "crm.quotes": {
+    "rows": 1,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.settings_history": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.material_rates": {
+    "rows": 1,
+    "total_bytes": 57344,
+    "heap_bytes": 8192
+   },
+   "crm.materials": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.orders": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "crm.settings": {
+    "rows": 44,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.change_requests": {
+    "rows": 0,
+    "total_bytes": 40960,
+    "heap_bytes": 0
+   },
+   "crm.payments": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.approvals": {
+    "rows": 1,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.companies": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "crm.audit_events": {
+    "rows": 33,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.supplier_lead_times": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.auth_challenges": {
+    "rows": 7,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.lane_risk_history": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.deal_requirements": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.product_price_tiers": {
+    "rows": 3,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.inbox_events": {
+    "rows": 15,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.stock_items": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "crm.order_status_history": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.rpt_daily_metrics": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.quote_line_tiers": {
+    "rows": 0,
+    "total_bytes": 8192,
+    "heap_bytes": 0
+   },
+   "crm.reorder_opportunities": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.product_categories": {
+    "rows": 2,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.products": {
+    "rows": 2,
+    "total_bytes": 57344,
+    "heap_bytes": 8192
+   },
+   "crm.staff_credentials": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.tasks": {
+    "rows": 0,
+    "total_bytes": 32768,
+    "heap_bytes": 0
+   },
+   "crm.contacts": {
+    "rows": 4,
+    "total_bytes": 98304,
+    "heap_bytes": 8192
+   },
+   "crm.auth_sessions": {
+    "rows": 6,
+    "total_bytes": 65536,
+    "heap_bytes": 8192
+   },
+   "crm.freight_lanes": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.delivery_estimates": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.price_sources": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.stock_movements": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.stage_history": {
+    "rows": 6,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.consents": {
+    "rows": 0,
+    "total_bytes": 24576,
+    "heap_bytes": 0
+   },
+   "crm.factory_visits": {
+    "rows": 0,
+    "total_bytes": 16384,
+    "heap_bytes": 0
+   },
+   "crm.feature_flags": {
+    "rows": 5,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   },
+   "crm.visit_slots": {
+    "rows": 0,
+    "total_bytes": 8192,
+    "heap_bytes": 0
+   },
+   "crm.approval_events": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.margin_rules": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.quote_line_costs": {
+    "rows": 0,
+    "total_bytes": 8192,
+    "heap_bytes": 0
+   },
+   "crm.users": {
+    "rows": 5,
+    "total_bytes": 81920,
+    "heap_bytes": 8192
+   },
+   "crm.quote_lines": {
+    "rows": 1,
+    "total_bytes": 49152,
+    "heap_bytes": 8192
+   },
+   "crm.outbox_events": {
+    "rows": 12,
+    "total_bytes": 90112,
+    "heap_bytes": 24576
+   },
+   "crm.fx_rates": {
+    "rows": 1,
+    "total_bytes": 32768,
+    "heap_bytes": 8192
+   }
+  }
+ },
+ "pg_connections": {
+  "phoenix_app": 5,
+  "postgres": 2,
+  "(bg)": 7,
+  "crm_app": 8,
+  "automation_app": 11,
+  "agents_app": 34
+ },
+ "pg_settings": {
+  "max_connections": "100",
+  "shared_buffers": "16384",
+  "work_mem": "4096"
+ },
+ "redis": {
+  "used_memory": "1906104",
+  "used_memory_rss": "7208960",
+  "used_memory_peak": "1959200"
+ },
+ "images": {
+  "kxbench/app:local": "2.68GB",
+  "arizephoenix/phoenix:latest": "1.44GB",
+  "kx-lo:local": "701MB",
+  "kx-testrunner:local": "492MB",
+  "ghcr.io/huggingface/text-embeddings-inference:cpu-latest": "940MB",
+  "kx-test:local": "479MB",
+  "redis:8.2": "204MB",
+  "pgvector/pgvector:pg18": "631MB",
+  "valkey/valkey:8.1": "170MB",
+  "librecrawl-librecrawl:latest": "3.96GB",
+  "redis:7-alpine": "57.8MB",
+  "redis:latest": "204MB",
+  "hashicorp/terraform-mcp-server:0.4.0": "19.8MB",
+  "ghcr.io/huggingface/text-embeddings-inference:cpu-1.8": "938MB",
+  "ghcr.io/huggingface/text-embeddings-inference:cpu-1.7.2": "936MB"
+ },
+ "volumes": {
+  "kxbench_fakedata": "52.63kB",
+  "kxbench_pgdata": "126.7MB"
+ },
+ "fakes": {
+  "vendors": {
+   "control": {
+    "requests": 5,
+    "bytes_in": 694,
+    "bytes_out": 1081
+   },
+   "ses": {
+    "requests": 2,
+    "bytes_in": 2436,
+    "bytes_out": 114
+   },
+   "claude": {
+    "requests": 12,
+    "bytes_in": 65215,
+    "bytes_out": 6042
+   },
+   "whatsapp": {
+    "requests": 5,
+    "bytes_in": 55657,
+    "bytes_out": 725
+   },
+   "s3": {
+    "requests": 3,
+    "bytes_in": 55062,
+    "bytes_out": 105256
+   }
+  },
+  "llm": {
+   "text": 10.0,
+   "input_tokens": 14475.0,
+   "output_tokens": 638.0,
+   "cache_read_tokens": 9428.0,
+   "calls_haiku": 12.0,
+   "tool_use": 2.0
+  },
+  "s3_objects": 1,
+  "s3_bytes": 52628,
+  "s3_by_prefix": {
+   "kx-bench-media/pack/quotes": {
+    "objects": 1,
+    "bytes": 52628
+   }
+  }
+ }
+}

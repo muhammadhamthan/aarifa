@@ -1,0 +1,39 @@
+{
+ "format": "qwen3",
+ "passages": 48,
+ "questions": 38,
+ "top1_all": 0.921,
+ "top1_distractor_questions": 0.857,
+ "top1_non_english_questions": 0.909,
+ "mrr": 0.961,
+ "misses": [
+  {
+   "want": "oven",
+   "lang": "zh",
+   "q": "可以放进烤箱吗",
+   "got": "paperlid",
+   "rank": 2,
+   "margin": 0.0047
+  },
+  {
+   "want": "lid1000",
+   "lang": "en",
+   "q": "is the lid included with the one litre container",
+   "got": "lid",
+   "rank": 2,
+   "margin": 0.0185
+  },
+  {
+   "want": "lid1000",
+   "lang": "ar",
+   "q": "هل الغطاء مشمول مع علبة اللتر",
+   "got": "lid",
+   "rank": 2,
+   "margin": 0.0621
+  }
+ ],
+ "model": "Qwen/Qwen3-Embedding-0.6B",
+ "cold_start_cached_s": 31.7,
+ "ram_idle_cached_mib": 2817.0,
+ "tei_backend": "candle"
+}

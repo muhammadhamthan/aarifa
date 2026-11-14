@@ -1,0 +1,610 @@
+{
+ "phases": {
+  "A_idle": [
+   1794606346.2493274,
+   1794606526.2530081
+  ],
+  "B_cms_index": [
+   1794606530.717917,
+   1794607514.6253908
+  ],
+  "C_load_worker10": [
+   1794613414.741348,
+   1794614329.2206197
+  ],
+  "D0_idle_worker3": [
+   1794614333.2780116,
+   1794614425.93344
+  ],
+  "D_load_worker3": [
+   1794614425.9344397,
+   1794615039.0280719
+  ]
+ },
+ "containers": {
+  "A_idle": {
+   "api": {
+    "ram_avg_mib": 349.8,
+    "ram_peak_mib": 361.1,
+    "cpu_avg_pct": 0.9,
+    "cpu_peak_pct": 22.6,
+    "net_rx_mb": 0.0,
+    "net_tx_mb": 0.0,
+    "disk_write_mb": 0.0,
+    "samples": 720
+   },
+   "beat": {
+    "ram_avg_mib": 37.5,
+    "ram_peak_mib": 48.4,
+    "cpu_avg_pct": 1.2,
+    "cpu_peak_pct": 23.9,
+    "net_rx_mb": 0.01,
+    "net_tx_mb": 0.13,
+    "disk_write_mb": 0.0,
+    "samples": 720
+   },
+   "embeddings": {
+    "ram_avg_mib": 2859.0,
+    "ram_peak_mib": 2859.0,
+    "cpu_avg_pct": 0.3,
+    "cpu_peak_pct": 0.7,
+    "net_rx_mb": 0.0,
+    "net_tx_mb": 0.0,
+    "disk_write_mb": 0.0,
+    "samples": 720
+   },
+   "fakes": {
+    "ram_avg_mib": 31.1,
+    "ram_peak_mib": 42.0,
+    "cpu_avg_pct": 0.9,
+    "cpu_peak_pct": 22.3,
+    "net_rx_mb": 0.0,
+    "net_tx_mb": 0.0,
+    "disk_write_mb": 0.0,
+    "samples": 720
+   },
+   "phoenix": {
+    "ram_avg_mib": 175.8,
+    "ram_peak_mib": 176.0,
+    "cpu_avg_pct": 0.6,
+    "cpu_peak_pct": 3.1,
+    "net_rx_mb": 0.1,
+    "net_tx_mb": 0.14,
+    "disk_write_mb": 0.0,
+    "samples": 720
+   },
+   "postgres": {
+    "ram_avg_mib": 194.5,
+    "ram_peak_mib": 196.6,
+    "cpu_avg_pct": 1.2,
+    "cpu_peak_pct": 7.0,
+    "net_rx_mb": 0.23,
+    "net_tx_mb": 0.17,
+    "disk_write_mb": 9.0,
+    "samples": 720
+   },
+   "redis": {
+    "ram_avg_mib": 9.6,
+    "ram_peak_mib": 11.1,
+    "cpu_avg_pct": 0.7,
+    "cpu_peak_pct": 3.8,
+    "net_rx_mb": 0.44,
+    "net_tx_mb": 0.27,
+    "disk_write_mb": 0.0,
+    "samples": 720
+   },
+   "worker": {
+    "ram_avg_mib": 717.5,
+    "ram_peak_mib": 728.0,
+    "cpu_avg_pct": 1.1,
+    "cpu_peak_pct": 22.6,
+    "net_rx_mb": 0.33,
+    "net_tx_mb": 0.39,
+    "disk_write_mb": 0.0,
+    "samples": 720
+   }
+  },
+  "B_cms_index": {
+   "api": {
+    "ram_avg_mib": 274.4,
+    "ram_peak_mib": 358.7,
+    "cpu_avg_pct": 2.8,
+    "cpu_peak_pct": 142.8,
+    "net_rx_mb": -0.84,
+    "net_tx_mb": -0.55,
+    "disk_write_mb": -183.0,
+    "samples": 3922
+   },
+   "beat": {
+    "ram_avg_mib": 33.0,
+    "ram_peak_mib": 49.7,
+    "cpu_avg_pct": 1.5,
+    "cpu_peak_pct": 46.2,
+    "net_rx_mb": 0.05,
+    "net_tx_mb": 0.76,
+    "disk_write_mb": 8.0,
+    "samples": 3926
+   },
+   "embeddings": {
+    "ram_avg_mib": 2903.5,
+    "ram_peak_mib": 3096.6,
+    "cpu_avg_pct": 800.2,
+    "cpu_peak_pct": 1093.7,
+    "net_rx_mb": -0.0,
+    "net_tx_mb": -0.18,
+    "disk_write_mb": 0.0,
+    "samples": 3922
+   },
+   "fakes": {
+    "ram_avg_mib": 27.3,
+    "ram_peak_mib": 43.5,
+    "cpu_avg_pct": 1.4,
+    "cpu_peak_pct": 37.5,
+    "net_rx_mb": 0.23,
+    "net_tx_mb": 2.22,
+    "disk_write_mb": 8.0,
+    "samples": 3926
+   },
+   "phoenix": {
+    "ram_avg_mib": 140.4,
+    "ram_peak_mib": 176.0,
+    "cpu_avg_pct": 1.0,
+    "cpu_peak_pct": 17.1,
+    "net_rx_mb": 0.59,
+    "net_tx_mb": 0.79,
+    "disk_write_mb": 58.0,
+    "samples": 3926
+   },
+   "postgres": {
+    "ram_avg_mib": 258.9,
+    "ram_peak_mib": 277.1,
+    "cpu_avg_pct": 3.1,
+    "cpu_peak_pct": 158.9,
+    "net_rx_mb": 4.96,
+    "net_tx_mb": 3.68,
+    "disk_write_mb": 55.0,
+    "samples": 3926
+   },
+   "redis": {
+    "ram_avg_mib": 10.4,
+    "ram_peak_mib": 13.7,
+    "cpu_avg_pct": 0.9,
+    "cpu_peak_pct": 26.1,
+    "net_rx_mb": 4.65,
+    "net_tx_mb": 2.5,
+    "disk_write_mb": 0.6,
+    "samples": 3926
+   },
+   "worker": {
+    "ram_avg_mib": 2359.0,
+    "ram_peak_mib": 2492.4,
+    "cpu_avg_pct": 15.5,
+    "cpu_peak_pct": 837.3,
+    "net_rx_mb": 2.92,
+    "net_tx_mb": 4.05,
+    "disk_write_mb": -1191.0,
+    "samples": 3922
+   }
+  },
+  "C_load_worker10": {
+   "api": {
+    "ram_avg_mib": 582.8,
+    "ram_peak_mib": 817.4,
+    "cpu_avg_pct": 13.5,
+    "cpu_peak_pct": 490.7,
+    "net_rx_mb": 25.67,
+    "net_tx_mb": 17.05,
+    "disk_write_mb": 0.0,
+    "samples": 3658
+   },
+   "beat": {
+    "ram_avg_mib": 72.6,
+    "ram_peak_mib": 84.7,
+    "cpu_avg_pct": 1.2,
+    "cpu_peak_pct": 30.3,
+    "net_rx_mb": 0.04,
+    "net_tx_mb": 0.7,
+    "disk_write_mb": 0.0,
+    "samples": 3658
+   },
+   "embeddings": {
+    "ram_avg_mib": 2393.4,
+    "ram_peak_mib": 2543.6,
+    "cpu_avg_pct": 77.3,
+    "cpu_peak_pct": 863.4,
+    "net_rx_mb": 0.21,
+    "net_tx_mb": 3.22,
+    "disk_write_mb": 216.0,
+    "samples": 3658
+   },
+   "fakes": {
+    "ram_avg_mib": 37.3,
+    "ram_peak_mib": 59.5,
+    "cpu_avg_pct": 1.3,
+    "cpu_peak_pct": 31.6,
+    "net_rx_mb": 13.6,
+    "net_tx_mb": 1.66,
+    "disk_write_mb": 2.1,
+    "samples": 3658
+   },
+   "phoenix": {
+    "ram_avg_mib": 94.8,
+    "ram_peak_mib": 104.6,
+    "cpu_avg_pct": 1.1,
+    "cpu_peak_pct": 5.4,
+    "net_rx_mb": 9.4,
+    "net_tx_mb": 1.61,
+    "disk_write_mb": 11.0,
+    "samples": 3658
+   },
+   "postgres": {
+    "ram_avg_mib": 396.8,
+    "ram_peak_mib": 430.0,
+    "cpu_avg_pct": 3.2,
+    "cpu_peak_pct": 36.6,
+    "net_rx_mb": 22.4,
+    "net_tx_mb": 21.9,
+    "disk_write_mb": 126.0,
+    "samples": 3658
+   },
+   "redis": {
+    "ram_avg_mib": 9.7,
+    "ram_peak_mib": 12.2,
+    "cpu_avg_pct": 0.9,
+    "cpu_peak_pct": 5.3,
+    "net_rx_mb": 7.8,
+    "net_tx_mb": 4.0,
+    "disk_write_mb": 0.1,
+    "samples": 3658
+   },
+   "worker": {
+    "ram_avg_mib": 2608.9,
+    "ram_peak_mib": 2664.4,
+    "cpu_avg_pct": 9.3,
+    "cpu_peak_pct": 209.8,
+    "net_rx_mb": 23.68,
+    "net_tx_mb": 37.2,
+    "disk_write_mb": 0.0,
+    "samples": 3658
+   }
+  },
+  "D0_idle_worker3": {
+   "api": {
+    "ram_avg_mib": 601.2,
+    "ram_peak_mib": 613.8,
+    "cpu_avg_pct": 1.1,
+    "cpu_peak_pct": 30.8,
+    "net_rx_mb": 0.0,
+    "net_tx_mb": 0.0,
+    "disk_write_mb": 0.0,
+    "samples": 372
+   },
+   "beat": {
+    "ram_avg_mib": 73.5,
+    "ram_peak_mib": 74.1,
+    "cpu_avg_pct": 1.2,
+    "cpu_peak_pct": 25.5,
+    "net_rx_mb": 0.0,
+    "net_tx_mb": 0.07,
+    "disk_write_mb": 0.0,
+    "samples": 372
+   },
+   "embeddings": {
+    "ram_avg_mib": 2339.9,
+    "ram_peak_mib": 2342.9,
+    "cpu_avg_pct": 16.2,
+    "cpu_peak_pct": 322.4,
+    "net_rx_mb": 0.01,
+    "net_tx_mb": 0.07,
+    "disk_write_mb": 0.0,
+    "samples": 372
+   },
+   "fakes": {
+    "ram_avg_mib": 47.7,
+    "ram_peak_mib": 56.7,
+    "cpu_avg_pct": 1.0,
+    "cpu_peak_pct": 24.3,
+    "net_rx_mb": 0.3,
+    "net_tx_mb": 0.04,
+    "disk_write_mb": 0.0,
+    "samples": 372
+   },
+   "phoenix": {
+    "ram_avg_mib": 91.2,
+    "ram_peak_mib": 91.5,
+    "cpu_avg_pct": 1.0,
+    "cpu_peak_pct": 11.0,
+    "net_rx_mb": 0.5,
+    "net_tx_mb": 0.1,
+    "disk_write_mb": 0.0,
+    "samples": 372
+   },
+   "postgres": {
+    "ram_avg_mib": 239.7,
+    "ram_peak_mib": 431.2,
+    "cpu_avg_pct": 3.7,
+    "cpu_peak_pct": 78.1,
+    "net_rx_mb": 0.9,
+    "net_tx_mb": 0.9,
+    "disk_write_mb": 4.0,
+    "samples": 372
+   },
+   "redis": {
+    "ram_avg_mib": 9.9,
+    "ram_peak_mib": 11.3,
+    "cpu_avg_pct": 0.9,
+    "cpu_peak_pct": 6.8,
+    "net_rx_mb": 0.5,
+    "net_tx_mb": 0.2,
+    "disk_write_mb": 0.0,
+    "samples": 372
+   },
+   "worker": {
+    "ram_avg_mib": 858.2,
+    "ram_peak_mib": 2655.2,
+    "cpu_avg_pct": 22.1,
+    "cpu_peak_pct": 283.3,
+    "net_rx_mb": -23.94,
+    "net_tx_mb": -37.29,
+    "disk_write_mb": -0.0,
+    "samples": 366
+   }
+  },
+  "D_load_worker3": {
+   "api": {
+    "ram_avg_mib": 602.8,
+    "ram_peak_mib": 803.6,
+    "cpu_avg_pct": 14.1,
+    "cpu_peak_pct": 465.3,
+    "net_rx_mb": 21.2,
+    "net_tx_mb": 12.1,
+    "disk_write_mb": 0.0,
+    "samples": 2452
+   },
+   "beat": {
+    "ram_avg_mib": 73.7,
+    "ram_peak_mib": 85.4,
+    "cpu_avg_pct": 1.2,
+    "cpu_peak_pct": 28.1,
+    "net_rx_mb": 0.03,
+    "net_tx_mb": 0.47,
+    "disk_write_mb": 0.0,
+    "samples": 2452
+   },
+   "embeddings": {
+    "ram_avg_mib": 2340.7,
+    "ram_peak_mib": 2343.9,
+    "cpu_avg_pct": 79.7,
+    "cpu_peak_pct": 563.8,
+    "net_rx_mb": 0.15,
+    "net_tx_mb": 2.34,
+    "disk_write_mb": 0.0,
+    "samples": 2452
+   },
+   "fakes": {
+    "ram_avg_mib": 47.8,
+    "ram_peak_mib": 59.8,
+    "cpu_avg_pct": 1.2,
+    "cpu_peak_pct": 23.7,
+    "net_rx_mb": 9.7,
+    "net_tx_mb": 1.02,
+    "disk_write_mb": 1.6,
+    "samples": 2452
+   },
+   "phoenix": {
+    "ram_avg_mib": 92.0,
+    "ram_peak_mib": 92.4,
+    "cpu_avg_pct": 0.9,
+    "cpu_peak_pct": 9.5,
+    "net_rx_mb": 5.0,
+    "net_tx_mb": 1.0,
+    "disk_write_mb": 0.0,
+    "samples": 2452
+   },
+   "postgres": {
+    "ram_avg_mib": 265.5,
+    "ram_peak_mib": 269.4,
+    "cpu_avg_pct": 2.3,
+    "cpu_peak_pct": 15.0,
+    "net_rx_mb": 14.0,
+    "net_tx_mb": 12.4,
+    "disk_write_mb": 82.0,
+    "samples": 2452
+   },
+   "redis": {
+    "ram_avg_mib": 9.8,
+    "ram_peak_mib": 11.3,
+    "cpu_avg_pct": 0.8,
+    "cpu_peak_pct": 5.0,
+    "net_rx_mb": 4.7,
+    "net_tx_mb": 2.4,
+    "disk_write_mb": 0.0,
+    "samples": 2452
+   },
+   "worker": {
+    "ram_avg_mib": 886.0,
+    "ram_peak_mib": 902.4,
+    "cpu_avg_pct": 5.0,
+    "cpu_peak_pct": 57.2,
+    "net_rx_mb": 13.24,
+    "net_tx_mb": 22.39,
+    "disk_write_mb": 0.0,
+    "samples": 2452
+   }
+  }
+ },
+ "load_worker10": {
+  "minutes": 15.2,
+  "actions": {
+   "auth.login": {
+    "count": 2,
+    "codes": {
+     "200": 2
+    },
+    "p50_s": 0.13,
+    "p95_s": 0.201,
+    "max_s": 0.201
+   },
+   "auth.totp": {
+    "count": 2,
+    "codes": {
+     "200": 2
+    },
+    "p50_s": 0.055,
+    "p95_s": 0.07,
+    "max_s": 0.07
+   },
+   "crm.approvals": {
+    "count": 14,
+    "codes": {
+     "200": 14
+    },
+    "p50_s": 0.005,
+    "p95_s": 0.015,
+    "max_s": 0.015
+   },
+   "crm.approve": {
+    "count": 36,
+    "codes": {
+     "422": 33,
+     "200": 3
+    },
+    "p50_s": 0.574,
+    "p95_s": 0.988,
+    "max_s": 3.722
+   },
+   "crm.deal": {
+    "count": 85,
+    "codes": {
+     "200": 85
+    },
+    "p50_s": 0.006,
+    "p95_s": 0.013,
+    "max_s": 0.031
+   },
+   "crm.deals": {
+    "count": 85,
+    "codes": {
+     "200": 85
+    },
+    "p50_s": 0.011,
+    "p95_s": 0.023,
+    "max_s": 0.029
+   },
+   "crm.inbox": {
+    "count": 85,
+    "codes": {
+     "200": 85
+    },
+    "p50_s": 0.008,
+    "p95_s": 0.018,
+    "max_s": 0.074
+   },
+   "crm.quote_manual": {
+    "count": 14,
+    "codes": {
+     "201": 14
+    },
+    "p50_s": 0.071,
+    "p95_s": 0.098,
+    "max_s": 0.098
+   },
+   "crm.quotes": {
+    "count": 85,
+    "codes": {
+     "200": 85
+    },
+    "p50_s": 0.005,
+    "p95_s": 0.01,
+    "max_s": 0.012
+   },
+   "crm.stage_qualify": {
+    "count": 14,
+    "codes": {
+     "200": 14
+    },
+    "p50_s": 0.064,
+    "p95_s": 0.074,
+    "max_s": 0.074
+   },
+   "crm.timeline": {
+    "count": 85,
+    "codes": {
+     "200": 85
+    },
+    "p50_s": 0.006,
+    "p95_s": 0.018,
+    "max_s": 0.078
+   },
+   "wa.webhook": {
+    "count": 256,
+    "codes": {
+     "200": 254,
+     "500": 2
+    },
+    "p50_s": 0.014,
+    "p95_s": 0.045,
+    "max_s": 0.21
+   },
+   "web.message": {
+    "count": 299,
+    "codes": {
+     "200": 287,
+     "500": 12
+    },
+    "p50_s": 5.062,
+    "p95_s": 9.352,
+    "max_s": 13.963
+   },
+   "web.session": {
+    "count": 53,
+    "codes": {
+     "201": 53
+    },
+    "p50_s": 0.013,
+    "p95_s": 0.117,
+    "max_s": 0.132
+   }
+  },
+  "buyer_turns": 555,
+  "llm_calls": 1237.0,
+  "llm_tokens": {
+   "input_tokens": 2499167.0,
+   "output_tokens": 63590.0,
+   "cache_read_tokens": 1687164.0
+  },
+  "vendor_bytes": {
+   "control": {
+    "requests": 1,
+    "bytes_in": 154,
+    "bytes_out": 2
+   },
+   "claude": {
+    "requests": 1237,
+    "bytes_in": 10750896,
+    "bytes_out": 614605
+   },
+   "s3": {
+    "requests": 42,
+    "bytes_in": 1935907,
+    "bytes_out": 315932
+   },
+   "whatsapp": {
+    "requests": 114,
+    "bytes_in": 222423,
+    "bytes_out": 16530
+   }
+  },
+  "s3_bytes_total": 2002190,
+  "s3_objects": 38,
+  "db_growth_bytes": {
+   "postgres": 0,
+   "cms": 24576,
+   "automation": 1925120,
+   "agents": 1171456,
+   "phoenix": 24576,
+   "crm": 1351680
+  },
+  "app_db_bytes_per_buyer_turn": 8015,
+  "phoenix_bytes_per_llm_call": 20,
+  "claude_bytes_per_buy

@@ -1,0 +1,44 @@
+# Round 7: free call servers (Asterisk, FreeSWITCH), one at a time, each answering 10 simultaneous SIP calls
+# from SIPp with G.711 audio flowing both ways (answer + echo). All on the Docker network: no phone lines,
+# no minutes billed. Measures the server's idle and per-call RAM / CPU / bandwidth.
+#   docker compose -p kxcalls -f resource-usage-bench/compose/r7-calls.yml --profile asterisk up -d
+#   TARGET=asterisk:5060 docker compose -p kxcalls -f resource-usage-bench/compose/r7-calls.yml run --rm sipp
+services:
+  asterisk:
+    profiles: ["asterisk"]
+    image: andrius/asterisk:${ASTERISK_TAG:-latest}
+    volumes:
+      - F:/kx-bench/calls/asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - F:/kx-bench/calls/asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+
+  freeswitch:
+    profiles: ["freeswitch"]
+    image: safarov/freeswitch:${FREESWITCH_TAG:-latest}
+    volumes:
+      - F:/kx-bench/calls/freeswitch/00_bench.xml:/etc/freeswitch/dialplan/public/00_bench.xml:ro
+      # stock vars.xml with external_rtp_ip / external_sip_ip = local_ip_v4 instead of a STUN lookup, so the SDP
+      # offers the container address and SIPp's audio reaches FreeSWITCH (not the PC's public IP)
+      - F:/kx-bench/calls/freeswitch/vars.xml:/etc/freeswitch/vars.xml:ro
+
+  sipp:
+    profiles: ["run"]
+    image: python:3.12-slim
+    entrypoint:
+      - sh
+      - -c
+      - >
+        apt-get update -qq >/dev/null && apt-get install -y -qq sip-tester >/dev/null &&
+        cd /sippwork && ls -la pcap/g711a.pcap &&
+        sipp -sn uac_pcap $${TARGET} -s $${DIAL:-1000} -r 2 -l $${CALLS:-10} -m $${TOTAL:-30} -d $${HOLD_MS:-60000}
+        -trace_stat -fd 10 -stf /results/sipp_$${TAG:-x}.csv -nostdin -timeout 300s
+    environment:
+      TARGET: ${TARGET:-asterisk:5060}
+      CALLS: ${CALLS:-10}
+      TOTAL: ${TOTAL:-30}
+      HOLD_MS: ${HOLD_MS:-60000}
+      TAG: ${TAG:-x}
+      DIAL: ${DIAL:-1000}  # FreeSWITCH: 5000 (its stock public dialplan sends 1000-1019 to voicemail first)
+    volumes:
+      - ../results:/results
+      # uac_pcap plays pcap/g711a.pcap (from github.com/SIPp/sipp, pcap/; Debian's sip-tester does not ship it)
+      - F:/kx-bench/calls/pcap:/sippwork/pcap:ro

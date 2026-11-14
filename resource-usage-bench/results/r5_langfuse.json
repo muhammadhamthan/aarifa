@@ -1,0 +1,78 @@
+{
+ "platform": "langfuse",
+ "start_to_ready_s": 25.1,
+ "wall_from_up_s": 398.0,
+ "containers": [
+  "kxlangfuse-langfuse-ai-gateway-1",
+  "kxlangfuse-langfuse-web-1",
+  "kxlangfuse-langfuse-worker-1",
+  "kxlangfuse-postgres-1",
+  "kxlangfuse-redis-1",
+  "kxlangfuse-clickhouse-1",
+  "kxlangfuse-minio-1"
+ ],
+ "ram_idle_mib": {
+  "kxlangfuse-langfuse-ai-gateway-1": 2.0,
+  "kxlangfuse-langfuse-web-1": 1313.8,
+  "kxlangfuse-langfuse-worker-1": 701.0,
+  "kxlangfuse-postgres-1": 98.1,
+  "kxlangfuse-redis-1": 8.3,
+  "kxlangfuse-clickhouse-1": 304.3,
+  "kxlangfuse-minio-1": 58.8
+ },
+ "ram_idle_total_mib": 2486.3,
+ "load": {
+  "ram_total_peak_mib": 2194.0,
+  "ram_total_avg_mib": 2082.5,
+  "cpu_total_peak_cores": 0.74,
+  "cpu_total_avg_cores": 0.22
+ },
+ "replay": "{\"start\": 1794626492.9473176, \"end\": 1794626592.9729545, \"spans\": 1000, \"text_chars\": 2219887, \"endpoint\": \"http://localhost:3000/api/public/otel/v1/traces\"}",
+ "replay_errors": "",
+ "stored_before": {
+  "clickhouse_rows": {
+   "events_core": 0,
+   "events_full": 0,
+   "observations": 0,
+   "observations_batch_staging": 0,
+   "observations_pid_tid_sorting": 0,
+   "traces": 0
+  },
+  "error": null
+ },
+ "stored_after": {
+  "clickhouse_rows": {
+   "events_core": 1000,
+   "events_full": 1000,
+   "observations": 0,
+   "observations_batch_staging": 0,
+   "observations_pid_tid_sorting": 0,
+   "traces": 0
+  },
+  "error": null
+ },
+ "volume_bytes_before": {
+  "kxlangfuse_langfuse_clickhouse_data": 31959437,
+  "kxlangfuse_langfuse_clickhouse_logs": 1583202,
+  "kxlangfuse_langfuse_minio_data": 181911,
+  "kxlangfuse_langfuse_postgres_data": 48893094,
+  "kxlangfuse_langfuse_redis_data": 4096
+ },
+ "volume_bytes_after": {
+  "kxlangfuse_langfuse_clickhouse_data": 60043678,
+  "kxlangfuse_langfuse_clickhouse_logs": 2401431,
+  "kxlangfuse_langfuse_minio_data": 3515967,
+  "kxlangfuse_langfuse_postgres_data": 65678502,
+  "kxlangfuse_langfuse_redis_data": 59533
+ },
+ "disk_growth_bytes": 49077371,
+ "control_growth_bytes_same_duration_no_spans": 19311576,
+ "disk_growth_per_1000_spans_mb": 29.77,
+ "images_json": "[{\"ID\":\"sha256:da9f618dd784219aa6508ab6941c4a89c4ef6fb429fb1734c4163df3baa8f1ca\",\"ContainerName\":\"kxlangfuse-langfuse-worker-1\",\"Repository\":\"docker.langfuse.com/langfuse/langfuse-worker\",\"Tag\":\"4\",\"Platform\":\"linux/amd64\",\"Size\":172200934,\"Created\":\"2026-11-13T10:38:14.897886963Z\",\"LastTagTime\":\"2026-11-14T02:41:05.449957728Z\"},{\"ID\":\"sha256:ddfab4c402bf32e7701600d16d8c40dbccfab4c4e5340eef4c324394349c7926\",\"ContainerName\":\"kxlangfuse-minio-1\",\"Repository\":\"cgr.dev/chainguard/minio\",\"Tag\":\"latest\",\"Platform\":\"linux/amd64\",\"Size\":64135421,\"Created\":\"2026-11-13T16:01:41Z\",\"LastTagTime\":\"2026-11-14T02:40:49.96075949Z\"},{\"ID\":\"sha256:f6259999c8902aa8233f529a9393fc2ca8a0e7ade60b4bce03e4d4200b8f2c0c\",\"ContainerName\":\"kxlangfuse-langfuse-ai-gateway-1\",\"Repository\":\"docker.langfuse.com/langfuse/ai-gateway\",\"Tag\":\"4\",\"Platform\":\"linux/amd64\",\"Size\":26470877,\"Created\":\"2026-11-13T10:37:06.54779293Z\",\"LastTagTime\":\"2026-11-14T02:40:08.921694037Z\"},{\"ID\":\"sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90\",\"ContainerName\":\"kxlangfuse-redis-1\",\"Repository\":\"redis\",\"Tag\":\"7\",\"Platform\":\"linux/amd64\",\"Size\":43621893,\"Created\":\"2026-11-05T07:32:04.100511224Z\",\"LastTagTime\":\"2026-11-14T02:40:30.216309334Z\"},{\"ID\":\"sha256:de3e47c64078aa196dae2349e048fc98ba81947f651f5c20e06e46baea8ae40a\",\"ContainerName\":\"kxlangfuse-clickhouse-1\",\"Repository\":\"clickhouse/clickhouse-server\",\"Tag\":\"26.3.62.3\",\"Platform\":\"linux/amd64\",\"Size\":267048189,\"Created\":\"2026-10-26T15:06:17.347793949Z\",\"LastTagTime\":\"2026-11-14T02:41:18.306389032Z\"},{\"ID\":\"sha256:0814758db3db8e923f733be3884e7d7a9e3afd60568d874a610d78aae47476c5\",\"ContainerName\":\"kxlangfuse-langfuse-web-1\",\"Repository\":\"docker.langfuse.com/langfuse/langfuse\",\"Tag\":\"4\",\"Platform\":\"linux/amd64\",\"Size\":234256066,\"Created\":\"2026-11-13T10:39:10.087527505Z\",\"LastTagTime\":\"2026-11-14T02:40:48.662708478Z\"},{\"ID\":\"sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07\",\"ContainerName\":\"kxlangfuse-postgres-1\",\"Repository\":\"postgres\",\"Tag\":\"17\",\"Platform\":\"linux/amd64\",\"Size\":167357350,\"Created\":\"2026-11-12T20:55:34.149099236Z\",\"LastTagTime\":\"2026-11-14T02:41:05.590280522Z\"}]\n\n",
+ "load_before_dedupe_fix": {
+  "ram_total_peak_mib": 4388.1,
+  "ram_total_avg_mib": 4165.1,
+  "cpu_total_peak_cores": 1.48,
+  "cpu_total_avg_cores": 0.43
+ }
+}

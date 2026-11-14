@@ -1,0 +1,31 @@
+{
+ "format": "plain",
+ "passages": 48,
+ "questions": 38,
+ "top1_all": 0.947,
+ "top1_distractor_questions": 0.929,
+ "top1_non_english_questions": 0.909,
+ "mrr": 0.964,
+ "misses": [
+  {
+   "want": "oven",
+   "lang": "zh",
+   "q": "可以放进烤箱吗",
+   "got": "paperlid",
+   "rank": 2,
+   "margin": 0.016
+  },
+  {
+   "want": "lid1000",
+   "lang": "ar",
+   "q": "هل الغطاء مشمول مع علبة اللتر",
+   "got": "lid",
+   "rank": 7,
+   "margin": 0.0171
+  }
+ ],
+ "model": "BAAI/bge-m3",
+ "cold_start_cached_s": 32.8,
+ "ram_idle_cached_mib": 4743.2,
+ "tei_backend": "onnxruntime"
+}

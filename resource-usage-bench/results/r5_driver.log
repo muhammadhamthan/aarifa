@@ -1,0 +1,4 @@
+phoenix {"start_to_ready_s": 9.2, "ram_idle_total_mib": 485.4, "load": {"ram_total_peak_mib": 1016.4, "ram_total_avg_mib": 1004.4, "cpu_total_peak_cores": 0.53, "cpu_total_avg_cores": 0.1}, "stored_after": {"spans": 1485, "phoenix_db_bytes": 18118335}, "disk_growth_per_1000_spans_mb": 2.21}
+langfuse {"error": "TimeoutError('http://localhost:3000/api/public/health')"}
+langfuse {"start_to_ready_s": 32.8, "ram_idle_total_mib": 2304.1, "load": {"ram_total_peak_mib": 4873.4, "ram_total_avg_mib": 4066.9, "cpu_total_peak_cores": 1.43, "cpu_total_avg_cores": 0.45}, "stored_after": {"observations": null, "http": 404}, "disk_growth_per_1000_spans_mb": 30.36}
+opik {"start_to_ready_s": 0.1, "ram_idle_total_mib": 2568.5, "load": {"ram_total_peak_mib": 6503.6, "ram_total_avg_mib": 6127.8, "cpu_total_peak_cores": 18.44, "cpu_total_avg_cores": 2.83}, "stored_after": {"spans": 1000, "http": 200}, "disk_growth_per_1000_spans_mb": 124.51}

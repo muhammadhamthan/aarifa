@@ -1,0 +1,88 @@
+- generic [ref=f5e2]:
+  - generic [ref=f5e3]:
+    - banner [ref=f5e4]:
+      - img "Stalwart Logo" [ref=f5e5]
+    - main [ref=f5e8]:
+      - generic [ref=f5e10]:
+        - generic [ref=f5e11]:
+          - generic [ref=f5e12]:
+            - heading "Welcome to Stalwart" [level=1] [ref=f5e13]
+            - paragraph [ref=f5e14]: Let's get your server set up.
+          - generic "Step 4 of 5" [ref=f5e225]
+        - generic [ref=f5e21]:
+          - heading "Logging" [level=2] [ref=f5e226]
+          - group [ref=f5e23]:
+            - generic [ref=f5e227]:
+              - generic [ref=f5e228]:
+                - generic [ref=f5e229]: Log Destination
+                - paragraph [ref=f5e233]: Where the server writes log messages, traces, and diagnostic events. Defaults to log files on disk; remote destinations such as OpenTelemetry or webhooks can be added after setup.
+              - group "Log Destination" [ref=f5e236]:
+                - generic [ref=f5e237]:
+                  - generic [ref=f5e239]:
+                    - generic [aria-hidden] [ref=f5e240]: Type
+                    - combobox "Log Destination" [ref=f5e242]:
+                      - generic: Log file
+                  - generic [ref=f5e245]:
+                    - generic [ref=f5e246]:
+                      - generic [ref=f5e247]:
+                        - generic [ref=f5e248]: Path*
+                        - paragraph [ref=f5e252]: Directory in which log files are written
+                      - textbox "Path" [ref=f5e255]:
+                        - /placeholder: /var/log
+                        - text: /var/log/stalwart/
+                    - generic [ref=f5e256]:
+                      - generic [ref=f5e257]:
+                        - generic [ref=f5e258]: Prefix*
+                        - paragraph [ref=f5e262]: The prefix for the log file names. When rotation is enabled, the date is appended to it
+                      - textbox "Prefix" [ref=f5e265]:
+                        - /placeholder: stalwart.log
+                        - text: stalwart.log
+                    - generic [ref=f5e266]:
+                      - generic [ref=f5e267]:
+                        - generic [ref=f5e268]: Rotate frequency*
+                        - paragraph [ref=f5e272]: The frequency to rotate the log file
+                      - combobox "Rotate frequency" [ref=f5e275]:
+                        - generic [ref=f5e276]: Daily
+                    - generic [ref=f5e277]:
+                      - generic [ref=f5e278]:
+                        - generic [ref=f5e279]: Use ANSI colors
+                        - paragraph [ref=f5e283]: Whether to use ANSI colors in logs
+                      - switch "Use ANSI colors" [checked] [ref=f5e286] [cursor=pointer]
+                    - generic [ref=f5e287]:
+                      - generic [ref=f5e288]:
+                        - generic [ref=f5e289]: Multiline entries
+                        - paragraph [ref=f5e293]: Whether to write log entries as a single line or multiline
+                      - switch "Multiline entries" [ref=f5e296] [cursor=pointer]
+                    - generic [ref=f5e297]:
+                      - generic [ref=f5e298]:
+                        - generic [ref=f5e299]: Enable this tracer
+                        - paragraph [ref=f5e303]: Enable or disable the tracer
+                      - switch "Enable this tracer" [checked] [ref=f5e306] [cursor=pointer]
+                    - generic [ref=f5e307]:
+                      - generic [ref=f5e308]:
+                        - generic [ref=f5e309]: Logging level*
+                        - paragraph [ref=f5e313]: The logging level for this tracer
+                      - combobox "Logging level" [ref=f5e316]:
+                        - generic [ref=f5e317]: Info
+                    - generic [ref=f5e319]:
+                      - generic [ref=f5e320]:
+                        - generic [ref=f5e321]: Lossy mode
+                        - paragraph [ref=f5e325]: Whether to drop log entries if there is backlog
+                      - switch "Lossy mode" [ref=f5e328] [cursor=pointer]
+                    - generic [ref=f5e329]:
+                      - generic [ref=f5e330]:
+                        - generic [ref=f5e331]: Filtering mode*
+                        - paragraph [ref=f5e335]: How to interpret the events list
+                      - combobox "Filtering mode" [ref=f5e338]:
+                        - generic [ref=f5e339]: Exclude the specified events
+                    - generic [ref=f5e340]:
+                      - generic [ref=f5e341]:
+                        - generic [ref=f5e342]: Events
+                        - paragraph [ref=f5e346]: List of events to include or exclude based on filter mode
+                      - group "Events" [ref=f5e349]:
+                        - button "Events" [ref=f5e351]: Select options...
+        - generic [ref=f5e64]:
+          - button "Back" [ref=f5e204]
+          - generic [ref=f5e65]: Step 4 of 5
+          - button "Next" [active] [ref=f5e66]
+  - list

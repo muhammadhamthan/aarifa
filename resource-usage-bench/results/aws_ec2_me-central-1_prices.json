@@ -1,0 +1,321 @@
+{
+ "source": "AWS Price List bulk API, AmazonEC2 me-central-1, publication 2026-11-14T01:29:26Z",
+ "filter": "OnDemand, Linux, Shared tenancy, no pre-installed software, CapacityStatus Used",
+ "gpu_instances_found": [
+  "g5.12xlarge",
+  "g5.16xlarge",
+  "g5.24xlarge",
+  "g5.2xlarge",
+  "g5.48xlarge",
+  "g5.4xlarge",
+  "g5.8xlarge",
+  "g5.xlarge",
+  "g6.12xlarge",
+  "g6.16xlarge",
+  "g6.24xlarge",
+  "g6.2xlarge",
+  "g6.48xlarge",
+  "g6.4xlarge",
+  "g6.8xlarge",
+  "g6.xlarge",
+  "g6e.12xlarge",
+  "g6e.16xlarge",
+  "g6e.24xlarge",
+  "g6e.2xlarge",
+  "g6e.48xlarge",
+  "g6e.4xlarge",
+  "g6e.8xlarge",
+  "g6e.xlarge",
+  "p5en.48xlarge"
+ ],
+ "prices": {
+  "g5.12xlarge": {
+   "usd_per_hour": "6.9575000000",
+   "vcpu": "48",
+   "memory": "192 GiB",
+   "gpu": "4",
+   "gpu_memory": "96 GB",
+   "usd_per_month_730h": "5078.97"
+  },
+  "g5.16xlarge": {
+   "usd_per_hour": "5.0243200000",
+   "vcpu": "64",
+   "memory": "256 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "3667.75"
+  },
+  "g5.24xlarge": {
+   "usd_per_hour": "9.9897600000",
+   "vcpu": "96",
+   "memory": "384 GiB",
+   "gpu": "4",
+   "gpu_memory": "96 GB",
+   "usd_per_month_730h": "7292.52"
+  },
+  "g5.2xlarge": {
+   "usd_per_hour": "1.4866900000",
+   "vcpu": "8",
+   "memory": "32 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "1085.28"
+  },
+  "g5.48xlarge": {
+   "usd_per_hour": "19.9795100000",
+   "vcpu": "192",
+   "memory": "768 GiB",
+   "gpu": "8",
+   "gpu_memory": "192 GB",
+   "usd_per_month_730h": "14585.04"
+  },
+  "g5.4xlarge": {
+   "usd_per_hour": "1.9920600000",
+   "vcpu": "16",
+   "memory": "64 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "1454.20"
+  },
+  "g5.8xlarge": {
+   "usd_per_hour": "3.0028200000",
+   "vcpu": "32",
+   "memory": "128 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "2192.06"
+  },
+  "g5.xlarge": {
+   "usd_per_hour": "1.2340000000",
+   "vcpu": "4",
+   "memory": "16 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "900.82"
+  },
+  "g6.12xlarge": {
+   "usd_per_hour": "5.6504500000",
+   "vcpu": "48",
+   "memory": "192 GiB",
+   "gpu": "4",
+   "gpu_memory": "96 GB",
+   "usd_per_month_730h": "4124.83"
+  },
+  "g6.16xlarge": {
+   "usd_per_hour": "4.1710400000",
+   "vcpu": "64",
+   "memory": "256 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "3044.86"
+  },
+  "g6.24xlarge": {
+   "usd_per_hour": "8.1966900000",
+   "vcpu": "96",
+   "memory": "384 GiB",
+   "gpu": "4",
+   "gpu_memory": "96 GB",
+   "usd_per_month_730h": "5983.58"
+  },
+  "g6.2xlarge": {
+   "usd_per_hour": "1.2004300000",
+   "vcpu": "8",
+   "memory": "32 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "876.31"
+  },
+  "g6.48xlarge": {
+   "usd_per_hour": "16.3933900000",
+   "vcpu": "192",
+   "memory": "768 GiB",
+   "gpu": "8",
+   "gpu_memory": "192 GB",
+   "usd_per_month_730h": "11967.17"
+  },
+  "g6.4xlarge": {
+   "usd_per_hour": "1.6248000000",
+   "vcpu": "16",
+   "memory": "64 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "1186.10"
+  },
+  "g6.8xlarge": {
+   "usd_per_hour": "2.4735500000",
+   "vcpu": "32",
+   "memory": "128 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "1805.69"
+  },
+  "g6.xlarge": {
+   "usd_per_hour": "0.9882400000",
+   "vcpu": "4",
+   "memory": "16 GiB",
+   "gpu": "1",
+   "gpu_memory": "24 GB",
+   "usd_per_month_730h": "721.42"
+  },
+  "g6e.12xlarge": {
+   "usd_per_hour": "12.8719400000",
+   "vcpu": "48",
+   "memory": "384 GiB",
+   "gpu": "4",
+   "gpu_memory": "192 GB",
+   "usd_per_month_730h": "9396.52"
+  },
+  "g6e.16xlarge": {
+   "usd_per_hour": "9.2954000000",
+   "vcpu": "64",
+   "memory": "512 GiB",
+   "gpu": "1",
+   "gpu_memory": "48 GB",
+   "usd_per_month_730h": "6785.64"
+  },
+  "g6e.24xlarge": {
+   "usd_per_hour": "18.4818600000",
+   "vcpu": "96",
+   "memory": "768 GiB",
+   "gpu": "4",
+   "gpu_memory": "192 GB",
+   "usd_per_month_730h": "13491.76"
+  },
+  "g6e.2xlarge": {
+   "usd_per_hour": "2.7504900000",
+   "vcpu": "8",
+   "memory": "64 GiB",
+   "gpu": "1",
+   "gpu_memory": "48 GB",
+   "usd_per_month_730h": "2007.86"
+  },
+  "g6e.48xlarge": {
+   "usd_per_hour": "36.9637200000",
+   "vcpu": "192",
+   "memory": "1536 GiB",
+   "gpu": "8",
+   "gpu_memory": "384 GB",
+   "usd_per_month_730h": "26983.52"
+  },
+  "g6e.4xlarge": {
+   "usd_per_hour": "3.6854800000",
+   "vcpu": "16",
+   "memory": "128 GiB",
+   "gpu": "1",
+   "gpu_memory": "48 GB",
+   "usd_per_month_730h": "2690.40"
+  },
+  "g6e.8xlarge": {
+   "usd_per_hour": "5.5554500000",
+   "vcpu": "32",
+   "memory": "256 GiB",
+   "gpu": "1",
+   "gpu_memory": "48 GB",
+   "usd_per_month_730h": "4055.48"
+  },
+  "g6e.xlarge": {
+   "usd_per_hour": "2.2830000000",
+   "vcpu": "4",
+   "memory": "32 GiB",
+   "gpu": "1",
+   "gpu_memory": "48 GB",
+   "usd_per_month_730h": "1666.59"
+  },
+  "m6g.2xlarge": {
+   "usd_per_hour": "0.3784000000",
+   "vcpu": "8",
+   "memory": "32 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "276.23"
+  },
+  "m6g.4xlarge": {
+   "usd_per_hour": "0.7568000000",
+   "vcpu": "16",
+   "memory": "64 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "552.46"
+  },
+  "m6i.2xlarge": {
+   "usd_per_hour": "0.4708000000",
+   "vcpu": "8",
+   "memory": "32 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "343.68"
+  },
+  "m7g.2xlarge": {
+   "usd_per_hour": "0.4002000000",
+   "vcpu": "8",
+   "memory": "32 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "292.15"
+  },
+  "m7g.4xlarge": {
+   "usd_per_hour": "0.8004000000",
+   "vcpu": "16",
+   "memory": "64 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "584.29"
+  },
+  "m7g.xlarge": {
+   "usd_per_hour": "0.2001000000",
+   "vcpu": "4",
+   "memory": "16 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "146.07"
+  },
+  "m7i.2xlarge": {
+   "usd_per_hour": "0.4943600000",
+   "vcpu": "8",
+   "memory": "32 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "360.88"
+  },
+  "p5en.48xlarge": {
+   "usd_per_hour": "75.9552000000",
+   "vcpu": "192",
+   "memory": "2048 GiB",
+   "gpu": "8",
+   "gpu_memory": "141 GB HBM3e",
+   "usd_per_month_730h": "55447.30"
+  },
+  "r7g.2xlarge": {
+   "usd_per_hour": "0.5274000000",
+   "vcpu": "8",
+   "memory": "64 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "385.00"
+  },
+  "r7g.xlarge": {
+   "usd_per_hour": "0.2637000000",
+   "vcpu": "4",
+   "memory": "32 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "192.50"
+  },
+  "t4g.2xlarge": {
+   "usd_per_hour": "0.3264000000",
+   "vcpu": "8",
+   "memory": "32 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "238.27"
+  },
+  "t4g.xlarge": {
+   "usd_per_hour": "0.1632000000",
+   "vcpu": "4",
+   "memory": "16 GiB",
+   "gpu": "",
+   "gpu_memory": "NA",
+   "usd_per_month_730h": "119.14"
+  }
+ }
+}

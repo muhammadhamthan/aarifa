@@ -1,0 +1,64 @@
+# Round 2: the FREE voice chain, measured with 10 fake callers.
+#   docker compose -p kxvoice -f resource-usage-bench/compose/r2-voice.yml up -d livekit speech agent fakes
+#   docker compose -p kxvoice -f resource-usage-bench/compose/r2-voice.yml run --rm callers
+# LiveKit Server (self-hosted, Apache-2.0) + LiveKit Agents worker (Silero VAD + turn detector) +
+# faster-whisper large-v3-turbo STT + Piper TTS (speech_server.py) + fake LLM. Python libraries live on F:
+# (installed with pip --target), models in F:/kx-bench/models; nothing here touches the platform's code.
+
+x-py: &py
+  image: python:3.12-slim
+  working_dir: /bench
+  volumes:
+    - ../scripts:/bench:ro
+    - F:/kx-bench/models:/models:ro
+    - F:/kx-bench/clips:/clips:ro
+    - F:/kx-bench/hf:/hf
+    - ../results:/results
+    - F:/kx-bench/pylib:/pylib:ro
+
+x-lk: &lk
+  LIVEKIT_URL: ws://livekit:7880
+  LIVEKIT_API_KEY: devkey
+  LIVEKIT_API_SECRET: secret
+  HF_HOME: /hf
+
+services:
+  livekit:
+    image: livekit/livekit-server:${LIVEKIT_TAG:-latest}
+    command: ["--dev", "--bind", "0.0.0.0"]
+    ports:
+      - "27880:7880"
+
+  fakes:
+    <<: *py
+    entrypoint: ["sh", "-c", "PYTHONPATH=/pylib/web python /bench/fake_services.py"]
+    environment:
+      FAKE_DATA_DIR: /tmp
+
+  speech:
+    <<: *py
+    entrypoint: ["sh", "-c", "PYTHONPATH=/pylib/web:/pylib/cpu python /bench/speech_server.py"]
+    environment:
+      MODELS: /models
+      STT_DEVICE: cpu
+      STT_COMPUTE: int8
+      STT_THREADS: ${STT_THREADS:-8}
+      PORT: "8100"
+
+  agent:
+    <<: *py
+    entrypoint: ["sh", "-c", "PYTHONPATH=/pylib/agent python /bench/voice_agent.py download-files && PYTHONPATH=/pylib/agent python /bench/voice_agent.py start"]
+    environment:
+      <<: *lk
+      SPEECH_URL: ${SPEECH_URL:-http://speech:8100/v1}  # GPU run: http://host.docker.internal:8100/v1
+      LLM_URL: http://fakes:9000/v1
+      TURN_DETECTOR: ${TURN_DETECTOR:-1}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on: [livekit, fakes]
+
+  callers:
+    <<: *py
+    profiles: ["run"]
+    entrypoint: ["sh", "-c", "PYTHONPATH=/pylib/agent python /bench/voice_callers.py --callers ${CALLERS:-10} --turns ${TURNS:-4} --clips /clips --out /results/r2_callers_${TAG:-cpu}.json"]
+    environment:
+      <<: *lk

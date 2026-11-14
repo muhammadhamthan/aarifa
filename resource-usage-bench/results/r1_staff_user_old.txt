@@ -1,0 +1,2 @@
+created manager bench.mgr@bench.test (01a1d6c6-4281-717d-9555-5f7435ab167e)
+temporary password: YFCpwEBqc3LKRvZNmVHBQsUn

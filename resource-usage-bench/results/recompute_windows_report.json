@@ -1,0 +1,252 @@
+{
+ "r5_phoenix.json:load": {
+  "old": {
+   "ram_total_peak_mib": 1020.1,
+   "ram_total_avg_mib": 1006.4,
+   "cpu_total_peak_cores": 0.47,
+   "cpu_total_avg_cores": 0.1
+  },
+  "new": {
+   "ram_total_peak_mib": 510.1,
+   "ram_total_avg_mib": 503.2,
+   "cpu_total_peak_cores": 0.24,
+   "cpu_total_avg_cores": 0.05
+  },
+  "containers": [
+   "phoenix",
+   "postgres"
+  ]
+ },
+ "r5_langfuse.json:load": {
+  "old": {
+   "ram_total_peak_mib": 4388.1,
+   "ram_total_avg_mib": 4165.1,
+   "cpu_total_peak_cores": 1.48,
+   "cpu_total_avg_cores": 0.43
+  },
+  "new": {
+   "ram_total_peak_mib": 2194.0,
+   "ram_total_avg_mib": 2082.5,
+   "cpu_total_peak_cores": 0.74,
+   "cpu_total_avg_cores": 0.22
+  },
+  "containers": [
+   "clickhouse",
+   "langfuse-ai-gateway",
+   "langfuse-web",
+   "langfuse-worker",
+   "minio",
+   "postgres",
+   "redis"
+  ]
+ },
+ "r5_opik.json:load": {
+  "old": {
+   "ram_total_peak_mib": 6645.4,
+   "ram_total_avg_mib": 6226.6,
+   "cpu_total_peak_cores": 20.18,
+   "cpu_total_avg_cores": 2.86
+  },
+  "new": {
+   "ram_total_peak_mib": 3322.7,
+   "ram_total_avg_mib": 3113.3,
+   "cpu_total_peak_cores": 10.09,
+   "cpu_total_avg_cores": 1.43
+  },
+  "containers": [
+   "backend",
+   "clickhouse",
+   "frontend",
+   "minio",
+   "mysql",
+   "python-backend",
+   "redis",
+   "zookeeper"
+  ]
+ },
+ "r6_haraka.json:load": {
+  "old": {
+   "ram_total_peak_mib": 254.0,
+   "ram_total_avg_mib": 239.3,
+   "cpu_total_peak_cores": 0.65,
+   "cpu_total_avg_cores": 0.36
+  },
+  "new": {
+   "ram_total_peak_mib": 127.0,
+   "ram_total_avg_mib": 119.7,
+   "cpu_total_peak_cores": 0.32,
+   "cpu_total_avg_cores": 0.18
+  },
+  "containers": [
+   "haraka"
+  ]
+ },
+ "r6_stalwart.json:load": {
+  "old": {
+   "ram_total_peak_mib": 456.2,
+   "ram_total_avg_mib": 400.3,
+   "cpu_total_peak_cores": 1.66,
+   "cpu_total_avg_cores": 0.44
+  },
+  "new": {
+   "ram_total_peak_mib": 228.1,
+   "ram_total_avg_mib": 201.7,
+   "cpu_total_peak_cores": 0.83,
+   "cpu_total_avg_cores": 0.22
+  },
+  "containers": [
+   "stalwart"
+  ]
+ },
+ "r6_postal.json:load": {
+  "old": {
+   "ram_total_peak_mib": 1304.0,
+   "ram_total_avg_mib": 1225.8,
+   "cpu_total_peak_cores": 2.65,
+   "cpu_total_avg_cores": 1.42
+  },
+  "new": {
+   "ram_total_peak_mib": 652.0,
+   "ram_total_avg_mib": 612.9,
+   "cpu_total_peak_cores": 1.32,
+   "cpu_total_avg_cores": 0.71
+  },
+  "containers": [
+   "mariadb",
+   "postal-smtp",
+   "postal-web",
+   "postal-worker"
+  ]
+ },
+ "r7_asterisk.json:load": {
+  "old": {
+   "ram_total_peak_mib": 104.6,
+   "ram_total_avg_mib": 102.7,
+   "cpu_total_peak_cores": 0.34,
+   "cpu_total_avg_cores": 0.09
+  },
+  "new": {
+   "ram_total_peak_mib": 52.3,
+   "ram_total_avg_mib": 51.4,
+   "cpu_total_peak_cores": 0.17,
+   "cpu_total_avg_cores": 0.05
+  },
+  "containers": [
+   "asterisk"
+  ]
+ },
+ "r7_freeswitch.json:load": {
+  "old": {
+   "ram_total_peak_mib": 100.6,
+   "ram_total_avg_mib": 90.1,
+   "cpu_total_peak_cores": 0.1,
+   "cpu_total_avg_cores": 0.05
+  },
+  "new": {
+   "ram_total_peak_mib": 50.3,
+   "ram_total_avg_mib": 45.1,
+   "cpu_total_peak_cores": 0.05,
+   "cpu_total_avg_cores": 0.03
+  },
+  "containers": [
+   "freeswitch"
+  ]
+ },
+ "r8_crowdsec.json:load": {
+  "old": {
+   "ram_total_peak_mib": 317.4,
+   "ram_total_avg_mib": 199.2,
+   "cpu_total_peak_cores": 2.63,
+   "cpu_total_avg_cores": 1.81
+  },
+  "new": {
+   "ram_total_peak_mib": 158.7,
+   "ram_total_avg_mib": 99.6,
+   "cpu_total_peak_cores": 1.32,
+   "cpu_total_avg_cores": 0.91
+  },
+  "containers": [
+   "crowdsec"
+  ]
+ },
+ "r8_bunkerweb.json:direct/bunkerweb_load": {
+  "old": {
+   "ram_total_peak_mib": 673.8,
+   "ram_total_avg_mib": 606.9,
+   "cpu_total_peak_cores": 0.62,
+   "cpu_total_avg_cores": 0.08
+  },
+  "new": {
+   "ram_total_peak_mib": 336.9,
+   "ram_total_avg_mib": 303.4,
+   "cpu_total_peak_cores": 0.31,
+   "cpu_total_avg_cores": 0.04
+  },
+  "containers": [
+   "bunkerweb"
+  ]
+ },
+ "r8_bunkerweb.json:via_bunkerweb/bunkerweb_load": {
+  "old": {
+   "ram_total_peak_mib": 944.2,
+   "ram_total_avg_mib": 850.0,
+   "cpu_total_peak_cores": 0.85,
+   "cpu_total_avg_cores": 0.1
+  },
+  "new": {
+   "ram_total_peak_mib": 472.1,
+   "ram_total_avg_mib": 425.0,
+   "cpu_total_peak_cores": 0.43,
+   "cpu_total_avg_cores": 0.05
+  },
+  "containers": [
+   "bunkerweb"
+  ]
+ },
+ "r8_safeline_proxy.json:direct/safeline_load": {
+  "old": {
+   "ram_total_peak_mib": 3258.4,
+   "ram_total_avg_mib": 3030.8,
+   "cpu_total_peak_cores": 0.2,
+   "cpu_total_avg_cores": 0.04
+  },
+  "new": {
+   "ram_total_peak_mib": 1629.2,
+   "ram_total_avg_mib": 1565.4,
+   "cpu_total_peak_cores": 0.1,
+   "cpu_total_avg_cores": 0.02
+  },
+  "containers": [
+   "chaos",
+   "detector",
+   "fvm",
+   "luigi",
+   "mgt",
+   "pg",
+   "tengine"
+  ]
+ },
+ "r8_safeline_proxy.json:via_safeline/safeline_load": {
+  "old": {
+   "ram_total_peak_mib": 3261.7,
+   "ram_total_avg_mib": 3227.2,
+   "cpu_total_peak_cores": 0.25,
+   "cpu_total_avg_cores": 0.05
+  },
+  "new": {
+   "ram_total_peak_mib": 1630.9,
+   "ram_total_avg_mib": 1613.6,
+   "cpu_total_peak_cores": 0.13,
+   "cpu_total_avg_cores": 0.02
+  },
+  "containers": [
+   "chaos",
+   "detector",
+   "fvm",
+   "luigi",
+   "mgt",
+   "pg",
+   "tengine"
+  ]
+ }
+}

@@ -1,0 +1,185 @@
+{
+ "start": 1794614426.6144066,
+ "end": 1794615038.950531,
+ "users": {
+  "web": 5,
+  "wa": 4,
+  "staff": 1
+ },
+ "actions": {
+  "auth.login": {
+   "count": 1,
+   "codes": {
+    "200": 1
+   },
+   "p50_s": 0.12,
+   "p95_s": 0.12,
+   "max_s": 0.12
+  },
+  "auth.totp": {
+   "count": 1,
+   "codes": {
+    "200": 1
+   },
+   "p50_s": 0.044,
+   "p95_s": 0.044,
+   "max_s": 0.044
+  },
+  "crm.approvals": {
+   "count": 10,
+   "codes": {
+    "200": 10
+   },
+   "p50_s": 0.006,
+   "p95_s": 0.007,
+   "max_s": 0.007
+  },
+  "crm.approve": {
+   "count": 30,
+   "codes": {
+    "422": 29,
+    "200": 1
+   },
+   "p50_s": 0.485,
+   "p95_s": 0.579,
+   "max_s": 0.67
+  },
+  "crm.deal": {
+   "count": 57,
+   "codes": {
+    "200": 57
+   },
+   "p50_s": 0.006,
+   "p95_s": 0.011,
+   "max_s": 0.036
+  },
+  "crm.deals": {
+   "count": 57,
+   "codes": {
+    "200": 57
+   },
+   "p50_s": 0.01,
+   "p95_s": 0.02,
+   "max_s": 0.033
+  },
+  "crm.inbox": {
+   "count": 57,
+   "codes": {
+    "200": 57
+   },
+   "p50_s": 0.008,
+   "p95_s": 0.015,
+   "max_s": 0.041
+  },
+  "crm.quote_manual": {
+   "count": 10,
+   "codes": {
+    "201": 10
+   },
+   "p50_s": 0.068,
+   "p95_s": 0.084,
+   "max_s": 0.084
+  },
+  "crm.quotes": {
+   "count": 57,
+   "codes": {
+    "200": 57
+   },
+   "p50_s": 0.005,
+   "p95_s": 0.008,
+   "max_s": 0.014
+  },
+  "crm.stage_qualify": {
+   "count": 8,
+   "codes": {
+    "200": 8
+   },
+   "p50_s": 0.063,
+   "p95_s": 0.067,
+   "max_s": 0.067
+  },
+  "crm.timeline": {
+   "count": 57,
+   "codes": {
+    "200": 57
+   },
+   "p50_s": 0.005,
+   "p95_s": 0.009,
+   "max_s": 0.031
+  },
+  "wa.webhook": {
+   "count": 175,
+   "codes": {
+    "200": 175
+   },
+   "p50_s": 0.013,
+   "p95_s": 0.032,
+   "max_s": 0.17
+  },
+  "web.message": {
+   "count": 200,
+   "codes": {
+    "200": 193,
+    "500": 7
+   },
+   "p50_s": 5.327,
+   "p95_s": 9.42,
+   "max_s": 11.367
+  },
+  "web.session": {
+   "count": 37,
+   "codes": {
+    "201": 37
+   },
+   "p50_s": 0.01,
+   "p95_s": 0.131,
+   "max_s": 0.143
+  },
+  "_client_bytes": {
+   "up": 338805,
+   "down": 1104035
+  }
+ },
+ "fakes": {
+  "vendors": {
+   "control": {
+    "requests": 1,
+    "bytes_in": 154,
+    "bytes_out": 2
+   },
+   "s3": {
+    "requests": 32,
+    "bytes_in": 1611457,
+    "bytes_out": 105260
+   },
+   "claude": {
+    "requests": 854,
+    "bytes_in": 7607106,
+    "bytes_out": 429295
+   },
+   "whatsapp": {
+    "requests": 103,
+    "bytes_in": 110895,
+    "bytes_out": 14935
+   }
+  },
+  "llm": {
+   "text": 673.0,
+   "input_tokens": 1771612.0,
+   "output_tokens": 45148.0,
+   "cache_read_tokens": 1204243.0,
+   "calls_haiku": 854.0,
+   "tool_use": 174.0,
+   "structured": 7.0
+  },
+  "s3_objects": 68,
+  "s3_bytes": 3583315,
+  "s3_by_prefix": {
+   "kx-bench-media/pack/quotes": {
+    "objects": 68,
+    "bytes": 3583315
+   }
+  }
+ },
+ "task_errors": []
+}

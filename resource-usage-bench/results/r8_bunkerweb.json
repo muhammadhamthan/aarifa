@@ -1,0 +1,283 @@
+{
+ "ready_s": 3.0,
+ "ram_idle_mib": {
+  "kxfw-bunkerweb-1": 290.4
+ },
+ "direct": {
+  "bunkerweb_load": {
+   "ram_total_peak_mib": 336.9,
+   "ram_total_avg_mib": 303.4,
+   "cpu_total_peak_cores": 0.31,
+   "cpu_total_avg_cores": 0.04
+  },
+  "actions": {
+   "auth.login": {
+    "count": 1,
+    "codes": {
+     "200": 1
+    },
+    "p50_s": 0.245,
+    "p95_s": 0.245
+   },
+   "auth.totp": {
+    "count": 1,
+    "codes": {
+     "200": 1
+    },
+    "p50_s": 0.076,
+    "p95_s": 0.076
+   },
+   "crm.approvals": {
+    "count": 5,
+    "codes": {
+     "200": 5
+    },
+    "p50_s": 0.005,
+    "p95_s": 0.011
+   },
+   "crm.approve": {
+    "count": 15,
+    "codes": {
+     "422": 15
+    },
+    "p50_s": 0.504,
+    "p95_s": 3.047
+   },
+   "crm.deal": {
+    "count": 27,
+    "codes": {
+     "200": 27
+    },
+    "p50_s": 0.005,
+    "p95_s": 0.007
+   },
+   "crm.deals": {
+    "count": 27,
+    "codes": {
+     "200": 27
+    },
+    "p50_s": 0.014,
+    "p95_s": 0.033
+   },
+   "crm.inbox": {
+    "count": 27,
+    "codes": {
+     "200": 27
+    },
+    "p50_s": 0.007,
+    "p95_s": 0.019
+   },
+   "crm.quote_manual": {
+    "count": 5,
+    "codes": {
+     "201": 5
+    },
+    "p50_s": 0.066,
+    "p95_s": 0.073
+   },
+   "crm.quotes": {
+    "count": 27,
+    "codes": {
+     "200": 27
+    },
+    "p50_s": 0.004,
+    "p95_s": 0.006
+   },
+   "crm.stage_qualify": {
+    "count": 5,
+    "codes": {
+     "200": 5
+    },
+    "p50_s": 0.066,
+    "p95_s": 0.117
+   },
+   "crm.timeline": {
+    "count": 27,
+    "codes": {
+     "200": 27
+    },
+    "p50_s": 0.004,
+    "p95_s": 0.008
+   },
+   "wa.webhook": {
+    "count": 88,
+    "codes": {
+     "200": 88
+    },
+    "p50_s": 0.017,
+    "p95_s": 0.051
+   },
+   "web.message": {
+    "count": 91,
+    "codes": {
+     "200": 91
+    },
+    "p50_s": 5.713,
+    "p95_s": 13.384
+   },
+   "web.session": {
+    "count": 18,
+    "codes": {
+     "201": 18
+    },
+    "p50_s": 0.017,
+    "p95_s": 0.322
+   }
+  },
+  "errors": {
+   "crm.approve 422": [
+    "{\"type\":\"https://errors.kairox.ai/rule_violation\",\"title\":\"Business rule violated\",\"status\":422,\"detail\":\"contact has no WhatsApp number or email to send the quote to\",\"instance\":\"/v1/approvals/01a1d836-632c-7399-a5bc-7a465f11c08a/decision\"}",
+    "{\"type\":\"https://errors.kairox.ai/rule_violation\",\"title\":\"Business rule violated\",\"status\":422,\"detail\":\"contact has no WhatsApp number or email to send the quote to\",\"instance\":\"/v1/approvals/01a1d76a-ea38-7405-9bf0-bd13add140cf/decision\"}"
+   ]
+  },
+  "load_before_dedupe_fix": {
+   "ram_total_peak_mib": 673.8,
+   "ram_total_avg_mib": 606.9,
+   "cpu_total_peak_cores": 0.62,
+   "cpu_total_avg_cores": 0.08
+  }
+ },
+ "via_bunkerweb": {
+  "bunkerweb_load": {
+   "ram_total_peak_mib": 472.1,
+   "ram_total_avg_mib": 425.0,
+   "cpu_total_peak_cores": 0.43,
+   "cpu_total_avg_cores": 0.05
+  },
+  "actions": {
+   "auth.login": {
+    "count": 1,
+    "codes": {
+     "200": 1
+    },
+    "p50_s": 0.082,
+    "p95_s": 0.082
+   },
+   "auth.totp": {
+    "count": 1,
+    "codes": {
+     "200": 1
+    },
+    "p50_s": 0.024,
+    "p95_s": 0.024
+   },
+   "crm.approvals": {
+    "count": 5,
+    "codes": {
+     "200": 5
+    },
+    "p50_s": 0.009,
+    "p95_s": 0.01
+   },
+   "crm.approve": {
+    "count": 15,
+    "codes": {
+     "422": 15
+    },
+    "p50_s": 0.482,
+    "p95_s": 2.967
+   },
+   "crm.deal": {
+    "count": 30,
+    "codes": {
+     "200": 30
+    },
+    "p50_s": 0.009,
+    "p95_s": 0.011
+   },
+   "crm.deals": {
+    "count": 30,
+    "codes": {
+     "200": 30
+    },
+    "p50_s": 0.02,
+    "p95_s": 0.03
+   },
+   "crm.inbox": {
+    "count": 30,
+    "codes": {
+     "200": 30
+    },
+    "p50_s": 0.011,
+    "p95_s": 0.015
+   },
+   "crm.quote_manual": {
+    "count": 5,
+    "codes": {
+     "201": 5
+    },
+    "p50_s": 0.07,
+    "p95_s": 0.073
+   },
+   "crm.quotes": {
+    "count": 30,
+    "codes": {
+     "200": 30
+    },
+    "p50_s": 0.008,
+    "p95_s": 0.011
+   },
+   "crm.stage_qualify": {
+    "count": 4,
+    "codes": {
+     "200": 4
+    },
+    "p50_s": 0.067,
+    "p95_s": 0.068
+   },
+   "crm.timeline": {
+    "count": 30,
+    "codes": {
+     "200": 30
+    },
+    "p50_s": 0.008,
+    "p95_s": 0.01
+   },
+   "wa.webhook": {
+    "count": 89,
+    "codes": {
+     "403": 89
+    },
+    "p50_s": 0.018,
+    "p95_s": 0.045
+   },
+   "web.message": {
+    "count": 93,
+    "codes": {
+     "200": 91,
+     "403": 2
+    },
+    "p50_s": 5.864,
+    "p95_s": 13.946
+   },
+   "web.session": {
+    "count": 16,
+    "codes": {
+     "201": 16
+    },
+    "p50_s": 0.019,
+    "p95_s": 0.143
+   }
+  },
+  "errors": {
+   "wa.webhook 403": [
+    "<!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"title\"><meta content=\"Access is forbidden to the requested page.\" name=\"description\"><meta content=\"40",
+    "<!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"title\"><meta content=\"Access is forbidden to the requested page.\" name=\"description\"><meta content=\"40"
+   ],
+   "crm.approve 422": [
+    "{\"type\":\"https://errors.kairox.ai/rule_violation\",\"title\":\"Business rule violated\",\"status\":422,\"detail\":\"contact has no WhatsApp number or email to send the quote to\",\"instance\":\"/v1/approvals/01a1d83b-4a6a-76c8-b368-e22dfdc5008a/decision\"}",
+    "{\"type\":\"https://errors.kairox.ai/rule_violation\",\"title\":\"Business rule violated\",\"status\":422,\"detail\":\"contact has no WhatsApp number or email to send the quote to\",\"instance\":\"/v1/approvals/01a1d83a-6ebb-7185-b304-fae4d97dae60/decision\"}"
+   ],
+   "web.message 403": [
+    "<!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"title\"><meta content=\"Access is forbidden to the requested page.\" name=\"description\"><meta content=\"40",
+    "<!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"title\"><meta content=\"Access is forbidden to the requested page.\" name=\"description\"><meta content=\"40"
+   ]
+  },
+  "load_before_dedupe_fix": {
+   "ram_total_peak_mib": 944.2,
+   "ram_total_avg_mib": 850.0,
+   "cpu_total_peak_cores": 0.85,
+   "cpu_total_avg_cores": 0.1
+  }
+ }
+}

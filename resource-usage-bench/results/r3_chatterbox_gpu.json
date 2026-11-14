@@ -1,0 +1,36 @@
+{
+ "device": "cuda",
+ "torch": "2.11.0+cu128",
+ "load": {
+  "wall_s": 19.29,
+  "cpu_s": 29.62,
+  "cores_busy": 1.54,
+  "peak_rss_mb": 5244.4
+ },
+ "single": {
+  "en": {
+   "latency_s": 5.94,
+   "audio_s": 7.12,
+   "rtf": 0.835
+  },
+  "ar": {
+   "latency_s": 5.57,
+   "audio_s": 6.36,
+   "rtf": 0.876
+  },
+  "hi": {
+   "latency_s": 4.67,
+   "audio_s": 5.4,
+   "rtf": 0.864
+  },
+  "zh": {
+   "latency_s": 11.27,
+   "audio_s": 5.68,
+   "rtf": 1.984
+  }
+ },
+ "gpu_mem_used_mb": 5223.0,
+ "gpu_mem_model_mb": 3976.0,
+ "torch_max_allocated_mb": 3486.5,
+ "peak_rss_mb_total": 3026.0
+}

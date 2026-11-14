@@ -1,0 +1,51 @@
+- generic [ref=f10e101]:
+  - banner [ref=f10e102]:
+    - generic [ref=f10e103]:
+      - navigation [ref=f10e104]:
+        - list [ref=f10e105]:
+          - listitem [ref=f10e106]:
+            - generic [ref=f10e107] [cursor=pointer]: SafeLine WAF
+          - listitem [aria-hidden] [ref=f10e110]
+          - listitem [ref=f10e114]:
+            - generic [ref=f10e528]: Applications
+      - generic [ref=f10e116] [cursor=pointer]: Upgrade License
+      - button "7-Day Trial" [ref=f10e119] [cursor=pointer]
+      - button "Discord" [ref=f10e124] [cursor=pointer]
+      - button [ref=f10e128] [cursor=pointer]
+  - generic [ref=f10e131]:
+    - generic [ref=f10e132]: SafeLine WAF
+    - generic [ref=f10e135]:
+      - button "Statistics" [ref=f10e136] [cursor=pointer]
+      - button "Applications" [active] [ref=f10e142] [cursor=pointer]
+      - button "Attacks" [ref=f10e148] [cursor=pointer]
+      - button "Allow & Deny" [ref=f10e154] [cursor=pointer]
+      - button "HTTP Flood" [ref=f10e160] [cursor=pointer]
+      - button "Anti-Bot" [ref=f10e168] [cursor=pointer]
+      - button "Auth" [ref=f10e174] [cursor=pointer]
+      - button "Settings" [ref=f10e180] [cursor=pointer]
+    - generic [ref=f10e186]:
+      - generic [ref=f10e187]: Version 9.2.7
+      - link [ref=f10e189] [cursor=pointer]:
+        - /url: https://safepoint.cloud/landing/safeline
+        - img "SafelineLogo" [ref=f10e190]
+        - text: Homepage
+      - generic [ref=f10e191] [cursor=pointer]: Get Support
+      - link "Documentation" [ref=f10e194] [cursor=pointer]:
+        - /url: https://docs.waf.chaitin.com/
+  - generic [ref=f10e529]:
+    - generic [ref=f10e531]:
+      - generic [ref=f10e532]:
+        - generic [ref=f10e533]: 0 Applications
+        - generic [ref=f10e534]:
+          - generic: Application
+          - generic [ref=f10e535]:
+            - textbox "Application" [ref=f10e536]:
+              - /placeholder: Application, Port, Domain
+            - group [aria-hidden]:
+              - generic: Application
+      - generic [ref=f10e537]:
+        - button "Advanced" [ref=f10e538] [cursor=pointer]
+        - button "Add Application" [ref=f10e539] [cursor=pointer]
+    - generic [ref=f10e540]:
+      - generic [ref=f10e541]: NoData
+      - status [ref=f10e544]

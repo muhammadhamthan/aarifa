@@ -1,0 +1,47 @@
+# Round 8: free firewall / bot protection from `free version.docx`.
+#   CrowdSec: parses 100,000 web-log lines (F:/kx-bench/fw/logs/access.log) with the nginx collection.
+#   BunkerWeb (all-in-one, ModSecurity + OWASP CRS on): reverse proxy in front of the bench API
+#   (kxbench project must be running); the 10-user load is then sent through it (BENCH_API_URL).
+#   SafeLine: measured idle with its own official compose (F:/kx-bench/repos/SafeLine/compose.yaml).
+services:
+  crowdsec:
+    profiles: ["crowdsec"]
+    image: crowdsecurity/crowdsec:${CROWDSEC_TAG:-v1.7.3}
+    environment:
+      COLLECTIONS: crowdsecurity/nginx
+      DISABLE_ONLINE_API: "true"
+    volumes:
+      - F:/kx-bench/fw/acquis.yaml:/etc/crowdsec/acquis.yaml:ro
+      - F:/kx-bench/fw/logs:/logs:ro
+      - crowdsec-data:/var/lib/crowdsec/data  # the image refuses to start without it
+
+  bunkerweb:
+    profiles: ["bunkerweb"]
+    image: bunkerity/bunkerweb-all-in-one:${BUNKERWEB_TAG:-1.6.6}
+    environment:
+      SERVER_NAME: localhost
+      SERVICE_UI: "no"
+      USE_REVERSE_PROXY: "yes"
+      REVERSE_PROXY_URL: /
+      REVERSE_PROXY_HOST: http://api:8000
+      USE_MODSECURITY: "yes"
+      USE_MODSECURITY_CRS: "yes"
+      # bench only: one load-generator IP plays 10 users, so per-IP limits would block it
+      USE_LIMIT_REQ: "no"
+      USE_BAD_BEHAVIOR: "no"
+      USE_ANTIBOT: "no"
+      AUTO_LETS_ENCRYPT: "no"
+      LISTEN_HTTP: "yes"
+    ports:
+      - "28088:8080"
+    networks:
+      - default
+      - kxbench
+
+volumes:
+  crowdsec-data:
+
+networks:
+  kxbench:
+    external: true
+    name: kxbench_default

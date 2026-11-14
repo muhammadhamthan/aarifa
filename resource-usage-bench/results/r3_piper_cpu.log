@@ -1,0 +1,47 @@
+{
+ "model_files_mb": {
+  "en": 63.2,
+  "ar": 63.2,
+  "hi": 63.5,
+  "zh": 63.2
+ },
+ "load_4_voices": {
+  "wall_s": 2.875,
+  "cpu_s": 13.75,
+  "cores_busy": 4.78,
+  "peak_rss_mb": 397.8,
+  "added_rss_mb": 349.3
+ },
+ "single": {
+  "en": {
+   "ttfa_s_avg": 0.113,
+   "rtf": 0.027,
+   "audio_s": 20.9
+  },
+  "ar": {
+   "ttfa_s_avg": 0.288,
+   "rtf": 0.036,
+   "audio_s": 32.4
+  },
+  "hi": {
+   "ttfa_s_avg": 0.21,
+   "rtf": 0.051,
+   "audio_s": 12.4
+  },
+  "zh": {
+   "ttfa_s_avg": 0.168,
+   "rtf": 0.039,
+   "audio_s": 12.8
+  }
+ },
+ "x10_parallel": {
+  "wall_s": 4.264,
+  "cpu_s": 67.21,
+  "cores_busy": 15.76,
+  "peak_rss_mb": 2067.0,
+  "jobs": 30,
+  "audio_s": 157.2,
+  "throughput_audio_s_per_s": 36.87,
+  "ttfa_s_p95": 2.093
+ }
+}

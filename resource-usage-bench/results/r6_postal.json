@@ -1,0 +1,48 @@
+{
+ "ready_s": 3.1,
+ "initialize_tail": "ner kxmail-mariadb-1 Creating \n Container kxmail-mariadb-1 Created \n Container kxmail-mariadb-1 Starting \n Container kxmail-mariadb-1 Started \n Container kxmail-mariadb-1 Waiting \n Container kxmail-mariadb-1 Healthy \n Container kxmail-postal-web-run-32930d1b9cbf Creating \n Container kxmail-postal-web-run-32930d1b9cbf Created \nLoading config from /config/postal.yml\nDatabase 'postal' already exists\n",
+ "ram_idle_mib": {
+  "kxmail-postal-web-1": 118.3,
+  "kxmail-postal-worker-1": 119.0,
+  "kxmail-postal-smtp-1": 114.4,
+  "kxmail-mariadb-1": 103.6
+ },
+ "ram_idle_total_mib": 455.3,
+ "load": {
+  "ram_total_peak_mib": 652.0,
+  "ram_total_avg_mib": 612.9,
+  "cpu_total_peak_cores": 1.32,
+  "cpu_total_avg_cores": 0.71
+ },
+ "ram_after_mib": {
+  "kxmail-postal-web-1": 118.3,
+  "kxmail-postal-worker-1": 177.2,
+  "kxmail-postal-smtp-1": 163.3,
+  "kxmail-mariadb-1": 192.9
+ },
+ "send": {
+  "start": 1794649183.331156,
+  "end": 1794649205.8935137,
+  "sent": 1000,
+  "worker_errors": 0,
+  "message_bytes": 71630,
+  "connections": 10,
+  "per_session": 0,
+  "per_message_s_p50": 0.2102,
+  "per_message_s_max": 0.414,
+  "messages_per_s": 44.3
+ },
+ "status_counts": {
+  "Sent": 1000
+ },
+ "accepted_to_all_sent_s": 38.6,
+ "db_growth_bytes": 97354713,
+ "db_per_1000_mails_mb": 97.4,
+ "note": "SMTP auth + DKIM sign + store raw message in MariaDB + deliver to relay sink",
+ "load_before_dedupe_fix": {
+  "ram_total_peak_mib": 1304.0,
+  "ram_total_avg_mib": 1225.8,
+  "cpu_total_peak_cores": 2.65,
+  "cpu_total_avg_cores": 1.42
+ }
+}

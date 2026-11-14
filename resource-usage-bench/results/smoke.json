@@ -1,0 +1,194 @@
+{
+ "start": 1794606121.5383725,
+ "end": 1794606177.6846437,
+ "users": {
+  "web": 1,
+  "wa": 1,
+  "staff": 1
+ },
+ "actions": {
+  "auth.email_send": {
+   "count": 2,
+   "codes": {
+    "204": 2
+   },
+   "p50_s": 0.167,
+   "p95_s": 0.156,
+   "max_s": 0.178
+  },
+  "auth.email_verify": {
+   "count": 2,
+   "codes": {
+    "200": 2
+   },
+   "p50_s": 0.077,
+   "p95_s": 0.011,
+   "max_s": 0.143
+  },
+  "auth.login": {
+   "count": 3,
+   "codes": {
+    "200": 3
+   },
+   "p50_s": 0.087,
+   "p95_s": 0.087,
+   "max_s": 0.642
+  },
+  "auth.password": {
+   "count": 1,
+   "codes": {
+    "204": 1
+   },
+   "p50_s": 0.138,
+   "p95_s": 0.138,
+   "max_s": 0.138
+  },
+  "auth.totp": {
+   "count": 1,
+   "codes": {
+    "200": 1
+   },
+   "p50_s": 0.057,
+   "p95_s": 0.057,
+   "max_s": 0.057
+  },
+  "auth.totp_confirm": {
+   "count": 1,
+   "codes": {
+    "204": 1
+   },
+   "p50_s": 0.052,
+   "p95_s": 0.052,
+   "max_s": 0.052
+  },
+  "auth.totp_enrol": {
+   "count": 1,
+   "codes": {
+    "200": 1
+   },
+   "p50_s": 0.021,
+   "p95_s": 0.021,
+   "max_s": 0.021
+  },
+  "crm.deal": {
+   "count": 2,
+   "codes": {
+    "200": 2
+   },
+   "p50_s": 0.009,
+   "p95_s": 0.007,
+   "max_s": 0.012
+  },
+  "crm.deals": {
+   "count": 2,
+   "codes": {
+    "200": 2
+   },
+   "p50_s": 0.04,
+   "p95_s": 0.016,
+   "max_s": 0.064
+  },
+  "crm.inbox": {
+   "count": 2,
+   "codes": {
+    "200": 2
+   },
+   "p50_s": 0.039,
+   "p95_s": 0.018,
+   "max_s": 0.059
+  },
+  "crm.quote_manual": {
+   "count": 1,
+   "codes": {
+    "422": 1
+   },
+   "p50_s": 0.062,
+   "p95_s": 0.062,
+   "max_s": 0.062
+  },
+  "crm.quotes": {
+   "count": 2,
+   "codes": {
+    "200": 2
+   },
+   "p50_s": 0.012,
+   "p95_s": 0.007,
+   "max_s": 0.018
+  },
+  "crm.timeline": {
+   "count": 2,
+   "codes": {
+    "200": 2
+   },
+   "p50_s": 0.011,
+   "p95_s": 0.004,
+   "max_s": 0.017
+  },
+  "wa.webhook": {
+   "count": 3,
+   "codes": {
+    "200": 3
+   },
+   "p50_s": 0.018,
+   "p95_s": 0.018,
+   "max_s": 0.531
+  },
+  "web.message": {
+   "count": 3,
+   "codes": {
+    "200": 3
+   },
+   "p50_s": 7.543,
+   "p95_s": 7.543,
+   "max_s": 8.607
+  },
+  "web.session": {
+   "count": 1,
+   "codes": {
+    "201": 1
+   },
+   "p50_s": 0.44,
+   "p95_s": 0.44,
+   "max_s": 0.44
+  },
+  "_client_bytes": {
+   "up": 11432,
+   "down": 16376
+  }
+ },
+ "fakes": {
+  "vendors": {
+   "control": {
+    "requests": 3,
+    "bytes_in": 424,
+    "bytes_out": 38
+   },
+   "ses": {
+    "requests": 2,
+    "bytes_in": 2436,
+    "bytes_out": 114
+   },
+   "claude": {
+    "requests": 12,
+    "bytes_in": 65215,
+    "bytes_out": 6042
+   },
+   "whatsapp": {
+    "requests": 3,
+    "bytes_in": 1607,
+    "bytes_out": 435
+   }
+  },
+  "llm": {
+   "text": 10.0,
+   "input_tokens": 14475.0,
+   "output_tokens": 638.0,
+   "cache_read_tokens": 9428.0,
+   "calls_haiku": 12.0,
+   "tool_use": 2.0
+  },
+  "s3_objects": 0,
+  "s3_bytes": 0,
+  "s3_by_prefix": {}
+ }
+}

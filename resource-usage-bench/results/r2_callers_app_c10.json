@@ -1,0 +1,154 @@
+{
+ "start": 1794622347.3514109,
+ "end": 1794622693.1471276,
+ "callers": 10,
+ "turns_each": 4,
+ "answered": 16,
+ "missed": 24,
+ "reply_s_p50": 8.9,
+ "reply_s_p95": 17.89,
+ "replies_under_3s": 0,
+ "reply_s_max": 17.885,
+ "per_caller": [
+  {
+   "caller": 4,
+   "join_s": 0.859,
+   "notice": {
+    "first_audio_s": 2.81,
+    "done_s": 9.9
+   },
+   "reply_after_speech_s": [
+    9.855,
+    6.104,
+    8.297,
+    4.426
+   ]
+  },
+  {
+   "caller": 3,
+   "join_s": 0.858,
+   "notice": {
+    "first_audio_s": 3.37,
+    "done_s": 7.56
+   },
+   "reply_after_speech_s": [
+    16.592,
+    4.858,
+    7.636,
+    6.522
+   ]
+  },
+  {
+   "caller": 8,
+   "join_s": 0.856,
+   "notice": {
+    "first_audio_s": 1.99,
+    "done_s": 8.64
+   },
+   "reply_after_speech_s": [
+    16.229,
+    12.087,
+    15.19,
+    6.336
+   ]
+  },
+  {
+   "caller": 5,
+   "join_s": 0.928,
+   "notice": {
+    "first_audio_s": 6.51,
+    "done_s": 15.98
+   },
+   "reply_after_speech_s": [
+    9.5,
+    13.539,
+    17.885,
+    7.81
+   ]
+  },
+  {
+   "caller": 7,
+   "join_s": 0.858,
+   "notice": {
+    "first_audio_s": null,
+    "done_s": null
+   },
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 0,
+   "join_s": 0.908,
+   "notice": {
+    "first_audio_s": null,
+    "done_s": null
+   },
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 6,
+   "join_s": 0.858,
+   "notice": {
+    "first_audio_s": null,
+    "done_s": null
+   },
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 2,
+   "join_s": 0.875,
+   "notice": {
+    "first_audio_s": null,
+    "done_s": null
+   },
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 9,
+   "join_s": 0.865,
+   "notice": {
+    "first_audio_s": null,
+    "done_s": null
+   },
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "caller": 1,
+   "join_s": 0.855,
+   "notice": {
+    "first_audio_s": null,
+    "done_s": null
+   },
+   "reply_after_speech_s": [
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

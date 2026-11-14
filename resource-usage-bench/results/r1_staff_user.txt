@@ -1,0 +1,3 @@
+2026-11-13 23:39:34 [info     ] tracing.phoenix                endpoint=http://phoenix:6006/v1/traces project=pack
+created manager bench.mgr2@bench.test (01a1d747-e27a-74e8-8bbe-f45b90e86a48)
+temporary password: V5Mz8oi9I0C7LGH7Y0Wq1zfK
